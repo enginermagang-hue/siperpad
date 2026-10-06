@@ -1,0 +1,6 @@
+
+[43m[30m WARN [39m[49m Plugin "nuxt:devtools:config-retriever" defines Vite-specific hooks (configResolved) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+
+[43m[30m WARN [39m[49m Plugin "nuxt:devtools:config-retriever" defines Vite-specific hooks (configResolved) in a plugin returned from applyToEnvironment. These hooks will be ignored.[2m (x2)[22m
+

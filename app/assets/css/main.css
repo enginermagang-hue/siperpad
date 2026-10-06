@@ -1,0 +1,9 @@
+html,
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ponytail: focus biru via vuetify defaults (color: primary) + CSS ini hanya untuk radio/checkbox unchecked */
+.v-selection-control--focus-visible .v-selection-control__input::before {
+  background-color: rgb(var(--v-theme-primary));
+}
