@@ -62,6 +62,10 @@ export default defineNuxtConfig({
     },
   },
 
+  routeRules: {
+    '/': { middleware: ['auth'] },
+  },
+
   runtimeConfig: {
     tursoDatabaseUrl: process.env.TURSO_DATABASE_URL || '',
     tursoAuthToken: process.env.TURSO_AUTH_TOKEN || '',
