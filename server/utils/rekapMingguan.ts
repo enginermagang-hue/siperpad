@@ -1,12 +1,5 @@
 import { query } from './db'
-
-export type MingguBucket = 1 | 2 | 3 | 4
-export function dayToBucket(day: number): MingguBucket {
-  if (day <= 7) return 1
-  if (day <= 14) return 2
-  if (day <= 21) return 3
-  return 4
-}
+import { APPROVED_STATUS, monthLabel } from './periode'
 
 export type RekapMingguanRow = {
   jenis_id: number | null // null = synthetic kawasan header or TOTAL
@@ -103,9 +96,9 @@ export async function getRekapMingguan(opts: {
        COALESCE(SUM(CASE WHEN r.tanggal >= ? AND r.tanggal < ? AND CAST(substr(r.tanggal,9,2) AS INTEGER) BETWEEN 15 AND 21 THEN r.jumlah ELSE 0 END),0) AS m3,
        COALESCE(SUM(CASE WHEN r.tanggal >= ? AND r.tanggal < ? AND CAST(substr(r.tanggal,9,2) AS INTEGER) >= 22 THEN r.jumlah ELSE 0 END),0) AS m4
      FROM realisasi r
-     WHERE substr(r.tanggal,1,4)=? AND r.status!='ditolak' AND r.jenis_retribusi_id IN (SELECT id FROM jenis_retribusi WHERE kawasan_id IN (${placeholders}))
+     WHERE substr(r.tanggal,1,4)=? AND r.status=? AND r.jenis_retribusi_id IN (SELECT id FROM jenis_retribusi WHERE kawasan_id IN (${placeholders}))
      GROUP BY r.jenis_retribusi_id`,
-    [monthStart, monthStart, nextMonthStart, monthStart, nextMonthStart, monthStart, nextMonthStart, monthStart, nextMonthStart, tahunStr, ...kawasanIds]
+    [monthStart, monthStart, nextMonthStart, monthStart, nextMonthStart, monthStart, nextMonthStart, monthStart, nextMonthStart, tahunStr, APPROVED_STATUS, ...kawasanIds]
   )
   const rbMap = new Map<number, { sBelum: number; m1: number; m2: number; m3: number; m4: number }>()
   for (const r of realisasiRows) {
@@ -251,9 +244,4 @@ export async function getRekapMingguan(opts: {
   }
 
   return { rows, kawasanList, ringkasan1, ringkasan2, bulanLabel: monthLabel(bulan), tahun, bulan }
-}
-
-function monthLabel(b: number): string {
-  const names = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-  return names[b] || String(b)
 }

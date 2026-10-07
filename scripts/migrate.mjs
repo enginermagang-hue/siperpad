@@ -64,7 +64,14 @@ async function runMigrations() {
     }
 
     const sql = readFileSync(join(migrationsDir, filename), 'utf8')
-    const statements = sql.split(';').map((s) => s.trim()).filter((s) => s.length > 0)
+    const cleaned = sql
+      .split('\n')
+      .map((line) => {
+        const i = line.indexOf('--')
+        return i >= 0 ? line.slice(0, i) : line
+      })
+      .join('\n')
+    const statements = cleaned.split(';').map((s) => s.trim()).filter((s) => s.length > 0)
     await client.batch(statements.map((s) => ({ sql: s })))
     await client.execute('INSERT INTO _migrations (filename) VALUES (?)', [filename])
     ran.push(filename)
@@ -78,6 +85,8 @@ async function seedAll() {
   const execute = async (sql, params = []) => client.execute(sql, params)
 
   // Clear existing data
+  await execute('DELETE FROM catatan_temuan')
+  await execute('DELETE FROM periode_lock')
   await execute('DELETE FROM audit_log')
   await execute('DELETE FROM realisasi')
   await execute('DELETE FROM laporan_batch')
@@ -201,6 +210,7 @@ async function seedAll() {
     { id: A.a1a, nilai: 1500000 },
     { id: A.a1b, nilai: 2500000 },
     { id: A.a1c, nilai: 750000 },
+    { id: A.a2, nilai: 0, nilaiInduk: 49780000 },
     { id: A.a2foodb1, nilai: 19000000 },
     { id: A.a2foodb2b3b4, nilai: 15200000 },
     { id: A.a2foodb5b6b7, nilai: 11400000 },
@@ -227,7 +237,20 @@ async function seedAll() {
   ]
 
   for (const t of targets) {
-    await execute('INSERT OR REPLACE INTO target (jenis_retribusi_id, tahun, nilai) VALUES (?, ?, ?)', [t.id, tahun, t.nilai])
+    await execute('INSERT OR REPLACE INTO target (jenis_retribusi_id, tahun, nilai, nilai_induk) VALUES (?, ?, ?, ?)', [t.id, tahun, t.nilai, t.nilaiInduk ?? null])
+  }
+
+  // Tarif contoh
+  const tarifs = [
+    { id: A.a2foodb1, tarif: 1500000 },
+    { id: A.a2gasebo, tarif: 300000 },
+    { id: B.b2rekreasimasukdewasa, tarif: 5000 },
+    { id: B.b2rekreasimasukanak, tarif: 3000 },
+    { id: B.b2mck, tarif: 2000 },
+    { id: B.b2lopopanggung, tarif: 500000 },
+  ]
+  for (const tf of tarifs) {
+    await execute('UPDATE jenis_retribusi SET tarif = ? WHERE id = ?', [tf.tarif, tf.id])
   }
 
   // Laporan Batch Agustus 2026

@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import { getRekapPerJenis, getTotals } from '../../utils/rekap'
+import { getRekapPerJenis, getTotals, getTargetAnomali } from '../../utils/rekap'
 import { getRekapMingguan } from '../../utils/rekapMingguan'
 import { query } from '../../utils/db'
 
@@ -327,12 +327,13 @@ async function buildWorkbookMingguan(opts: { kawasanId?: number; tahun: number; 
       `Sumber: SiperPAD — Realisasi s/d ${bulanLabel} ${opts.tahun}. Minggu I: tgl 1–7, II: 8–14, III: 15–21, IV: 22–akhir bulan.`,
       'Total Mingguan = SUM(Minggu I:IV); Realisasi s/d Bulan Ini = Realisasi s/d Bulan Lalu + Total Mingguan (rumus hidup di Excel).',
     ]
-    // add anomaly note if total target mismatch (like referensi)
-    const a2 = rows.find((r) => r.nama.includes('Retribusi Penyediaan Tempat Usaha') && r.kawasan_kode === 'A' && r.level === 1)
-    if (a2) {
-      const rincian = rows.filter((r) => r.kawasan_kode === 'A' && (r.nama.includes('Gasebo') || r.nama.includes('Rumah Ekraf'))).reduce((s, r) => s + r.target, 0)
-      if (rincian > 0) notes.push('Catatan: rincian Gasebo + Rumah Ekraf termasuk dalam target Kawasan A sesuai master target.')
-    }
+    // Catatan anomali target: nilai induk tertulis vs jumlah anak (Model A).
+    try {
+      const anomali = await getTargetAnomali({ kawasanId: opts.kawasanId, tahun: opts.tahun })
+      for (const a of anomali) {
+        notes.push(`ANOMALI TARGET — ${a.kode} ${a.nama}: target induk tertulis Rp${a.nilai_induk.toLocaleString('id-ID')} ≠ jumlah rincian anak Rp${a.jumlah_anak.toLocaleString('id-ID')} (selisih Rp${a.selisih.toLocaleString('id-ID')}). Perlu konfirmasi Bendahara Penerimaan.`)
+      }
+    } catch { /* abaikan bila gagal */ }
     for (const note of notes) {
       const row = ws.getRow(rIdx)
       const cell = row.getCell(2)

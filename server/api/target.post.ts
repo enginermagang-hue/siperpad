@@ -12,6 +12,20 @@ export default defineEventHandler(async (event) => {
   if (!Number.isFinite(nilai) || nilai < 0) throw createError({ statusCode: 400, message: 'Nilai harus >= 0' })
   const jr = await query('SELECT id FROM jenis_retribusi WHERE id = ?', [jenisId])
   if (!jr.length) throw createError({ statusCode: 404, message: 'Jenis retribusi tidak ditemukan' })
-  const rows = await query<{ id: number }>('INSERT INTO target (jenis_retribusi_id, tahun, nilai) VALUES (?, ?, ?) ON CONFLICT(jenis_retribusi_id, tahun) DO UPDATE SET nilai = excluded.nilai RETURNING id', [jenisId, tahun, Math.round(nilai)])
-  return { ok: true, id: rows[0]!.id }
+
+  // Model A: nilai resmi induk = SUM anak. Bila jenis ini punya anak, angka
+  // yang diinput admin disimpan sebagai `nilai_induk` (terpisah) untuk
+  // mendeteksi anomali; kolom `nilai` diset 0 agar rollup memakai SUM anak.
+  const hasChild = await query<{ n: number }>('SELECT COUNT(*) AS n FROM jenis_retribusi WHERE parent_id = ?', [jenisId])
+  const isParent = Number(hasChild[0]?.n) > 0
+
+  const rows = await query<{ id: number }>(
+    `INSERT INTO target (jenis_retribusi_id, tahun, nilai, nilai_induk)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(jenis_retribusi_id, tahun)
+     DO UPDATE SET nilai = excluded.nilai, nilai_induk = excluded.nilai_induk
+     RETURNING id`,
+    [jenisId, tahun, isParent ? 0 : Math.round(nilai), isParent ? Math.round(nilai) : null],
+  )
+  return { ok: true, id: rows[0]!.id, isParent }
 })

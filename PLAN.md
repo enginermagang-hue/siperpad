@@ -220,6 +220,26 @@ GET /api/laporan/export?format=csv|pdf|xlsx&kawasan_id&tahun&periode_type&period
 - **Buku panduan / SOP** — `docs/SOP_SIPERPAD.md` ✅
 - **Pengaturan** (`/settings`): ganti password (`POST /api/auth/change-password`), info sistem (`GET /api/sistem-info`) ✅
 
+### Fase 4 — Analitik, Pengendalian & Kepatuhan Data (P1) — Selesai
+
+Migrasi `server/database/migrations/002_fase4.sql` (kolom `target.nilai_induk`, `jenis_retribusi.tarif`, tabel `periode_lock`, `catatan_temuan`).
+
+| # | Fitur | File | Detail | Status |
+|---|-------|------|--------|--------|
+| 4.0 | **Unifikasi rekap** | `server/utils/rekap.ts`, `server/utils/rekapMingguan.ts`, `server/utils/periode.ts` | Model A: nilai induk = SUM anak (hindari double-count); filter `aktif=1`; **angka resmi hanya status `disetujui`**; helper periode bersama (`dayToBucket`, `monthStart`, dll.) | ✅ |
+| 4.1 | **Perbandingan antar periode** | `server/api/laporan/bandingkan.get.ts` + tab di `laporan.vue` | `GET ?tahun&bulan_a&bulan_b` atau rentang bebas `a_from/a_to/b_from/b_to`; matriks per pos + selisih & % | ✅ |
+| 4.2 | **Dashboard analitik** | `app/pages/index.vue`, `app/api/laporan/rekap.get.ts`, `SiperpadChart.vue` (type bar/donut) | KPI realisasi s/d bulan ini, tren mingguan I–IV, bulan vs bulan lalu, Top Kontributor + donut komposisi, perbaikan karakter rusak | ✅ |
+| 4.3 | **Anomali target anak ≠ induk** | `server/utils/rekap.ts` (`getTargetAnomali`), `server/api/target/anomali.get.ts`, banner di `index.vue`/`master/target.vue`, catatan di export | Deteksi selisih target induk tertulis vs SUM anak (contoh A.2: selisih Rp13.680.000) | ✅ |
+| 4.4 | **Penguncian periode** | `server/api/periode-lock.get/post.ts`, `periode-lock/[id].delete.ts`, `server/utils/lock.ts`, tab di `verifikasi.vue` | Admin-only; kunci per (tahun, bulan, kawasan); guard di `realisasi.post/put/delete` + grid + ajukan; tolak kunci bila masih ada draft/diajukan | ✅ |
+| 4.5 | **Entri grid mingguan** | `app/pages/entri-mingguan.vue`, `server/api/realisasi/grid.get/post.ts`, `ajukan-massal.post.ts` | Grid leaf × Minggu I–IV (tanggal representatif 1/8/15/22), simpan per sel, "Ajukan Semua" | ✅ |
+| 4.6 | **Tarif objek + catatan temuan** | `jenis-retribusi.*` (+`tarif`), `server/api/catatan.get/post.ts`, `catatan/[id].put/delete.ts`, tab di `verifikasi.vue` | Field tarif opsional di master jenis; log catatan/temuan per periode (terbuka/selesai) | ✅ |
+
+**Keputusan kunci Fase 4:**
+- Angka resmi = realisasi status **`disetujui`** saja (draft/diajukan tidak dihitung) → wajib "Ajukan Semua" + verifikasi massal agar data tampil.
+- Target induk disimpan terpisah (`nilai_induk`) untuk peringatan; hitungan resmi tetap SUM anak.
+- Hanya **admin** yang boleh mengunci/membuka periode.
+- Entri grid memakai tanggal representatif per minggu (hari 1/8/15/22).
+
 ---
 
 ## 6. Urutan Eksekusi Rekomendasi
@@ -252,6 +272,7 @@ Setiap langkah: migrasi tidak diperlukan (schema sudah siap); hanya API + halama
 - [x] Fase 1: input realisasi → rekap otomatis benar vs Excel lama → laporan bisa diekspor CSV/XLSX/PDF → dashboard tampil real-time
 - [x] Fase 2: verifikator bisa setujui/tolak batch, target tahunan bisa dikelola, pengguna bisa dikelola admin
 - [x] Fase 3: audit trail terlihat (tab Audit), backup Dropbox jalan (POST /api/sync/dropbox), SOP tersedia (docs/SOP_SIPERPAD.md)
+- [x] Fase 4: rekap terunifikasi (induk=SUM anak, hanya disetujui) → perbandingan antar periode → dashboard analitik (KPI s/d bulan ini, tren mingguan, Top Kontributor) → deteksi anomali target → penguncian periode (admin) → entri grid mingguan → tarif objek + log catatan temuan
 
 ---
 

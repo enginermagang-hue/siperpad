@@ -5,13 +5,14 @@ export default defineEventHandler(async (event) => {
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
   if (session.user.role !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin' })
 
-  const body = await readBody(event) as { kawasan_id?: number; parent_id?: number | null; kode?: string; nama?: string; level?: number; urutan?: number; aktif?: number }
+  const body = await readBody(event) as { kawasan_id?: number; parent_id?: number | null; kode?: string; nama?: string; level?: number; urutan?: number; aktif?: number; tarif?: number | null }
   const kawasan_id = Number(body.kawasan_id)
   const parent_id = body.parent_id != null ? Number(body.parent_id) : null
   const kode = (body.kode || '').trim()
   const nama = (body.nama || '').trim()
   const urutan = Number(body.urutan ?? 0)
   const aktif = body.aktif != null ? (Number(body.aktif) ? 1 : 0) : 1
+  const tarif = body.tarif != null && Number.isFinite(Number(body.tarif)) && Number(body.tarif) >= 0 ? Math.round(Number(body.tarif)) : null
   if (!kawasan_id) throw createError({ statusCode: 400, message: 'Kawasan wajib dipilih' })
   if (!nama) throw createError({ statusCode: 400, message: 'Nama wajib diisi' })
 
@@ -28,8 +29,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const rows = await query<{ id: number }>(
-      'INSERT INTO jenis_retribusi (kawasan_id, parent_id, kode, nama, level, urutan, aktif) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
-      [kawasan_id, parent_id, kode, nama, level, urutan, aktif],
+      'INSERT INTO jenis_retribusi (kawasan_id, parent_id, kode, nama, level, urutan, aktif, tarif) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+      [kawasan_id, parent_id, kode, nama, level, urutan, aktif, tarif],
     )
     return { ok: true, id: rows[0]!.id }
   } catch (e: unknown) {

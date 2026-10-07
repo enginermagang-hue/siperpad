@@ -8,6 +8,8 @@
     <v-tabs v-model="tab" class="mb-4" color="primary">
       <v-tab value="realisasi">Realisasi Diajukan</v-tab>
       <v-tab value="batch">Batch Laporan</v-tab>
+      <v-tab value="periode">Kunci Periode</v-tab>
+      <v-tab value="catatan">Catatan Temuan</v-tab>
       <v-tab value="audit">Audit Trail</v-tab>
     </v-tabs>
 
@@ -19,6 +21,8 @@
             <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="load" />
             <v-select v-model="filterJenis" :items="jenisFilterOpts" item-title="label" item-value="value" label="Jenis" density="compact" variant="outlined" hide-details clearable style="max-width: 260px" placeholder="Semua jenis" @update:model-value="load" />
             <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode/nama/catatan..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 260px" />
+            <v-spacer />
+            <v-btn v-if="canVerif && filtered.length" color="success" variant="tonal" prepend-icon="mdi-check-all" :loading="bulkLoading" @click="verifMassal('disetujui')">Setujui Semua ({{ filtered.length }})</v-btn>
           </div>
         </v-card-text>
       </v-card>
@@ -109,6 +113,77 @@
       </v-dialog>
     </div>
 
+    <!-- Kunci Periode -->
+    <div v-show="tab === 'periode'">
+      <v-card flat elevation="2" class="mb-4">
+        <v-card-text>
+          <div class="d-flex flex-wrap ga-3 align-center">
+            <v-select v-model="lockKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" density="compact" variant="outlined" hide-details style="max-width: 240px" />
+            <v-select v-model="lockTahun" :items="[2024, 2025, 2026, 2027]" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 110px" />
+            <v-select v-model="lockBulan" :items="bulanOpts" item-title="label" item-value="value" label="Bulan" density="compact" variant="outlined" hide-details style="max-width: 150px" />
+            <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-lock" :loading="lockLoading" @click="kunciPeriode">Kunci Periode</v-btn>
+          </div>
+          <div class="text-caption text-medium-emphasis mt-2">Kunci hanya bisa dilakukan setelah semua realisasi periode terverifikasi (disetujui). Hanya admin.</div>
+        </v-card-text>
+      </v-card>
+      <v-card flat elevation="2">
+        <v-table density="comfortable">
+          <thead><tr><th>Tahun</th><th>Bulan</th><th>Kawasan</th><th>Dikunci oleh</th><th>Waktu</th><th style="width:120px">Aksi</th></tr></thead>
+          <tbody>
+            <tr v-if="lockRowsLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
+            <tr v-else-if="!lockRows.length"><td colspan="6" class="text-center py-6 text-medium-emphasis">Belum ada periode terkunci</td></tr>
+            <tr v-for="l in lockRows" :key="l.id">
+              <td>{{ l.tahun }}</td>
+              <td>{{ bulanLabel(l.bulan) }}</td>
+              <td><v-chip size="small" variant="tonal">{{ l.kawasan_kode }} — {{ l.kawasan_nama }}</v-chip></td>
+              <td>{{ l.locked_by_nama || '-' }}</td>
+              <td class="text-caption">{{ l.locked_at }}</td>
+              <td><v-btn v-if="isAdmin" size="small" color="warning" variant="tonal" @click="bukaKunci(l)">Buka</v-btn></td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card>
+    </div>
+
+    <!-- Catatan Temuan -->
+    <div v-show="tab === 'catatan'">
+      <v-card flat elevation="2" class="mb-4">
+        <v-card-text>
+          <div class="d-flex flex-wrap ga-3 align-center mb-3">
+            <v-select v-model="catKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" density="compact" variant="outlined" hide-details style="max-width: 220px" />
+            <v-select v-model="catTahun" :items="[2024, 2025, 2026, 2027]" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 110px" />
+            <v-select v-model="catBulan" :items="bulanOpts" item-title="label" item-value="value" label="Bulan" density="compact" variant="outlined" hide-details style="max-width: 150px" />
+            <v-text-field v-model="catIsi" label="Catatan / temuan *" density="compact" variant="outlined" hide-details style="min-width: 280px" />
+            <v-btn color="primary" prepend-icon="mdi-plus" :loading="catSaving" @click="simpanCatatan">Tambah</v-btn>
+          </div>
+          <div class="d-flex flex-wrap ga-3">
+            <v-select v-model="catFilterStatus" :items="['terbuka','selesai']" label="Status" density="compact" variant="outlined" hide-details clearable placeholder="Semua" style="max-width: 160px" @update:model-value="loadCatatan" />
+          </div>
+        </v-card-text>
+      </v-card>
+      <v-card flat elevation="2">
+        <v-table density="comfortable">
+          <thead><tr><th>Periode</th><th>Kawasan</th><th>Pos</th><th>Catatan</th><th>Status</th><th>Oleh</th><th style="width:140px">Aksi</th></tr></thead>
+          <tbody>
+            <tr v-if="catLoading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
+            <tr v-else-if="!catatan.length"><td colspan="7" class="text-center py-6 text-medium-emphasis">Belum ada catatan</td></tr>
+            <tr v-for="c in catatan" :key="c.id">
+              <td>{{ bulanLabel(c.bulan) }} {{ c.tahun }}</td>
+              <td><v-chip size="small" variant="tonal">{{ c.kawasan_kode }}</v-chip></td>
+              <td class="text-caption">{{ c.jenis_nama || '—' }}</td>
+              <td>{{ c.isi }}</td>
+              <td><v-chip size="small" :color="c.status === 'selesai' ? 'success' : 'warning'">{{ c.status }}</v-chip></td>
+              <td class="text-caption">{{ c.created_by_nama || '-' }}</td>
+              <td>
+                <v-btn size="small" variant="tonal" color="success" class="mr-1" @click="toggleCatatan(c)">{{ c.status === 'selesai' ? 'Buka' : 'Selesai' }}</v-btn>
+                <v-btn v-if="isAdmin" size="small" variant="text" color="error" icon="mdi-delete" @click="hapusCatatan(c)" />
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card>
+    </div>
+
     <!-- Audit -->
     <div v-show="tab === 'audit'">
       <v-card flat elevation="2" class="mb-4">
@@ -192,6 +267,98 @@ const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | '
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
 const { formatRupiah: fmt } = useCurrency()
 const actingId = ref<number | null>(null)
+const bulkLoading = ref(false)
+
+const bulanOpts = [
+  { label: 'Januari', value: 1 }, { label: 'Februari', value: 2 }, { label: 'Maret', value: 3 }, { label: 'April', value: 4 },
+  { label: 'Mei', value: 5 }, { label: 'Juni', value: 6 }, { label: 'Juli', value: 7 }, { label: 'Agustus', value: 8 },
+  { label: 'September', value: 9 }, { label: 'Oktober', value: 10 }, { label: 'November', value: 11 }, { label: 'Desember', value: 12 },
+]
+function bulanLabel(b: number) { return bulanOpts.find((x) => x.value === Number(b))?.label || String(b) }
+
+async function verifMassal(aksi: string) {
+  const ids = filtered.value.map((r) => r.id)
+  if (!ids.length) return
+  bulkLoading.value = true
+  try {
+    const r = await $fetch<{ count: number }>('/api/realisasi/verifikasi-massal', { method: 'POST', body: { ids, aksi } })
+    toast(`${r.count} realisasi ${aksi}`)
+    await load(); await loadAudit()
+  } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || String(e), 'error') }
+  finally { bulkLoading.value = false }
+}
+
+// Kunci Periode
+type LockRow = { id: number; tahun: number; bulan: number; kawasan_kode: string; kawasan_nama: string; locked_by_nama: string; locked_at: string }
+const lockKawasan = ref<number | null>(null)
+const lockTahun = ref(new Date().getFullYear())
+const lockBulan = ref(new Date().getMonth() + 1)
+const lockRows = ref<LockRow[]>([])
+const lockRowsLoading = ref(false)
+const lockLoading = ref(false)
+async function loadLocks() {
+  lockRowsLoading.value = true
+  try { const r = await $fetch<{ data: LockRow[] }>('/api/periode-lock', { query: { tahun: String(lockTahun.value) } }); lockRows.value = r.data }
+  catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat kunci', 'error') }
+  finally { lockRowsLoading.value = false }
+}
+async function kunciPeriode() {
+  if (!lockKawasan.value) { toast('Pilih kawasan', 'error'); return }
+  lockLoading.value = true
+  try {
+    await $fetch('/api/periode-lock', { method: 'POST', body: { tahun: lockTahun.value, bulan: lockBulan.value, kawasan_id: lockKawasan.value } })
+    toast('Periode dikunci')
+    await loadLocks(); await loadAudit()
+  } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal mengunci', 'error') }
+  finally { lockLoading.value = false }
+}
+async function bukaKunci(l: LockRow) {
+  try { await $fetch(`/api/periode-lock/${l.id}`, { method: 'DELETE' }); toast('Kunci dibuka', 'warning'); await loadLocks(); await loadAudit() }
+  catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
+}
+
+// Catatan Temuan
+type CatRow = { id: number; tahun: number; bulan: number; kawasan_kode: string; jenis_nama: string | null; isi: string; status: string; created_by_nama: string | null }
+const catatan = ref<CatRow[]>([])
+const catLoading = ref(false)
+const catSaving = ref(false)
+const catKawasan = ref<number | null>(null)
+const catTahun = ref(new Date().getFullYear())
+const catBulan = ref(new Date().getMonth() + 1)
+const catIsi = ref('')
+const catFilterStatus = ref<string | null>(null)
+async function loadCatatan() {
+  catLoading.value = true
+  try {
+    const params: Record<string, string> = {}
+    if (catFilterStatus.value) params.status = catFilterStatus.value
+    const r = await $fetch<{ data: CatRow[] }>('/api/catatan', { query: params })
+    catatan.value = r.data
+  } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat catatan', 'error') }
+  finally { catLoading.value = false }
+}
+async function simpanCatatan() {
+  if (!catKawasan.value) { toast('Pilih kawasan', 'error'); return }
+  if (!catIsi.value.trim()) { toast('Isi catatan wajib', 'error'); return }
+  catSaving.value = true
+  try {
+    await $fetch('/api/catatan', { method: 'POST', body: { tahun: catTahun.value, bulan: catBulan.value, kawasan_id: catKawasan.value, isi: catIsi.value.trim() } })
+    toast('Catatan ditambahkan')
+    catIsi.value = ''
+    await loadCatatan()
+  } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
+  finally { catSaving.value = false }
+}
+async function toggleCatatan(c: CatRow) {
+  try {
+    await $fetch(`/api/catatan/${c.id}`, { method: 'PUT', body: { status: c.status === 'selesai' ? 'terbuka' : 'selesai' } })
+    await loadCatatan()
+  } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
+}
+async function hapusCatatan(c: CatRow) {
+  try { await $fetch(`/api/catatan/${c.id}`, { method: 'DELETE' }); toast('Catatan dihapus', 'warning'); await loadCatatan() }
+  catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
+}
 
 async function loadKawasan() { try { const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan'); kawasan.value = r.data } catch {} }
 async function loadJenis() { try { const r = await $fetch<{ data: Jenis[] }>('/api/jenis-retribusi'); jenisList.value = r.data } catch {} }
@@ -277,6 +444,12 @@ async function loadAudit() {
   finally { auditLoading.value = false }
 }
 
-onMounted(async () => { await loadKawasan(); await loadJenis(); await load(); await loadBatches(); await loadAudit() })
-watch(tab, (v) => { if (v === 'audit') loadAudit(); if (v === 'batch') loadBatches(); if (v === 'realisasi') load() })
+onMounted(async () => { await loadKawasan(); await loadJenis(); await load(); await loadBatches(); await loadAudit(); await loadLocks(); await loadCatatan() })
+watch(tab, (v) => {
+  if (v === 'audit') loadAudit()
+  if (v === 'batch') loadBatches()
+  if (v === 'realisasi') load()
+  if (v === 'periode') loadLocks()
+  if (v === 'catatan') loadCatatan()
+})
 </script>

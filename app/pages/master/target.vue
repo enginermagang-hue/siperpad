@@ -8,6 +8,13 @@
       <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Target</v-btn>
     </div>
 
+    <v-alert v-if="anomali.length" type="warning" variant="tonal" class="mb-4" prominent>
+      <div class="font-weight-bold mb-1">Peringatan Anomali Target — perlu konfirmasi Bendahara Penerimaan</div>
+      <div v-for="a in anomali" :key="a.jenis_id" class="text-body-2">
+        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak {{ fmt(a.jumlah_anak) }} <b>(selisih {{ fmt(a.selisih) }})</b>
+      </div>
+    </v-alert>
+
     <v-card flat elevation="2" class="mb-4">
       <v-card-text class="pb-0">
         <div class="d-flex flex-wrap ga-3 mb-4">
@@ -26,7 +33,10 @@
           <tr v-else-if="!filtered.length"><td colspan="6" class="text-center py-6 text-medium-emphasis">Belum ada target untuk tahun ini</td></tr>
           <tr v-for="r in paginated" :key="r.id">
             <td class="font-weight-medium">{{ r.kode || '-' }}</td>
-            <td>{{ r.nama }}</td>
+            <td>
+              {{ r.nama }}
+              <v-chip v-if="r.nilai_induk != null" size="x-small" color="warning" variant="tonal" class="ml-1">Induk tertulis: {{ fmt(r.nilai_induk) }}</v-chip>
+            </td>
             <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
             <td>{{ r.tahun }}</td>
             <td class="text-right">{{ fmt(r.nilai) }}</td>
@@ -81,7 +91,7 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
-type Row = { id: number; jenis_retribusi_id: number; tahun: number; nilai: number; kode: string; nama: string; level: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string }
+type Row = { id: number; jenis_retribusi_id: number; tahun: number; nilai: number; nilai_induk: number | null; kode: string; nama: string; level: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string }
 type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number }
 
@@ -132,8 +142,16 @@ const nilaiDisplay = useRupiahModel(toRef(form, 'nilai'))
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)
 const deleting = ref(false)
+const anomali = ref<{ jenis_id: number; kode: string; nama: string; nilai_induk: number; jumlah_anak: number; selisih: number }[]>([])
 const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' | 'warning' })
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
+
+async function loadAnomali() {
+  try {
+    const r = await $fetch<{ data: typeof anomali.value }>('/api/target/anomali', { query: { tahun: String(tahun.value) } })
+    anomali.value = r.data
+  } catch {}
+}
 
 async function loadKawasan() { try { const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan'); kawasan.value = r.data } catch {} }
 async function loadJenis() { try { const r = await $fetch<{ data: Jenis[] }>('/api/jenis-retribusi'); jenisList.value = r.data } catch {} }
@@ -146,6 +164,7 @@ async function load() {
     rows.value = r.data || []
   } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat', 'error') }
   finally { loading.value = false }
+  await loadAnomali()
 }
 
 function openAdd() {

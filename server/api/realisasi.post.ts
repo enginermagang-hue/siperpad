@@ -1,4 +1,5 @@
 import { query } from '../utils/db'
+import { assertPeriodeOpen, kawasanIdOfJenis } from '../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -22,6 +23,9 @@ export default defineEventHandler(async (event) => {
   // Model A: baris kategori (punya anak) tidak bisa diinput — pilih pos daun
   const hasChild = await query<{ n: number }>('SELECT COUNT(*) as n FROM jenis_retribusi WHERE parent_id = ?', [jenisId])
   if (Number(hasChild[0]?.n) > 0) throw createError({ statusCode: 400, message: 'Tidak bisa input pada baris kategori. Pilih sub-pos (contoh: a. Motor / b. Mobil).' })
+
+  const kawasanId = await kawasanIdOfJenis(jenisId)
+  if (kawasanId != null) await assertPeriodeOpen(tanggal, kawasanId)
 
   if (batch_id != null) {
     const b = await query('SELECT id FROM laporan_batch WHERE id = ?', [batch_id])

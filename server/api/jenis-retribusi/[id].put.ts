@@ -7,10 +7,11 @@ export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
 
-  const body = await readBody(event) as { kawasan_id?: number; parent_id?: number | null; kode?: string; nama?: string; urutan?: number; aktif?: number }
+  const body = await readBody(event) as { kawasan_id?: number; parent_id?: number | null; kode?: string; nama?: string; urutan?: number; aktif?: number; tarif?: number | null }
   const kode = (body.kode || '').trim()
   const nama = (body.nama || '').trim()
   if (!nama) throw createError({ statusCode: 400, message: 'Nama wajib diisi' })
+  const tarif = body.tarif != null && Number.isFinite(Number(body.tarif)) && Number(body.tarif) >= 0 ? Math.round(Number(body.tarif)) : null
 
   const existing = await query<{ kawasan_id: number; level: number }>('SELECT kawasan_id, level FROM jenis_retribusi WHERE id = ?', [id])
   if (!existing.length) throw createError({ statusCode: 404, message: 'Jenis retribusi tidak ditemukan' })
@@ -30,14 +31,14 @@ export default defineEventHandler(async (event) => {
 
   const parentSql = parent_id !== undefined ? ', parent_id = ?' : ''
   const levelSql = level != null ? ', level = ?' : ''
-  const p2: unknown[] = [kode, nama, Number(body.urutan ?? 0), body.aktif != null ? (Number(body.aktif) ? 1 : 0) : 1]
+  const p2: unknown[] = [kode, nama, Number(body.urutan ?? 0), body.aktif != null ? (Number(body.aktif) ? 1 : 0) : 1, tarif]
   if (level != null) p2.push(level)
   p2.push(kawasan_id)
   if (parent_id !== undefined) p2.push(parent_id)
   p2.push(id)
 
   try {
-    await execute(`UPDATE jenis_retribusi SET kode = ?, nama = ?, urutan = ?, aktif = ?${levelSql}, kawasan_id = ?${parentSql} WHERE id = ?`, p2)
+    await execute(`UPDATE jenis_retribusi SET kode = ?, nama = ?, urutan = ?, aktif = ?, tarif = ?${levelSql}, kawasan_id = ?${parentSql} WHERE id = ?`, p2)
     return { ok: true }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)

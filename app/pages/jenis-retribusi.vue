@@ -17,16 +17,17 @@
       </v-card-text>
 
       <v-table density="default">
-        <thead><tr><th>Kode</th><th>Nama</th><th>Kawasan</th><th>Level</th><th>Urutan</th><th>Status</th><th v-if="isAdmin" style="width: 70px">Aksi</th></tr></thead>
+        <thead><tr><th>Kode</th><th>Nama</th><th>Kawasan</th><th>Level</th><th>Urutan</th><th class="text-right">Tarif</th><th>Status</th><th v-if="isAdmin" style="width: 70px">Aksi</th></tr></thead>
         <tbody>
-          <tr v-if="loading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="7" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
+          <tr v-if="loading"><td colspan="8" class="text-center py-6">Memuat...</td></tr>
+          <tr v-else-if="!filtered.length"><td colspan="8" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
           <tr v-for="r in paginated" :key="r.id">
             <td class="font-weight-medium">{{ r.kode || '-' }}</td>
             <td>{{ r.nama }}</td>
             <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
             <td>{{ r.level }}</td>
             <td>{{ r.urutan }}</td>
+            <td class="text-right">{{ r.tarif ? fmt(r.tarif) : '—' }}</td>
             <td><v-chip :color="r.aktif ? 'success' : 'grey'" size="small">{{ r.aktif ? 'Aktif' : 'Nonaktif' }}</v-chip></td>
             <td v-if="isAdmin">
               <v-menu location="bottom end">
@@ -62,6 +63,7 @@
           <v-text-field v-model="form.kode" label="Kode" variant="outlined" density="compact" class="mb-2" placeholder="Contoh: A.1, B.2.1" />
           <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
           <v-text-field v-model.number="form.urutan" label="Urutan" type="number" variant="outlined" density="compact" class="mb-2" />
+          <v-text-field v-model="tarifDisplay" label="Tarif (opsional)" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" class="mb-2" hint="Untuk pos berbayar per unit/tiket" persistent-hint />
           <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
         </v-card-text>
         <v-card-actions>
@@ -91,11 +93,12 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
-type Row = { id: number; kawasan_id: number; parent_id: number | null; kode: string; nama: string; level: number; urutan: number; aktif: number; kawasan_nama: string; kawasan_kode: string }
+type Row = { id: number; kawasan_id: number; parent_id: number | null; kode: string; nama: string; level: number; urutan: number; aktif: number; tarif: number | null; kawasan_nama: string; kawasan_kode: string }
 type Kawasan = { id: number; kode: string; nama: string }
 
 const session = useUserSession()
 const isAdmin = computed(() => session.user.value?.role === 'admin')
+const { formatRupiah: fmt, useRupiahModel } = useCurrency()
 
 const kawasan = ref<Kawasan[]>([])
 const rows = ref<Row[]>([])
@@ -137,8 +140,9 @@ watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 const dialog = ref(false)
 const editing = ref<Row | null>(null)
 const saving = ref(false)
-const form = reactive<{ kawasan_id: number | null; parent_id: number | null; kode: string; nama: string; urutan: number; aktif: boolean }>({ kawasan_id: null, parent_id: null, kode: '', nama: '', urutan: 0, aktif: true })
+const form = reactive<{ kawasan_id: number | null; parent_id: number | null; kode: string; nama: string; urutan: number; aktif: boolean; tarif: number }>({ kawasan_id: null, parent_id: null, kode: '', nama: '', urutan: 0, aktif: true, tarif: 0 })
 const err = reactive({ kawasan_id: '', nama: '' })
+const tarifDisplay = useRupiahModel(toRef(form, 'tarif'))
 
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)
@@ -169,13 +173,13 @@ async function load() {
 function openAdd() {
   editing.value = null
   form.kawasan_id = filterKawasan.value ?? (kawasan.value[0]?.id ?? null)
-  form.parent_id = null; form.kode = ''; form.nama = ''; form.urutan = 0; form.aktif = true
+  form.parent_id = null; form.kode = ''; form.nama = ''; form.urutan = 0; form.aktif = true; form.tarif = 0
   err.kawasan_id = ''; err.nama = ''
   dialog.value = true
 }
 function openEdit(r: Row) {
   editing.value = r
-  form.kawasan_id = r.kawasan_id; form.parent_id = r.parent_id; form.kode = r.kode; form.nama = r.nama; form.urutan = r.urutan; form.aktif = !!r.aktif
+  form.kawasan_id = r.kawasan_id; form.parent_id = r.parent_id; form.kode = r.kode; form.nama = r.nama; form.urutan = r.urutan; form.aktif = !!r.aktif; form.tarif = r.tarif ?? 0
   err.kawasan_id = ''; err.nama = ''
   dialog.value = true
 }
@@ -188,7 +192,7 @@ async function save() {
   if (err.kawasan_id || err.nama) return
   saving.value = true
   try {
-    const body = { kawasan_id: form.kawasan_id, parent_id: form.parent_id, kode: form.kode.trim(), nama: form.nama.trim(), urutan: Number(form.urutan) || 0, aktif: form.aktif ? 1 : 0 }
+    const body = { kawasan_id: form.kawasan_id, parent_id: form.parent_id, kode: form.kode.trim(), nama: form.nama.trim(), urutan: Number(form.urutan) || 0, aktif: form.aktif ? 1 : 0, tarif: Number(form.tarif) || null }
     if (editing.value) {
       await $fetch(`/api/jenis-retribusi/${editing.value.id}`, { method: 'PUT', body })
       toast('Jenis diperbarui')

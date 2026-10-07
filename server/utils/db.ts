@@ -110,7 +110,14 @@ export async function runMigrations(): Promise<{ ran: string[]; skipped: string[
       continue
     }
     const sql = readMigrationFile(filename)
-    const statements = sql
+    const cleaned = sql
+      .split('\n')
+      .map((line) => {
+        const i = line.indexOf('--')
+        return i >= 0 ? line.slice(0, i) : line
+      })
+      .join('\n')
+    const statements = cleaned
       .split(';')
       .map((s) => s.trim())
       .filter((s) => s.length > 0)

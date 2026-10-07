@@ -24,7 +24,14 @@
           :active="route.path.startsWith('/pad')"
         />
         <v-list-item
-          v-if="isVerifikator || isKepala"
+          v-if="isAdmin"
+          prepend-icon="mdi-table-large"
+          title="Entri Mingguan"
+          to="/entri-mingguan"
+          :active="route.path.startsWith('/entri-mingguan')"
+        />
+        <v-list-item
+          v-if="isVerifikator || isKepala || isAdmin"
           prepend-icon="mdi-check-decagram"
           title="Verifikasi"
           to="/verifikasi"

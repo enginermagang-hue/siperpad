@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     const params: unknown[] = [tahun]
     if (kawasanId) { where.push('jr.kawasan_id = ?'); params.push(kawasanId) }
     const sql = `
-      SELECT t.id, t.jenis_retribusi_id, t.tahun, t.nilai,
+      SELECT t.id, t.jenis_retribusi_id, t.tahun, t.nilai, t.nilai_induk,
              jr.kode, jr.nama, jr.level, jr.kawasan_id,
              k.kode AS kawasan_kode, k.nama AS kawasan_nama
       FROM target t

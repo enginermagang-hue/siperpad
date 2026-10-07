@@ -42,13 +42,6 @@ async function insertJenis(
   return rows[0]!.id
 }
 
-async function insertTarget(ctx: SeedContext, jenis_retribusi_id: number, tahun: number, nilai: number): Promise<void> {
-  await ctx.execute(
-    'INSERT OR REPLACE INTO target (jenis_retribusi_id, tahun, nilai) VALUES (?, ?, ?)',
-    [jenis_retribusi_id, tahun, nilai]
-  )
-}
-
 async function insertBatch(ctx: SeedContext, params: {
   kawasan_id: number
   periode_type: string
@@ -80,6 +73,8 @@ async function insertBatch(ctx: SeedContext, params: {
 }
 
 async function clearMasterData(ctx: SeedContext): Promise<void> {
+  await ctx.execute('DELETE FROM catatan_temuan')
+  await ctx.execute('DELETE FROM periode_lock')
   await ctx.execute('DELETE FROM audit_log')
   await ctx.execute('DELETE FROM realisasi')
   await ctx.execute('DELETE FROM laporan_batch')
@@ -195,12 +190,13 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
 
   // ---- Target 2026 ----
   // Catatan: Anomali data Excel — target A.2 tertulis 49.780.000,
-  // sedangkan jumlah rincian A.2.1+A.2.2+A.2.3 = 63.460.000 (selisih 13.680.000).
-  // Nilai di bawah adalah nilai tertulis di Excel (menunggu konfirmasi Bendahara Penerimaan).
-  const targets: { id: number; nilai: number }[] = [
+  // sedangkan jumlah rincian (leaf) A.2 = 63.460.000 (selisih 13.680.000).
+  // Nilai tertulis disimpan di `nilai_induk` untuk peringatan; hitungan resmi = SUM anak.
+  const targets: { id: number; nilai: number; nilaiInduk?: number }[] = [
     { id: A.a1a, nilai: 1_500_000 },
     { id: A.a1b, nilai: 2_500_000 },
     { id: A.a1c, nilai: 750_000 },
+    { id: A.a2, nilai: 0, nilaiInduk: 49_780_000 },
     { id: A.a2foodb1, nilai: 19_000_000 },
     { id: A.a2foodb2b3b4, nilai: 15_200_000 },
     { id: A.a2foodb5b6b7, nilai: 11_400_000 },
@@ -227,7 +223,23 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
   ]
 
   for (const t of targets) {
-    await insertTarget(ctx, t.id, tahun, t.nilai)
+    await ctx.execute(
+      'INSERT OR REPLACE INTO target (jenis_retribusi_id, tahun, nilai, nilai_induk) VALUES (?, ?, ?, ?)',
+      [t.id, tahun, t.nilai, t.nilaiInduk ?? null],
+    )
+  }
+
+  // ---- Tarif contoh (opsional, informasi) ----
+  const tarifs: { id: number; tarif: number }[] = [
+    { id: A.a2foodb1, tarif: 1_500_000 },
+    { id: A.a2gasebo, tarif: 300_000 },
+    { id: B.b2rekreasimasukdewasa, tarif: 5_000 },
+    { id: B.b2rekreasimasukanak, tarif: 3_000 },
+    { id: B.b2mck, tarif: 2_000 },
+    { id: B.b2lopopanggung, tarif: 500_000 },
+  ]
+  for (const tf of tarifs) {
+    await ctx.execute('UPDATE jenis_retribusi SET tarif = ? WHERE id = ?', [tf.tarif, tf.id])
   }
 
   // ---- Laporan Batch Agustus 2026 ----

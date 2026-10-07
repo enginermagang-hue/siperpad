@@ -12,6 +12,12 @@
       </div>
     </div>
 
+    <v-tabs v-model="tab" class="mb-4" color="primary">
+      <v-tab value="rekap">Rekap</v-tab>
+      <v-tab value="banding">Perbandingan Periode</v-tab>
+    </v-tabs>
+
+    <div v-show="tab === 'rekap'">
     <v-card flat elevation="2" class="mb-4">
       <v-card-text class="pb-0">
         <div class="d-flex flex-wrap ga-3 mb-2">
@@ -65,6 +71,49 @@
         <v-pagination v-if="pageCount > 1" v-model="currentPage" :length="pageCount" :total-visible="5" density="compact" />
       </div>
     </v-card>
+    </div>
+
+    <div v-show="tab === 'banding'">
+      <v-card flat elevation="2" class="mb-4">
+        <v-card-text>
+          <div class="d-flex flex-wrap ga-3 align-center">
+            <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 220px" placeholder="Semua kawasan" @update:model-value="loadBanding" />
+            <v-select v-model="bandTahun" :items="tahunOpts" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 110px" @update:model-value="loadBanding" />
+            <v-select v-model="bandBulanA" :items="bulanOpts" item-title="label" item-value="value" label="Periode A" density="compact" variant="outlined" hide-details style="max-width: 150px" @update:model-value="loadBanding" />
+            <v-icon>mdi-arrow-right</v-icon>
+            <v-select v-model="bandBulanB" :items="bulanOpts" item-title="label" item-value="value" label="Periode B" density="compact" variant="outlined" hide-details style="max-width: 150px" @update:model-value="loadBanding" />
+          </div>
+          <div class="text-caption text-medium-emphasis mt-2">
+            Contoh referensi: bandingkan bulan penuh (mis. Agustus) dengan periode berjalan (mis. 1–21 September) memakai rentang bebas.
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <v-row v-if="banding" class="mb-2">
+        <v-col cols="12" sm="4"><v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.a.label }}</div><div class="text-h6 font-weight-bold">{{ fmt(banding.total.a) }}</div></v-card></v-col>
+        <v-col cols="12" sm="4"><v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.b.label }}</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(banding.total.b) }}</div></v-card></v-col>
+        <v-col cols="12" sm="4"><v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih (B − A)</div><div class="text-h6 font-weight-bold" :class="banding.total.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(banding.total.selisih) }} ({{ banding.total.persen }}%)</div></v-card></v-col>
+      </v-row>
+
+      <v-card flat elevation="2">
+        <v-table density="default">
+          <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">{{ banding?.a.label || 'A' }}</th><th class="text-right">{{ banding?.b.label || 'B' }}</th><th class="text-right">Selisih</th><th class="text-right">%</th></tr></thead>
+          <tbody>
+            <tr v-if="bandLoading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
+            <tr v-else-if="!bandingFiltered.length"><td colspan="7" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
+            <tr v-for="r in bandingFiltered" :key="r.jenis_id">
+              <td class="font-weight-medium">{{ r.kode || '-' }}</td>
+              <td>{{ r.nama }}</td>
+              <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }}</v-chip></td>
+              <td class="text-right">{{ fmt(r.a) }}</td>
+              <td class="text-right">{{ fmt(r.b) }}</td>
+              <td class="text-right" :class="r.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(r.selisih) }}</td>
+              <td class="text-right">{{ r.persen }}%</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card>
+    </div>
 
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
   </div>
@@ -95,6 +144,22 @@ const loading = ref(false)
 const perJenis = ref<RekapRow[]>([])
 const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number; selisih: number } | null>(null)
 const exporting = ref('')
+
+// Tab perbandingan
+const tab = ref('rekap')
+type BandRow = { jenis_id: number; kode: string; nama: string; level: number; kawasan_kode: string; kawasan_nama: string; a: number; b: number; selisih: number; persen: number }
+const bandTahun = ref(new Date().getFullYear())
+const bandBulanA = ref(new Date().getMonth() === 0 ? 12 : new Date().getMonth())
+const bandBulanB = ref(new Date().getMonth() + 1)
+const banding = ref<{ a: { label: string }; b: { label: string }; total: { a: number; b: number; selisih: number; persen: number }; perJenis: BandRow[] } | null>(null)
+const bandLoading = ref(false)
+const bandingFiltered = computed(() => {
+  const s = q.value.trim().toLowerCase()
+  const list = banding.value?.perJenis || []
+  const onlyRoot = list.filter((r) => r.level === 1)
+  if (!s) return onlyRoot
+  return onlyRoot.filter((r) => (r.kode || '').toLowerCase().includes(s) || r.nama.toLowerCase().includes(s))
+})
 
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase()
@@ -138,6 +203,17 @@ async function load() {
   } finally { loading.value = false }
 }
 
+async function loadBanding() {
+  bandLoading.value = true
+  try {
+    const query: Record<string, string> = { tahun: String(bandTahun.value), bulan_a: String(bandBulanA.value), bulan_b: String(bandBulanB.value) }
+    if (filterKawasan.value) query.kawasan_id = String(filterKawasan.value)
+    banding.value = await $fetch('/api/laporan/bandingkan', { query })
+  } catch (e: unknown) {
+    toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat perbandingan', 'error')
+  } finally { bandLoading.value = false }
+}
+
 async function doExport(format: string) {
   exporting.value = format
   try {
@@ -162,5 +238,6 @@ async function doExport(format: string) {
   } finally { exporting.value = '' }
 }
 
-onMounted(async () => { await loadKawasan(); await load() })
+onMounted(async () => { await loadKawasan(); await load(); await loadBanding() })
+watch(tab, (v) => { if (v === 'banding' && !banding.value) loadBanding() })
 </script>
