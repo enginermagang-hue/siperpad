@@ -1,17 +1,22 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
-      <div class="d-flex align-center">
-        <v-icon size="36" color="primary" class="mr-3">mdi-view-dashboard</v-icon>
-        <h1 class="text-h4 font-weight-medium">Dashboard SiPerPAD</h1>
-      </div>
-      <div class="d-flex ga-2 flex-wrap">
-        <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="min-width: 180px" placeholder="Semua" @update:model-value="loadRekap" />
-        <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Bulan" density="compact" variant="outlined" hide-details style="min-width: 150px" @update:model-value="loadRekap" />
-        <v-select v-model="tahun" :items="tahunOpts" density="compact" variant="outlined" hide-details style="min-width: 110px" @update:model-value="loadRekap" />
-        <v-select v-model="scope" :items="scopeOpts" item-title="label" item-value="value" density="compact" variant="outlined" hide-details style="min-width: 130px" @update:model-value="loadRekap" />
-      </div>
+    <div class="mb-4">
+      <h1 class="font-weight-bold" style="font-size: 22px; letter-spacing: 0.02em" :style="{ color: isDark ? '#f1f5f9' : '#0f172a' }">DASHBOARD UTAMA</h1>
+      <div class="text-body-2" :style="{ color: isDark ? '#94a3b8' : '#475569' }">Rekapitulasi PAD Kawasan Wisata Kampung Seni Flobamorata & Pantai Lasiana</div>
+      <v-divider class="mt-3" />
     </div>
+
+    <v-card flat class="mb-4 pa-3 d-flex align-center flex-wrap ga-3" :style="{ border: isDark ? '1px solid #334155' : '1px solid #e5e7eb', borderRadius: '10px', background: isDark ? '#1e293b' : '#fff' }">
+      <v-btn color="primary" prepend-icon="mdi-plus" to="/entri-mingguan">Tambah Data Realisasi</v-btn>
+      <v-spacer />
+      <div class="d-flex ga-2 flex-wrap align-center">
+        <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="min-width: 170px" placeholder="Semua" @update:model-value="loadRekap" />
+        <v-select v-model="tahun" :items="tahunOpts" density="compact" variant="outlined" hide-details style="min-width: 110px" label="Tahun" @update:model-value="loadRekap" />
+        <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Pilih Bulan/Minggu" density="compact" variant="outlined" hide-details style="min-width: 175px" @update:model-value="loadRekap" />
+        <v-select v-model="scope" :items="scopeOpts" item-title="label" item-value="value" density="compact" variant="outlined" hide-details style="min-width: 125px" @update:model-value="loadRekap" />
+        <v-text-field v-model="pencarian" density="compact" variant="outlined" hide-details placeholder="Pencarian" style="min-width: 160px" prepend-inner-icon="mdi-magnify" clearable />
+      </div>
+    </v-card>
 
     <!-- Anomali target -->
     <v-alert v-if="anomali.length" type="warning" variant="tonal" class="mb-4" prominent>
@@ -25,29 +30,29 @@
     <!-- KPI -->
     <v-row v-if="totals" class="mb-2">
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center">
+        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
           <div class="text-caption text-medium-emphasis">Target Penerimaan {{ tahun }}</div>
           <div class="text-h6 font-weight-bold">{{ fmt(totals.totalTarget) }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center">
+        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
           <div class="text-caption text-medium-emphasis">Realisasi s/d {{ bulanLabel }}</div>
           <div class="text-h6 font-weight-bold text-primary">{{ fmt(kumulatif?.kumulatif ?? 0) }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center">
+        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
           <div class="text-caption text-medium-emphasis">% Capai</div>
-          <div class="text-h6 font-weight-bold" :class="capaianKumulatif >= 100 ? 'text-success' : capaianKumulatif >= 75 ? 'text-warning' : 'text-error'">{{ capaianKumulatif }}%</div>
+          <div class="text-h6 font-weight-bold" :class="capaianKumulatif == null ? 'text-medium-emphasis' : capaianKumulatif >= 100 ? 'text-success' : capaianKumulatif >= 75 ? 'text-warning' : 'text-error'">{{ capaianKumulatif == null ? '-' : `${capaianKumulatif}%` }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center">
-          <div class="text-caption text-medium-emphasis">Realisasi {{ bulanLabel }} vs {{ banding?.a.label }}</div>
-          <div class="text-h6 font-weight-bold" :class="(banding?.total.selisih ?? 0) >= 0 ? 'text-success' : 'text-error'">
-            {{ fmt(banding?.total.selisih ?? 0) }}
-            <span class="text-caption">({{ banding?.total.persen ?? 0 }}%)</span>
+        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
+          <div class="text-caption text-medium-emphasis">Realisasi {{ bulanLabel }} vs {{ banding?.a?.label ?? '-' }}</div>
+          <div class="text-h6 font-weight-bold" :class="(banding?.total?.selisih ?? 0) >= 0 ? 'text-success' : 'text-error'">
+            {{ fmt(banding?.total?.selisih ?? 0) }}
+            <span class="text-caption">({{ banding?.total?.persen == null ? '-' : `${banding?.total?.persen}%` }})</span>
           </div>
         </v-card>
       </v-col>
@@ -55,7 +60,7 @@
 
     <v-row>
       <v-col cols="12" md="7">
-        <v-card flat elevation="2" class="mb-4">
+        <v-card flat elevation="0" class="mb-4  border border-thin">
           <v-card-title class="d-flex align-center ga-2 flex-wrap">
             <v-icon>mdi-chart-line</v-icon> Realisasi vs Target — {{ scopeLabel }}
             <v-spacer />
@@ -68,7 +73,7 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="5">
-        <v-card flat elevation="2" class="mb-4">
+        <v-card flat elevation="0" class="mb-4 border border-thin">
           <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-calendar-week</v-icon> Tren Mingguan {{ bulanLabel }}</v-card-title>
           <v-card-text>
             <SiperpadChart :series="mingguanSeries" :categories="['Minggu I', 'Minggu II', 'Minggu III', 'Minggu IV']" :height="300" type="bar" />
@@ -79,7 +84,7 @@
 
     <v-row>
       <v-col cols="12" md="7">
-        <v-card flat elevation="2" class="mb-4">
+        <v-card flat elevation="0" class="mb-4 border border-thin">
           <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-trophy</v-icon> Top Kontributor PAD — {{ bulanLabel }} {{ tahun }}</v-card-title>
           <v-card-text>
             <div v-if="!topKontributor.length" class="text-medium-emphasis py-4 text-center">Belum ada realisasi disetujui pada periode ini</div>
@@ -99,7 +104,7 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="5">
-        <v-card flat elevation="2" class="mb-4">
+        <v-card flat elevation="0" class="mb-4 border border-thin">
           <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-chart-donut</v-icon> Komposisi Kontributor</v-card-title>
           <v-card-text>
             <SiperpadChart v-if="topKontributor.length" :series="topKontributor.map((t) => t.nilai)" :categories="topKontributor.map((t) => t.nama)" :height="300" type="donut" />
@@ -111,14 +116,14 @@
 
     <v-row>
       <v-col cols="12" md="4">
-        <v-card flat elevation="2" class="pa-6 text-center">
+        <v-card flat elevation="0" class="pa-6 text-center border border-thin">
           <v-icon size="40" color="primary" class="mb-2">mdi-database</v-icon>
           <div class="text-h6">Database</div>
           <v-chip :color="dbHealthy ? 'success' : 'error'" size="small" class="mt-1">{{ dbStatus }}</v-chip>
         </v-card>
       </v-col>
       <v-col cols="12" md="4">
-        <v-card flat elevation="2" class="pa-6 text-center">
+        <v-card flat elevation="0" class="pa-6 text-center border border-thin">
           <v-icon size="40" color="primary" class="mb-2">mdi-cloud-sync</v-icon>
           <div class="text-h6">Versi Aplikasi</div>
           <div class="text-body-1 font-weight-medium">0.1.0</div>
@@ -126,7 +131,7 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="4">
-        <v-card flat elevation="2" class="pa-6 text-center">
+        <v-card flat elevation="0" class="pa-6 text-center border border-thin">
           <v-icon size="40" color="primary" class="mb-2">mdi-folder-link</v-icon>
           <div class="text-h6">Folder Sinkronisasi</div>
           <div class="text-caption text-medium-emphasis">Dropbox /siperpad</div>
@@ -144,9 +149,12 @@ const dbHealth = await useFetch('/api/health')
 const dbHealthy = dbHealth.data.value?.status === 'ok'
 const dbStatus = dbHealth.pending.value ? 'Memeriksa...' : dbHealthy ? 'Terhubung' : dbHealth.error.value ? 'Gagal' : 'Tidak diketahui'
 
+const { isDark } = useDarkMode()
 const kawasan = ref<{ id: number; kode: string; nama: string }[]>([])
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
-const tahun = ref(new Date().getFullYear())
+const tahunState = useState<number>('tahun', () => new Date().getFullYear())
+const tahun = tahunState
+const pencarian = ref('')
 const tahunOpts = [2024, 2025, 2026, 2027]
 const bulan = ref(new Date().getMonth() + 1)
 const bulanOpts = [
@@ -166,17 +174,18 @@ const filterKawasan = ref<number | null>(null)
 
 const chartRef = ref<{ exportPng: () => Promise<void> } | null>(null)
 const loadingRekap = ref(false)
-const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number; selisih: number } | null>(null)
+const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number | null; selisih: number } | null>(null)
 const timeseries = ref<{ label: string; target: number; realisasi: number; capaian: number }[]>([])
 const kumulatif = ref<{ kumulatif: number; bulanIni: number; sBelum: number } | null>(null)
 const topKontributor = ref<{ jenis_id: number; kode: string; nama: string; kawasan_kode: string; kawasan_nama: string; nilai: number; persen: number }[]>([])
-const banding = ref<{ a: { label: string }; b: { label: string }; total: { a: number; b: number; selisih: number; persen: number } } | null>(null)
+const banding = ref<{ a: { label: string }; b: { label: string }; total: { a: number; b: number; selisih: number; persen: number | null } } | null>(null)
 const mingguan = ref<{ minggu: number; nilai: number }[]>([])
 const anomali = ref<{ jenis_id: number; kode: string; nama: string; nilai_induk: number; jumlah_anak: number; selisih: number }[]>([])
 
-const capaianKumulatif = computed(() => {
+const capaianKumulatif = computed<number | null>(() => {
   const t = totals.value?.totalTarget ?? 0
-  return t > 0 ? Math.round(((kumulatif.value?.kumulatif ?? 0) / t) * 10000) / 100 : 0
+  if (!t) return null
+  return Math.round(((kumulatif.value?.kumulatif ?? 0) / t) * 10000) / 100
 })
 
 const chartCategories = computed(() => timeseries.value.map((p) => p.label))
