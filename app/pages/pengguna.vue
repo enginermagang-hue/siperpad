@@ -8,14 +8,14 @@
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Pengguna</v-btn>
     </div>
 
-    <v-card flat elevation="2" class="mb-4">
+    <v-card flat elevation="0" class="mb-4">
       <v-card-text class="pb-0">
         <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari nama / NIP / email..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 360px" class="mb-4" />
       </v-card-text>
     </v-card>
 
-    <v-card flat elevation="2">
-      <v-table density="comfortable">
+    <v-card flat elevation="0">
+      <v-table density="default">
         <thead><tr><th>Nama</th><th>NIP</th><th>Email</th><th>Role</th><th>Status</th><th style="width: 140px">Aksi</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -45,7 +45,7 @@
     </v-card>
 
     <v-dialog v-model="dialog" max-width="520" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">{{ editing ? 'Edit Pengguna' : 'Tambah Pengguna' }}</v-card-title>
         <v-card-text>
           <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
@@ -60,7 +60,7 @@
     </v-dialog>
 
     <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">Nonaktifkan pengguna?</v-card-title>
         <v-card-text>Yakin nonaktifkan <b>{{ delTarget?.nama }}</b> ({{ delTarget?.email }})? Status jadi Nonaktif (soft delete).</v-card-text>
         <v-card-actions><v-spacer /><v-btn variant="text" @click="delDialog = false">Batal</v-btn><v-btn color="warning" :loading="deleting" @click="doDelete">Nonaktifkan</v-btn></v-card-actions>

@@ -18,7 +18,7 @@
     </v-tabs>
 
     <div v-show="tab === 'rekap'">
-    <v-card flat elevation="2" class="mb-4">
+    <v-card flat elevation="0" class="mb-4">
       <v-card-text class="pb-0">
         <div class="d-flex flex-wrap ga-3 mb-2">
           <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 240px" placeholder="Semua kawasan" @update:model-value="load" />
@@ -31,20 +31,20 @@
 
     <v-row v-if="totals" class="mb-4">
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Total Target</div><div class="text-h6 font-weight-bold">{{ fmt(totals.totalTarget) }}</div></v-card>
+        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Total Target</div><div class="text-h6 font-weight-bold">{{ fmt(totals.totalTarget) }}</div></v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Total Realisasi</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(totals.totalRealisasi) }}</div></v-card>
+        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Total Realisasi</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(totals.totalRealisasi) }}</div></v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Capaian</div><div class="text-h6 font-weight-bold" :class="totals.capaian >= 100 ? 'text-success' : totals.capaian >= 75 ? 'text-warning' : 'text-error'">{{ totals.capaian }}%</div></v-card>
+        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Capaian</div><div class="text-h6 font-weight-bold" :class="totals.capaian >= 100 ? 'text-success' : totals.capaian >= 75 ? 'text-warning' : 'text-error'">{{ totals.capaian }}%</div></v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih</div><div class="text-h6 font-weight-bold" :class="totals.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(totals.selisih) }}</div></v-card>
+        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih</div><div class="text-h6 font-weight-bold" :class="totals.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(totals.selisih) }}</div></v-card>
       </v-col>
     </v-row>
 
-    <v-card flat elevation="2">
+    <v-card flat elevation="0">
       <v-table density="default">
         <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">Target</th><th class="text-right">Realisasi</th><th class="text-right">Capaian</th><th class="text-right">Selisih</th></tr></thead>
         <tbody>
@@ -74,7 +74,7 @@
     </div>
 
     <div v-show="tab === 'banding'">
-      <v-card flat elevation="2" class="mb-4">
+      <v-card flat elevation="0" class="mb-4">
         <v-card-text>
           <div class="d-flex flex-wrap ga-3 align-center">
             <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 220px" placeholder="Semua kawasan" @update:model-value="loadBanding" />
@@ -90,12 +90,12 @@
       </v-card>
 
       <v-row v-if="banding" class="mb-2">
-        <v-col cols="12" sm="4"><v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.a.label }}</div><div class="text-h6 font-weight-bold">{{ fmt(banding.total.a) }}</div></v-card></v-col>
-        <v-col cols="12" sm="4"><v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.b.label }}</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(banding.total.b) }}</div></v-card></v-col>
-        <v-col cols="12" sm="4"><v-card flat elevation="2" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih (B − A)</div><div class="text-h6 font-weight-bold" :class="banding.total.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(banding.total.selisih) }} ({{ banding.total.persen }}%)</div></v-card></v-col>
+        <v-col cols="12" sm="4"><v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.a.label }}</div><div class="text-h6 font-weight-bold">{{ fmt(banding.total.a) }}</div></v-card></v-col>
+        <v-col cols="12" sm="4"><v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.b.label }}</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(banding.total.b) }}</div></v-card></v-col>
+        <v-col cols="12" sm="4"><v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih (B − A)</div><div class="text-h6 font-weight-bold" :class="banding.total.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(banding.total.selisih) }} ({{ banding.total.persen }}%)</div></v-card></v-col>
       </v-row>
 
-      <v-card flat elevation="2">
+      <v-card flat elevation="0">
         <v-table density="default">
           <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">{{ banding?.a.label || 'A' }}</th><th class="text-right">{{ banding?.b.label || 'B' }}</th><th class="text-right">Selisih</th><th class="text-right">%</th></tr></thead>
           <tbody>

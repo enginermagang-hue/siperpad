@@ -8,7 +8,7 @@
       <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Jenis</v-btn>
     </div>
 
-    <v-card flat elevation="2">
+    <v-card flat elevation="0">
       <v-card-text class="pb-0">
         <div class="d-flex flex-wrap ga-3 mb-4">
           <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Filter kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 260px" placeholder="Semua kawasan" @update:model-value="load" />
@@ -55,7 +55,7 @@
     </v-card>
 
     <v-dialog v-model="dialog" max-width="520" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">{{ editing ? 'Edit Jenis Retribusi' : 'Tambah Jenis Retribusi' }}</v-card-title>
         <v-card-text>
           <v-select v-model="form.kawasan_id" :items="kawasanSelect" item-title="label" item-value="value" label="Kawasan *" variant="outlined" density="compact" :error-messages="err.kawasan_id" class="mb-2" />
@@ -63,7 +63,7 @@
           <v-text-field v-model="form.kode" label="Kode" variant="outlined" density="compact" class="mb-2" placeholder="Contoh: A.1, B.2.1" />
           <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
           <v-text-field v-model.number="form.urutan" label="Urutan" type="number" variant="outlined" density="compact" class="mb-2" />
-          <v-text-field v-model="tarifDisplay" label="Tarif (opsional)" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" class="mb-2" hint="Untuk pos berbayar per unit/tiket" persistent-hint />
+          <v-text-field :model-value="tarifDisplay" label="Tarif (opsional)" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" class="mb-2" hint="Untuk pos berbayar per unit/tiket" persistent-hint @input="onTarifInput" />
           <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
         </v-card-text>
         <v-card-actions>
@@ -75,7 +75,7 @@
     </v-dialog>
 
     <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">Nonaktifkan jenis?</v-card-title>
         <v-card-text>Yakin nonaktifkan <b>{{ delTarget?.nama }}</b> ({{ delTarget?.kode }})? Data histori tetap terjaga — status jadi Nonaktif (soft delete).</v-card-text>
         <v-card-actions>
@@ -98,7 +98,7 @@ type Kawasan = { id: number; kode: string; nama: string }
 
 const session = useUserSession()
 const isAdmin = computed(() => session.user.value?.role === 'admin')
-const { formatRupiah: fmt, useRupiahModel } = useCurrency()
+const { formatRupiah: fmt, useRupiahInput } = useCurrency()
 
 const kawasan = ref<Kawasan[]>([])
 const rows = ref<Row[]>([])
@@ -142,7 +142,7 @@ const editing = ref<Row | null>(null)
 const saving = ref(false)
 const form = reactive<{ kawasan_id: number | null; parent_id: number | null; kode: string; nama: string; urutan: number; aktif: boolean; tarif: number }>({ kawasan_id: null, parent_id: null, kode: '', nama: '', urutan: 0, aktif: true, tarif: 0 })
 const err = reactive({ kawasan_id: '', nama: '' })
-const tarifDisplay = useRupiahModel(toRef(form, 'tarif'))
+const { display: tarifDisplay, onInput: onTarifInput } = useRupiahInput(toRef(form, 'tarif'))
 
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)

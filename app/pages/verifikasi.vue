@@ -15,7 +15,7 @@
 
     <!-- Realisasi -->
     <div v-show="tab === 'realisasi'">
-      <v-card flat elevation="2" class="mb-4">
+      <v-card flat elevation="0" class="mb-4">
         <v-card-text class="pb-0">
           <div class="d-flex flex-wrap ga-3 mb-4">
             <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="load" />
@@ -27,8 +27,8 @@
         </v-card-text>
       </v-card>
 
-      <v-card flat elevation="2">
-        <v-table density="comfortable">
+      <v-card flat elevation="0">
+        <v-table density="default">
           <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Aksi</th></tr></thead>
           <tbody>
             <tr v-if="loading"><td colspan="8" class="text-center py-6">Memuat...</td></tr>
@@ -65,7 +65,7 @@
       <div class="d-flex justify-end mb-3">
         <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="batchDialog = true">Buat Batch</v-btn>
       </div>
-      <v-card flat elevation="2" class="mb-4">
+      <v-card flat elevation="0" class="mb-4">
         <v-card-text class="pb-0">
           <div class="d-flex flex-wrap ga-3 mb-4">
             <v-select v-model="batchFilterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="loadBatches" />
@@ -73,8 +73,8 @@
           </div>
         </v-card-text>
       </v-card>
-      <v-card flat elevation="2">
-        <v-table density="comfortable">
+      <v-card flat elevation="0">
+        <v-table density="default">
           <thead><tr><th>Periode</th><th>Kawasan</th><th>Tipe</th><th>Tahun</th><th>Status</th><th style="width: 200px">Aksi</th></tr></thead>
           <tbody>
             <tr v-if="batchLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -98,7 +98,7 @@
       </v-card>
 
       <v-dialog v-model="batchDialog" max-width="520" persistent>
-        <v-card>
+        <v-card elevation="2" :border="false">
           <v-card-title class="text-h6">Buat Batch Laporan</v-card-title>
           <v-card-text>
             <v-select v-model="batchForm.kawasan_id" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" variant="outlined" density="compact" :error-messages="batchErr.kawasan_id" class="mb-2" />
@@ -115,7 +115,7 @@
 
     <!-- Kunci Periode -->
     <div v-show="tab === 'periode'">
-      <v-card flat elevation="2" class="mb-4">
+      <v-card flat elevation="0" class="mb-4">
         <v-card-text>
           <div class="d-flex flex-wrap ga-3 align-center">
             <v-select v-model="lockKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" density="compact" variant="outlined" hide-details style="max-width: 240px" />
@@ -126,8 +126,8 @@
           <div class="text-caption text-medium-emphasis mt-2">Kunci hanya bisa dilakukan setelah semua realisasi periode terverifikasi (disetujui). Hanya admin.</div>
         </v-card-text>
       </v-card>
-      <v-card flat elevation="2">
-        <v-table density="comfortable">
+      <v-card flat elevation="0">
+        <v-table density="default">
           <thead><tr><th>Tahun</th><th>Bulan</th><th>Kawasan</th><th>Dikunci oleh</th><th>Waktu</th><th style="width:120px">Aksi</th></tr></thead>
           <tbody>
             <tr v-if="lockRowsLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -147,7 +147,7 @@
 
     <!-- Catatan Temuan -->
     <div v-show="tab === 'catatan'">
-      <v-card flat elevation="2" class="mb-4">
+      <v-card flat elevation="0" class="mb-4">
         <v-card-text>
           <div class="d-flex flex-wrap ga-3 align-center mb-3">
             <v-select v-model="catKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" density="compact" variant="outlined" hide-details style="max-width: 220px" />
@@ -161,8 +161,8 @@
           </div>
         </v-card-text>
       </v-card>
-      <v-card flat elevation="2">
-        <v-table density="comfortable">
+      <v-card flat elevation="0">
+        <v-table density="default">
           <thead><tr><th>Periode</th><th>Kawasan</th><th>Pos</th><th>Catatan</th><th>Status</th><th>Oleh</th><th style="width:140px">Aksi</th></tr></thead>
           <tbody>
             <tr v-if="catLoading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
@@ -186,7 +186,7 @@
 
     <!-- Audit -->
     <div v-show="tab === 'audit'">
-      <v-card flat elevation="2" class="mb-4">
+      <v-card flat elevation="0" class="mb-4">
         <v-card-text class="pb-0">
           <div class="d-flex flex-wrap ga-3 mb-4">
             <v-select v-model="auditEntitas" :items="['', 'realisasi', 'laporan_batch']" label="Entitas" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="loadAudit" />
@@ -195,8 +195,8 @@
           </div>
         </v-card-text>
       </v-card>
-      <v-card flat elevation="2">
-        <v-table density="comfortable">
+      <v-card flat elevation="0">
+        <v-table density="default">
           <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Entitas</th><th>ID</th><th>Before → After</th></tr></thead>
           <tbody>
             <tr v-if="auditLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>

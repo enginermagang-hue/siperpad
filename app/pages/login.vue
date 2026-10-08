@@ -2,7 +2,7 @@
   <v-app>
     <v-main>
       <v-container fluid class="fill-height d-flex align-center justify-center" style="background: #F5F5F5">
-        <v-card flat elevation="2" class="pa-8" style="width: 100%; max-width: 420px">
+        <v-card flat elevation="0" class="pa-8" style="width: 100%; max-width: 420px">
           <div class="text-center mb-6">
             <v-icon size="48" color="primary">mdi-alpha</v-icon>
             <h1 class="text-h5 font-weight-medium mt-2">SiPerPAD</h1>

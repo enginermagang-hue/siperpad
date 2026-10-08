@@ -6,7 +6,7 @@
       <v-divider class="mt-3" />
     </div>
 
-    <v-card flat class="mb-4 pa-3 d-flex align-center flex-wrap ga-3" :style="{ border: isDark ? '1px solid #334155' : '1px solid #e5e7eb', borderRadius: '10px', background: isDark ? '#1e293b' : '#fff' }">
+    <v-card flat class="mb-4 pa-3 d-flex align-center flex-wrap ga-3" style="border-radius: 10px">
       <v-btn color="primary" prepend-icon="mdi-plus" to="/entri-mingguan">Tambah Data Realisasi</v-btn>
       <v-spacer />
       <div class="d-flex ga-2 flex-wrap align-center">
@@ -30,25 +30,25 @@
     <!-- KPI -->
     <v-row v-if="totals" class="mb-2">
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-4 text-center">
           <div class="text-caption text-medium-emphasis">Target Penerimaan {{ tahun }}</div>
           <div class="text-h6 font-weight-bold">{{ fmt(totals.totalTarget) }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-4 text-center">
           <div class="text-caption text-medium-emphasis">Realisasi s/d {{ bulanLabel }}</div>
           <div class="text-h6 font-weight-bold text-primary">{{ fmt(kumulatif?.kumulatif ?? 0) }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-4 text-center">
           <div class="text-caption text-medium-emphasis">% Capai</div>
           <div class="text-h6 font-weight-bold" :class="capaianKumulatif == null ? 'text-medium-emphasis' : capaianKumulatif >= 100 ? 'text-success' : capaianKumulatif >= 75 ? 'text-warning' : 'text-error'">{{ capaianKumulatif == null ? '-' : `${capaianKumulatif}%` }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-4 text-center">
           <div class="text-caption text-medium-emphasis">Realisasi {{ bulanLabel }} vs {{ banding?.a?.label ?? '-' }}</div>
           <div class="text-h6 font-weight-bold" :class="(banding?.total?.selisih ?? 0) >= 0 ? 'text-success' : 'text-error'">
             {{ fmt(banding?.total?.selisih ?? 0) }}
@@ -60,7 +60,7 @@
 
     <v-row>
       <v-col cols="12" md="7">
-        <v-card flat elevation="0" class="mb-4  border border-thin">
+        <v-card flat elevation="0" class="mb-4">
           <v-card-title class="d-flex align-center ga-2 flex-wrap">
             <v-icon>mdi-chart-line</v-icon> Realisasi vs Target — {{ scopeLabel }}
             <v-spacer />
@@ -73,7 +73,7 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="5">
-        <v-card flat elevation="0" class="mb-4 border border-thin">
+        <v-card flat elevation="0" class="mb-4">
           <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-calendar-week</v-icon> Tren Mingguan {{ bulanLabel }}</v-card-title>
           <v-card-text>
             <SiperpadChart :series="mingguanSeries" :categories="['Minggu I', 'Minggu II', 'Minggu III', 'Minggu IV']" :height="300" type="bar" />
@@ -84,11 +84,11 @@
 
     <v-row>
       <v-col cols="12" md="7">
-        <v-card flat elevation="0" class="mb-4 border border-thin">
+        <v-card flat elevation="0" class="mb-4">
           <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-trophy</v-icon> Top Kontributor PAD — {{ bulanLabel }} {{ tahun }}</v-card-title>
           <v-card-text>
             <div v-if="!topKontributor.length" class="text-medium-emphasis py-4 text-center">Belum ada realisasi disetujui pada periode ini</div>
-            <v-table v-else density="comfortable">
+            <v-table v-else density="default">
               <thead><tr><th style="width:40px">#</th><th>Pos Penerimaan</th><th>Kawasan</th><th class="text-right">Nilai</th><th class="text-right">Kontribusi</th></tr></thead>
               <tbody>
                 <tr v-for="(t, i) in topKontributor" :key="t.jenis_id">
@@ -104,7 +104,7 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="5">
-        <v-card flat elevation="0" class="mb-4 border border-thin">
+        <v-card flat elevation="0" class="mb-4">
           <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-chart-donut</v-icon> Komposisi Kontributor</v-card-title>
           <v-card-text>
             <SiperpadChart v-if="topKontributor.length" :series="topKontributor.map((t) => t.nilai)" :categories="topKontributor.map((t) => t.nama)" :height="300" type="donut" />
@@ -116,14 +116,14 @@
 
     <v-row>
       <v-col cols="12" md="4">
-        <v-card flat elevation="0" class="pa-6 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-6 text-center">
           <v-icon size="40" color="primary" class="mb-2">mdi-database</v-icon>
           <div class="text-h6">Database</div>
           <v-chip :color="dbHealthy ? 'success' : 'error'" size="small" class="mt-1">{{ dbStatus }}</v-chip>
         </v-card>
       </v-col>
       <v-col cols="12" md="4">
-        <v-card flat elevation="0" class="pa-6 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-6 text-center">
           <v-icon size="40" color="primary" class="mb-2">mdi-cloud-sync</v-icon>
           <div class="text-h6">Versi Aplikasi</div>
           <div class="text-body-1 font-weight-medium">0.1.0</div>
@@ -131,7 +131,7 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="4">
-        <v-card flat elevation="0" class="pa-6 text-center border border-thin">
+        <v-card flat elevation="0" class="pa-6 text-center">
           <v-icon size="40" color="primary" class="mb-2">mdi-folder-link</v-icon>
           <div class="text-h6">Folder Sinkronisasi</div>
           <div class="text-caption text-medium-emphasis">Dropbox /siperpad</div>

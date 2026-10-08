@@ -8,7 +8,7 @@
       <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Kawasan</v-btn>
     </div>
 
-    <v-card flat elevation="2">
+    <v-card flat elevation="0">
       <v-card-text class="pb-0">
         <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode / nama..." prepend-inner-icon="mdi-magnify" hide-details clearable class="mb-4" style="max-width: 360px" />
       </v-card-text>
@@ -40,7 +40,7 @@
     </v-card>
 
     <v-dialog v-model="dialog" max-width="480" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">{{ editing ? 'Edit Kawasan' : 'Tambah Kawasan' }}</v-card-title>
         <v-card-text>
           <v-text-field v-model="form.kode" label="Kode *" variant="outlined" density="compact" :error-messages="err.kode" class="mb-2" placeholder="Contoh: A, B, C" />
@@ -57,7 +57,7 @@
     </v-dialog>
 
     <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">Hapus kawasan?</v-card-title>
         <v-card-text>Yakin hapus <b>{{ delTarget?.nama }}</b> ({{ delTarget?.kode }})? Tidak bisa jika masih dipakai retribusi.</v-card-text>
         <v-card-actions>

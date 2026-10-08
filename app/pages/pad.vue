@@ -8,7 +8,7 @@
       <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Realisasi</v-btn>
     </div>
 
-    <v-card flat elevation="2" class="mb-4">
+    <v-card flat elevation="0" class="mb-4">
       <v-card-text class="pb-0">
         <div class="d-flex flex-wrap ga-3 mb-4">
           <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="load" />
@@ -19,8 +19,8 @@
       </v-card-text>
     </v-card>
 
-    <v-card flat elevation="2">
-      <v-table density="comfortable">
+    <v-card flat elevation="0">
+      <v-table density="default">
         <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Status</th><th v-if="isAdmin" style="width: 140px">Aksi</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="9" class="text-center py-6">Memuat...</td></tr>
@@ -54,13 +54,13 @@
     </v-card>
 
     <v-dialog v-model="dialog" max-width="520" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">{{ editing ? 'Edit Realisasi' : 'Tambah Realisasi' }}</v-card-title>
         <v-card-text>
           <v-select v-model="form.jenis_retribusi_id" :items="jenisOpts" item-title="label" item-value="value" label="Jenis Retribusi *" variant="outlined" density="compact" :error-messages="err.jenis" class="mb-2" @update:model-value="onJenisChange" />
           <div v-if="targetInfo !== null" class="text-caption text-medium-emphasis mb-2">Target {{ targetYear }}: <b>{{ fmt(targetInfo) }}</b> — Capaian: <b :class="previewCapaian >= 100 ? 'text-success' : previewCapaian >= 75 ? 'text-warning' : 'text-error'">{{ previewCapaian }}%</b></div>
           <v-text-field v-model="form.tanggal" label="Tanggal *" type="date" variant="outlined" density="compact" :error-messages="err.tanggal" class="mb-2" @update:model-value="onTanggalChange" />
-          <v-text-field v-model="jumlahDisplay" label="Jumlah *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.jumlah" class="mb-2" @update:model-value="updatePreview" />
+          <v-text-field :model-value="jumlahDisplay" label="Jumlah *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.jumlah" class="mb-2" @input="onJumlahInput" />
           <v-text-field v-model="form.catatan" label="Catatan" variant="outlined" density="compact" hide-details class="mb-2" />
         </v-card-text>
         <v-card-actions>
@@ -72,7 +72,7 @@
     </v-dialog>
 
     <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">Hapus realisasi?</v-card-title>
         <v-card-text>Yakin hapus realisasi <b>{{ delTarget?.jenis_nama }}</b> tanggal {{ delTarget?.tanggal }}?</v-card-text>
         <v-card-actions><v-spacer /><v-btn variant="text" @click="delDialog = false">Batal</v-btn><v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn></v-card-actions>
@@ -80,7 +80,7 @@
     </v-dialog>
 
     <v-dialog v-model="ajukanDialog" max-width="420" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">Ajukan realisasi?</v-card-title>
         <v-card-text>Realisasi akan diajukan untuk verifikasi. Tidak bisa diedit lagi setelah diajukan.</v-card-text>
         <v-card-actions><v-spacer /><v-btn variant="text" @click="ajukanDialog = false">Batal</v-btn><v-btn color="primary" :loading="ajukanLoading" @click="doAjukan">Ajukan</v-btn></v-card-actions>
@@ -146,8 +146,8 @@ const editing = ref<Row | null>(null)
 const saving = ref(false)
 const form = reactive<{ jenis_retribusi_id: number | null; tanggal: string; jumlah: number; catatan: string }>({ jenis_retribusi_id: null, tanggal: new Date().toISOString().slice(0, 10), jumlah: 0, catatan: '' })
 const err = reactive({ jenis: '', tanggal: '', jumlah: '' })
-const { formatRupiah: fmt } = useCurrency()
-const jumlahDisplay = useRupiahModel(toRef(form, 'jumlah'))
+const { formatRupiah: fmt, useRupiahInput } = useCurrency()
+const { display: jumlahDisplay, onInput: onJumlahInput } = useRupiahInput(toRef(form, 'jumlah'))
 const targetInfo = ref<number | null>(null)
 const targetYear = computed(() => form.tanggal ? Number(form.tanggal.slice(0, 4)) : new Date().getFullYear())
 const previewCapaian = computed(() => {
@@ -208,7 +208,6 @@ async function fetchTarget() {
 }
 function onJenisChange() { fetchTarget() }
 function onTanggalChange() { fetchTarget() }
-function updatePreview() {}
 
 function openAdd() {
   editing.value = null

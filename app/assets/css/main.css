@@ -7,3 +7,23 @@ body {
 .v-selection-control--focus-visible .v-selection-control__input::before {
   background-color: rgb(var(--v-theme-primary));
 }
+
+/* Custom scrollbar (OverlayScrollbars) — tipis, rounded, warna ikut tema Vuetify.
+   Var --os-* di-override agar otomatis menyesuaikan dark/light & hover primary.
+   Selector 2-class (.os-scrollbar.os-theme-siperpad) agar menang dari CSS bawaan
+   package (.os-scrollbar) yang di-load setelah main.css. */
+.os-scrollbar.os-theme-siperpad {
+  --os-size: 8px;
+  --os-padding-perpendicular: 2px;
+  --os-padding-axis: 2px;
+  --os-track-border-radius: 8px;
+  --os-handle-border-radius: 8px;
+  --os-handle-interactive-area-offset: 6px;
+  --os-handle-min-size: 40px;
+  --os-track-bg: transparent;
+  --os-track-bg-hover: transparent;
+  --os-track-bg-active: transparent;
+  --os-handle-bg: rgb(var(--v-theme-surface-variant));
+  --os-handle-bg-hover: rgb(var(--v-theme-primary));
+  --os-handle-bg-active: rgb(var(--v-theme-primary));
+}

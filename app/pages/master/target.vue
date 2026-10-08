@@ -15,7 +15,7 @@
       </div>
     </v-alert>
 
-    <v-card flat elevation="2" class="mb-4">
+    <v-card flat elevation="0" class="mb-4">
       <v-card-text class="pb-0">
         <div class="d-flex flex-wrap ga-3 mb-4">
           <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 240px" placeholder="Semua" @update:model-value="load" />
@@ -25,8 +25,8 @@
       </v-card-text>
     </v-card>
 
-    <v-card flat elevation="2">
-      <v-table density="comfortable">
+    <v-card flat elevation="0">
+      <v-table density="default">
         <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th>Tahun</th><th class="text-right">Target</th><th v-if="isAdmin" style="width: 70px">Aksi</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -66,19 +66,19 @@
     </v-card>
 
     <v-dialog v-model="dialog" max-width="520" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">{{ editing ? 'Edit Target' : 'Tambah Target' }}</v-card-title>
         <v-card-text>
           <v-select v-model="form.jenis_retribusi_id" :items="jenisOpts" item-title="label" item-value="value" label="Jenis Retribusi *" variant="outlined" density="compact" :error-messages="err.jenis" class="mb-2" />
           <v-text-field v-model.number="form.tahun" label="Tahun *" type="number" variant="outlined" density="compact" :error-messages="err.tahun" class="mb-2" />
-          <v-text-field v-model="nilaiDisplay" label="Nilai Target *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.nilai" class="mb-2" />
+          <v-text-field :model-value="nilaiDisplay" label="Nilai Target *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.nilai" class="mb-2" @input="onNilaiInput" />
         </v-card-text>
         <v-card-actions><v-spacer /><v-btn variant="text" @click="dialog = false">Batal</v-btn><v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn></v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card>
+      <v-card elevation="2" :border="false">
         <v-card-title class="text-h6">Hapus target?</v-card-title>
         <v-card-text>Yakin hapus target <b>{{ delTarget?.nama }}</b> tahun {{ delTarget?.tahun }}?</v-card-text>
         <v-card-actions><v-spacer /><v-btn variant="text" @click="delDialog = false">Batal</v-btn><v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn></v-card-actions>
@@ -137,8 +137,8 @@ const editing = ref<Row | null>(null)
 const saving = ref(false)
 const form = reactive<{ jenis_retribusi_id: number | null; tahun: number; nilai: number }>({ jenis_retribusi_id: null, tahun: new Date().getFullYear(), nilai: 0 })
 const err = reactive({ jenis: '', tahun: '', nilai: '' })
-const { formatRupiah: fmt } = useCurrency()
-const nilaiDisplay = useRupiahModel(toRef(form, 'nilai'))
+const { formatRupiah: fmt, useRupiahInput } = useCurrency()
+const { display: nilaiDisplay, onInput: onNilaiInput } = useRupiahInput(toRef(form, 'nilai'))
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)
 const deleting = ref(false)

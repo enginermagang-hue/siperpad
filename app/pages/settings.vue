@@ -7,7 +7,7 @@
 
     <v-row>
       <v-col cols="12" md="6">
-        <v-card flat elevation="2" class="mb-4">
+        <v-card flat elevation="0" class="mb-4">
           <v-card-title class="text-h6">Ganti Password</v-card-title>
           <v-card-text>
             <v-text-field v-model="curPw" label="Password lama *" type="password" variant="outlined" density="compact" :error-messages="err.cur" class="mb-2" />
@@ -19,7 +19,7 @@
       </v-col>
 
       <v-col cols="12" md="6">
-        <v-card flat elevation="2" class="mb-4">
+        <v-card flat elevation="0" class="mb-4">
           <v-card-title class="text-h6">Info Sistem</v-card-title>
           <v-card-text>
             <div v-if="infoLoading" class="text-medium-emphasis py-4">Memuat...</div>
@@ -45,7 +45,7 @@
           </v-card-text>
         </v-card>
 
-        <v-card flat elevation="2">
+        <v-card flat elevation="0">
           <v-card-text class="text-caption text-medium-emphasis">
             <div class="mb-1"><b>SiPerPAD</b> — Rekap PAD Lasiana &amp; Kampung Seni</div>
             <div>Dokumen SOP: <code>docs/SOP_SIPERPAD.md</code></div>

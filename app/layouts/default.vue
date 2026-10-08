@@ -77,48 +77,94 @@
           <v-list-item v-if="isAdmin || isVerifikator || isKepala" title="Verifikasi" to="/verifikasi" :active="route.path.startsWith('/verifikasi')" class="siperpad-sub" />
         </v-list-group>
       </v-list>
-
-      <template #append>
-        <v-divider style="opacity: 0.12; border-color: rgba(255,255,255,0.2)" />
-        <div class="pa-3 d-flex align-center">
-          <v-avatar color="primary" size="36" class="mr-3"><v-icon color="white">mdi-account</v-icon></v-avatar>
-          <div>
-            <div class="text-body-2 font-weight-medium" style="color: #fff">{{ userName }}</div>
-            <div class="text-caption" style="color: rgba(255,255,255,0.6)">{{ roleLabel }}</div>
-          </div>
-        </div>
-        <v-list-item
-          prepend-icon="mdi-logout"
-          title="Keluar"
-          value="logout"
-          class="siperpad-logout"
-          @click="handleLogout"
-        />
-      </template>
     </v-navigation-drawer>
 
     <v-app-bar flat :elevation="0" :style="appBarStyle">
       <v-app-bar-nav-icon @click="drawer = !drawer" />
       <v-spacer />
-      <div class="d-flex align-center" style="gap: 8px">
-        <v-avatar size="32" color="grey-lighten-3" class="mr-1"><v-icon>mdi-account</v-icon></v-avatar>
-        <div class="d-none d-sm-block mr-2" style="line-height: 1.2; text-align: right">
-          <div class="text-body-2 font-weight-medium" :style="{ color: isDark ? '#f1f5f9' : '#111827' }">{{ userName }}</div>
-          <div class="text-caption" :style="{ color: isDark ? '#94a3b8' : '#6b7280' }">({{ roleLabel || '—' }})</div>
-        </div>
-        <v-btn icon="mdi-bell-outline" variant="text" size="small">
-          <v-badge v-if="notifCount" :content="String(notifCount)" color="error" offset-x="-2" offset-y="-2">
-            <v-icon>mdi-bell-outline</v-icon>
-          </v-badge>
-          <v-icon v-else>mdi-bell-outline</v-icon>
-        </v-btn>
-        <v-btn icon="mdi-help-circle-outline" variant="text" size="small" to="/settings" />
-        <v-chip color="primary" size="small" label class="font-weight-bold">T.A. {{ tahun }}</v-chip>
-        <v-btn :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'" variant="text" size="small" @click="toggleDark" />
-      </div>
+
+      <!-- Panel Notifikasi -->
+      <v-menu v-model="notifMenu" :close-on-content-click="false" location="bottom end" offset="8">
+        <template #activator="{ props }">
+          <v-btn v-bind="props" icon variant="text" size="small" class="mr-1">
+            <v-badge v-if="notifPending" :content="String(notifPending)" color="error" offset-x="-2" offset-y="-2">
+              <v-icon>mdi-bell-outline</v-icon>
+            </v-badge>
+            <v-icon v-else>mdi-bell-outline</v-icon>
+          </v-btn>
+        </template>
+        <v-card min-width="320" max-width="380">
+          <v-card-title class="d-flex align-center text-body-1 font-weight-bold py-3">
+            Notifikasi
+            <v-spacer />
+            <v-btn icon="mdi-refresh" variant="text" size="x-small" :loading="notifLoading" @click="loadNotif(true)" />
+          </v-card-title>
+          <v-divider />
+          <v-list density="comfortable" lines="two" class="py-1">
+            <template v-if="notifItems.length">
+              <v-list-item
+                v-for="item in notifItems"
+                :key="item.key"
+                :prepend-icon="item.icon"
+                :to="item.to"
+                @click="notifMenu = false"
+              >
+                <v-list-item-title class="font-weight-medium">{{ item.title }}</v-list-item-title>
+                <v-list-item-subtitle>{{ item.subtitle }}</v-list-item-subtitle>
+                <template #append>
+                  <v-chip size="x-small" :color="item.color" variant="flat">{{ item.count }}</v-chip>
+                </template>
+              </v-list-item>
+            </template>
+            <div v-else class="text-center text-caption py-6" :style="{ color: isDark ? '#94a3b8' : '#6b7280' }">
+              {{ notifLoading ? 'Memuat…' : 'Tidak ada notifikasi' }}
+            </div>
+          </v-list>
+        </v-card>
+      </v-menu>
+
+      <v-chip color="primary" size="small" label class="font-weight-bold mr-1">T.A. {{ tahun }}</v-chip>
+
+      <!-- User Menu (paling kanan) -->
+      <v-menu location="bottom end" offset="8">
+        <template #activator="{ props }">
+          <v-btn v-bind="props" variant="text" class="pa-1 user-menu-btn" style="text-transform: none; height: auto">
+            <v-avatar size="32" color="grey-lighten-3" class="mr-1"><v-icon>mdi-account</v-icon></v-avatar>
+            <div class="d-none d-sm-block text-left mr-1" style="line-height: 1.2">
+              <div class="text-body-2 font-weight-medium" :style="{ color: isDark ? '#f1f5f9' : '#111827' }">{{ userName }}</div>
+              <div class="text-caption" :style="{ color: isDark ? '#94a3b8' : '#6b7280' }">{{ roleLabel || '—' }}</div>
+            </div>
+            <v-icon size="small" class="d-none d-sm-flex">mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-card min-width="260">
+          <div class="d-flex align-center pa-4">
+            <v-avatar size="44" color="primary" class="mr-3"><v-icon color="white">mdi-account</v-icon></v-avatar>
+            <div style="line-height: 1.25">
+              <div class="text-body-2 font-weight-medium">{{ userName }}</div>
+              <div class="text-caption" :style="{ color: isDark ? '#94a3b8' : '#6b7280' }">{{ roleLabel || '—' }}</div>
+            </div>
+          </div>
+          <v-divider />
+          <v-list density="comfortable" nav class="py-1">
+            <v-list-item value="profil" prepend-icon="mdi-account-cog-outline" title="Profil / Pengaturan" to="/settings" />
+            <v-list-item value="ganti-password" prepend-icon="mdi-lock-outline" title="Ganti Password" to="/settings#password" />
+            <v-list-item
+              value="theme"
+              :prepend-icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"
+              :title="isDark ? 'Mode Terang' : 'Mode Gelap'"
+              @click="toggleDark"
+            />
+          </v-list>
+          <v-divider />
+          <v-list density="comfortable" nav class="py-1">
+            <v-list-item value="logout" prepend-icon="mdi-logout" title="Keluar" base-color="error" @click="handleLogout" />
+          </v-list>
+        </v-card>
+      </v-menu>
     </v-app-bar>
 
-    <v-main :style="{ background: isDark ? '#0f172a' : '#f5f7fb' }">
+    <v-main :style="{ background: isDark ? 'rgb(var(--v-theme-background))' : '#f5f7fb' }">
       <v-container fluid class="py-6">
         <slot />
       </v-container>
@@ -142,11 +188,52 @@ const tahun = useState<number>('tahun', () => new Date().getFullYear())
 
 const appBarStyle = computed(() =>
   isDark.value
-    ? { background: '#1e293b', borderBottom: '1px solid #334155', color: '#f1f5f9' }
+    ? { background: 'rgb(var(--v-theme-surface))', borderBottom: '1px solid rgb(var(--v-theme-surface-variant))', color: '#f1f5f9' }
     : { background: '#fff', borderBottom: '1px solid #e5e7eb' }
 )
 
-const notifCount = ref(2)
+const notifMenu = ref(false)
+const { data: notifData, loading: notifLoading, pendingCount: notifPending, fetchNotifications } = useNotifications()
+
+const notifItems = computed(() => {
+  const d = notifData.value
+  const items: { key: string; title: string; subtitle: string; icon: string; color: string; count: number; to: string }[] = []
+  if (d.verifikasi.realisasi > 0) {
+    items.push({
+      key: 'realisasi', title: 'Realisasi menunggu verifikasi', subtitle: 'Entri realisasi berstatus diajukan',
+      icon: 'mdi-file-check-outline', color: 'primary', count: d.verifikasi.realisasi, to: '/verifikasi',
+    })
+  }
+  if (d.verifikasi.batch > 0) {
+    items.push({
+      key: 'batch', title: 'Laporan menunggu verifikasi', subtitle: 'Batch laporan berstatus diajukan',
+      icon: 'mdi-file-clock-outline', color: 'primary', count: d.verifikasi.batch, to: '/verifikasi',
+    })
+  }
+  if (d.anomali > 0) {
+    items.push({
+      key: 'anomali', title: 'Anomali target PAD', subtitle: `Target induk ≠ jumlah anak (T.A. ${d.tahun})`,
+      icon: 'mdi-alert-outline', color: 'warning', count: d.anomali, to: '/master/target',
+    })
+  }
+  if (d.temuan > 0) {
+    items.push({
+      key: 'temuan', title: 'Temuan belum selesai', subtitle: 'Catatan temuan berstatus terbuka',
+      icon: 'mdi-clipboard-alert-outline', color: 'error', count: d.temuan, to: '/verifikasi',
+    })
+  }
+  return items
+})
+
+function loadNotif(force = false) {
+  return fetchNotifications(force)
+}
+
+watch(notifMenu, (open) => {
+  if (open) loadNotif()
+})
+
+onMounted(() => loadNotif())
 
 const isAdmin = computed(() => session.user.value?.role === 'admin')
 const isVerifikator = computed(() => session.user.value?.role === 'verifikator')
@@ -205,7 +292,7 @@ async function handleLogout() {
   margin-left: 24px;
   border-radius: 0 6px 6px 0 !important;
 }
-.siperpad-logout {
-  color: #94a3b8;
+.user-menu-btn :deep(.v-btn__content) {
+  gap: 2px;
 }
 </style>
