@@ -8,6 +8,14 @@ body {
   background-color: rgb(var(--v-theme-primary));
 }
 
+/* Tooltip: latar gelap + teks terang, konsisten di light & dark mode.
+   Dipaksa !important karena CSS bawaan Vuetify (.v-tooltip > .v-overlay__content)
+   di-load setelah main.css dan mengatur background/color langsung dari tema. */
+.v-tooltip > .v-overlay__content {
+  background: #1e293b !important;
+  color: #ffffff !important;
+}
+
 /* Custom scrollbar (OverlayScrollbars) — tipis, rounded, warna ikut tema Vuetify.
    Var --os-* di-override agar otomatis menyesuaikan dark/light & hover primary.
    Selector 2-class (.os-scrollbar.os-theme-siperpad) agar menang dari CSS bawaan

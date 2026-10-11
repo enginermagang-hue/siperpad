@@ -53,7 +53,7 @@ Kunci `runtimeConfig`: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `DROPBOX_*`, `N
 |-------|-------------|--------|
 | `users` | `id, nama, nip, email, role(admin/verifikator/kepala), aktif` | ✅ seeded 3 user (`admin@mail.com`/`verif@mail.com`/`kepala@mail.com` / `123456`) |
 | `kawasan` | `id, kode(UNIQUE), nama, urutan, aktif` | ✅ seeded 2 kawasan (A: Kampung Seni, B: Pantai Lasiana) |
-| `jenis_retribusi` | `id, kawasan_id, parent_id(self-ref), kode, nama, level, urutan, aktif` — unique `(kawasan_id, parent_id, nama)` | ✅ seeded ~35 jenis hierarkis |
+| `jenis_retribusi` | `id, kawasan_id, parent_id(self-ref), kode (kode jenis), kode_rekening (opsional, induk/sub-induk), nama, level, urutan, aktif` — unique `(kawasan_id, parent_id, nama)` | ✅ seeded ~35 jenis hierarkis; `kode_rekening` via migrasi `004_kode_rekening.sql` + input di `jenis-retribusi.vue`, dipakai kolom "Kode Rekening" PDF |
 | `target` | `jenis_retribusi_id, tahun, nilai` — unique `(jenis_retribusi_id, tahun)` | ✅ seeded 2026 + CRUD `server/api/target*` + `app/pages/master/target.vue` |
 | `realisasi` | `jenis_retribusi_id, tanggal, jumlah, catatan, batch_id, status(draft/diajukan/disetujui/ditolak), created_by` | ✅ API + UI (`server/api/realisasi*` termasuk `verifikasi`, `app/pages/pad.vue` + `verifikasi.vue`) |
 | `laporan_batch` | `kawasan_id, periode_type(mingguan/bulanan/semester/tahunan), periode_start/end, tahun, status, diajukan_oleh, verified_by` | ✅ API `server/api/laporan/batch*` + tab di `verifikasi.vue` |
@@ -92,7 +92,7 @@ Dihapus: `app/pages/master-data.vue` (placeholder).
 |-------|------|--------|--------|
 | Service rekap | `server/utils/rekap.ts` | `getRekapPerJenis`, `getTimeseries(bulanan/triwulan/tahunan)`, `getTotals` — dipakai rekap & export | ✅ |
 | Rekap API | `server/api/laporan/rekap.get.ts` | `GET ?kawasan_id&tahun&scope` — auth semua role, return `perJenis/totals/timeseries` | ✅ |
-| Export API | `server/api/laporan/export.get.ts` | `GET ?format=csv/xlsx/pdf&kawasan_id&tahun&bulan` — **auth admin+kepala only (403)**, CSV zero-dep, XLSX mingguan via `exceljs` (struktur persis referensi), PDF portrait A4 via `pdfkit` | ✅ — XLSX: judul merge A:K, header 2 baris + merge I-IV, indent hierarki, freeze, TOTAL kuning, % `0.00%`, ringkasan 1/2/3 + catatan |
+| Export API | `server/api/laporan/export.get.ts` | `GET ?format=csv/xlsx/pdf&kawasan_id&tahun&bulan` — **auth admin+kepala only (403)**, CSV zero-dep, XLSX mingguan via `exceljs` (struktur persis referensi), PDF **LAPORAN REALISASI PENERIMAAN** landscape 14"×8.5" via `pdfkit` (9 kolom: Kode Rekening/Jenis/Volume-Satuan/Target/s-d Lalu/Bulan Ini/s-d Bulan Ini/%/Keterangan, hierarki indent, baris TOTAL, blok tanda tangan Kepala Dinas + Bendahara) | ✅ — XLSX: judul merge A:K, header 2 baris + merge I-IV, indent hierarki, freeze, TOTAL kuning, % `0.00%`, ringkasan 1/2/3 + catatan |
 | Chart | `app/components/SiperpadChart.vue` | Wrapper `vue3-apexcharts` client-only dynamic import, multi-series, export PNG | ✅ |
 | Dashboard | `app/pages/index.vue` | Filter kawasan+tahun+scope dropdown, cards Total Target/Realisasi/Capaian/Selisih, `SiperpadChart` multi-series + Ekspor PNG, health cards | ✅ |
 | Laporan | `app/pages/laporan.vue` | Filter kawasan+tahun+**bulan**+search, summary cards, tabel rekap flat + pagination 5/10/25/50, export buttons CSV/XLSX/PDF (admin+kepala, XLSX kirim `bulan`) | ✅ |
@@ -222,7 +222,7 @@ GET /api/laporan/export?format=csv|pdf|xlsx&kawasan_id&tahun&periode_type&period
 
 ### Fase 4 — Analitik, Pengendalian & Kepatuhan Data (P1) — Selesai
 
-Migrasi `server/database/migrations/002_fase4.sql` (kolom `target.nilai_induk`, `jenis_retribusi.tarif`, tabel `periode_lock`, `catatan_temuan`).
+Migrasi `server/database/migrations/002_fase4.sql` (kolom `target.nilai_induk`, `jenis_retribusi.tarif`, tabel `periode_lock`, `catatan_temuan`) dan `003_mode_tarif.sql` (kolom `jenis_retribusi.mode_tarif`/`satuan`, `realisasi.kuantitas`/`tarif`).
 
 | # | Fitur | File | Detail | Status |
 |---|-------|------|--------|--------|
@@ -231,14 +231,18 @@ Migrasi `server/database/migrations/002_fase4.sql` (kolom `target.nilai_induk`, 
 | 4.2 | **Dashboard analitik** | `app/pages/index.vue`, `app/api/laporan/rekap.get.ts`, `SiperpadChart.vue` (type bar/donut) | KPI realisasi s/d bulan ini, tren mingguan I–IV, bulan vs bulan lalu, Top Kontributor + donut komposisi, perbaikan karakter rusak | ✅ |
 | 4.3 | **Anomali target anak ≠ induk** | `server/utils/rekap.ts` (`getTargetAnomali`), `server/api/target/anomali.get.ts`, banner di `index.vue`/`master/target.vue`, catatan di export | Deteksi selisih target induk tertulis vs SUM anak (contoh A.2: selisih Rp13.680.000) | ✅ |
 | 4.4 | **Penguncian periode** | `server/api/periode-lock.get/post.ts`, `periode-lock/[id].delete.ts`, `server/utils/lock.ts`, tab di `verifikasi.vue` | Admin-only; kunci per (tahun, bulan, kawasan); guard di `realisasi.post/put/delete` + grid + ajukan; tolak kunci bila masih ada draft/diajukan | ✅ |
-| 4.5 | **Entri grid mingguan** | `app/pages/entri-mingguan.vue`, `server/api/realisasi/grid.get/post.ts`, `ajukan-massal.post.ts` | Grid leaf × Minggu I–IV (tanggal representatif 1/8/15/22), simpan per sel, "Ajukan Semua" | ✅ |
+| 4.5 | **Entri grid mingguan** | `app/pages/entri-mingguan.vue`, `server/api/realisasi/grid.get/post.ts`, `ajukan-massal.post.ts` | Tabs Minggu I–IV + tabel read-only (kolom Status per minggu); input/edit via **modal** per tab (jenis leaf, nilai, catatan, preview target/kumulatif); edit & hapus entri `draft` dari tabel; "Ajukan Minggu Ini"/"Ajukan Semua". Tanggal representatif 1/8/15/22 | ✅ |
 | 4.6 | **Tarif objek + catatan temuan** | `jenis-retribusi.*` (+`tarif`), `server/api/catatan.get/post.ts`, `catatan/[id].put/delete.ts`, tab di `verifikasi.vue` | Field tarif opsional di master jenis; log catatan/temuan per periode (terbuka/selesai) | ✅ |
+| 4.7 | **Mode tarif kuantitas/langsung** | migrasi `003_mode_tarif.sql`, `jenis-retribusi.*` (+`mode_tarif`,`satuan`), `realisasi/grid.post|get.ts`, `app/pages/jenis-retribusi.vue`, `app/pages/entri-mingguan.vue` | Per jenis: `langsung` (nilai Rp) atau `kuantitas` (unit × tarif). `realisasi.jumlah` tetap Rupiah = `round(kuantitas × tarif)`; `kuantitas`+`tarif` disimpan sebagai jejak historis. Modal entri menyesuaikan mode (input unit + preview `200 × Rp2.000 = Rp400.000`); tabel menampilkan total + caption kuantitas×tarif. Mode kuantitas tanpa tarif diblokir di modal | ✅ |
+| 4.8 | **Kode rekening jenis retribusi** | migrasi `004_kode_rekening.sql`, `jenis-retribusi.{get,post}.ts`, `jenis-retribusi/[id].put.ts`, `app/pages/jenis-retribusi.vue`, `server/api/laporan/export.get.ts`, `server/database/seed.ts` | Field baru `jenis_retribusi.kode_rekening` (mis. `4.1.02,02.012`) terpisah dari `kode` (kode jenis `A.1`). Pengisian opsional di semua level (induk/sub-induk lazim diisi, leaf dibiarkan kosong); dipakai kolom **Kode Rekening** pada PDF LAPORAN REALISASI PENERIMAAN. Seed mengisi induk A.1/B.1=`4.1.02,02.014`, A.2=`4.1.02,02.012`, B.2=`4.1.02,02.017` | ✅ |
+| 4.9 | **List numbering hierarki** | `server/utils/rekapMingguan.ts` (+field `nomor`), `server/api/laporan/export.get.ts` (PDF + XLSX) | Penomoran bersarang di kolom **JENIS PENERIMAAN** untuk semua level: level 1=`1.`, level 2=`a.` (lanjut `aa`), level 3=`1.`, level ≥4=`-`. Nomor di-reset per induk, dihitung dari indeks sibling setelah sort (`urutan`,`id`). Kawasan & TOTAL tanpa nomor. Kolom Kode Rekening tetap kode rekening resmi | ✅ |
 
 **Keputusan kunci Fase 4:**
 - Angka resmi = realisasi status **`disetujui`** saja (draft/diajukan tidak dihitung) → wajib "Ajukan Semua" + verifikasi massal agar data tampil.
 - Target induk disimpan terpisah (`nilai_induk`) untuk peringatan; hitungan resmi tetap SUM anak.
 - Hanya **admin** yang boleh mengunci/membuka periode.
 - Entri grid memakai tanggal representatif per minggu (hari 1/8/15/22).
+- Mode tarif per jenis: `langsung` (input nilai Rp) atau `kuantitas` (input unit, `jumlah = round(kuantitas × tarif)`). Tarif diambil dari `jenis_retribusi.tarif` tunggal (bukan per tahun); `realisasi` menyimpan `kuantitas`+`tarif` sebagai jejak historis agar tampilan tetap akurat meski tarif master berubah.
 
 ---
 
@@ -272,7 +276,7 @@ Setiap langkah: migrasi tidak diperlukan (schema sudah siap); hanya API + halama
 - [x] Fase 1: input realisasi → rekap otomatis benar vs Excel lama → laporan bisa diekspor CSV/XLSX/PDF → dashboard tampil real-time
 - [x] Fase 2: verifikator bisa setujui/tolak batch, target tahunan bisa dikelola, pengguna bisa dikelola admin
 - [x] Fase 3: audit trail terlihat (tab Audit), backup Dropbox jalan (POST /api/sync/dropbox), SOP tersedia (docs/SOP_SIPERPAD.md)
-- [x] Fase 4: rekap terunifikasi (induk=SUM anak, hanya disetujui) → perbandingan antar periode → dashboard analitik (KPI s/d bulan ini, tren mingguan, Top Kontributor) → deteksi anomali target → penguncian periode (admin) → entri grid mingguan → tarif objek + log catatan temuan
+- [x] Fase 4: rekap terunifikasi (induk=SUM anak, hanya disetujui) → perbandingan antar periode → dashboard analitik (KPI s/d bulan ini, tren mingguan, Top Kontributor) → deteksi anomali target → penguncian periode (admin) → entri grid mingguan → tarif objek + log catatan temuan → mode tarif kuantitas/langsung
 
 ---
 

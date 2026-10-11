@@ -10,7 +10,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:fresh": "node scripts/migrate-fresh.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",

@@ -15,7 +15,11 @@
     </v-card>
 
     <v-card flat elevation="0">
-      <v-table density="default">
+      <div class="d-flex justify-end px-4 pt-3">
+        <ViewModeToggle v-model="mode" />
+      </div>
+
+      <v-table v-if="mode === 'table'" density="default">
         <thead><tr><th>Nama</th><th>NIP</th><th>Email</th><th>Role</th><th>Status</th><th style="width: 140px">Aksi</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -33,6 +37,52 @@
           </tr>
         </tbody>
       </v-table>
+
+      <div v-else-if="mode === 'list'" class="pa-3">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <RecordCard
+          v-for="r in paginated"
+          v-else
+          :key="r.id"
+          :title="r.nama"
+          :subtitle="r.email"
+          :fields="[
+            { label: 'NIP', value: r.nip || '-' },
+            { label: 'Email', value: r.email },
+          ]"
+        >
+          <template #badge>
+            <v-chip size="small" :color="roleColor(r.role)" variant="tonal">{{ r.role }}</v-chip>
+            <v-chip :color="r.aktif ? 'success' : 'grey'" size="small">{{ r.aktif ? 'Aktif' : 'Nonaktif' }}</v-chip>
+          </template>
+          <template #actions>
+            <v-btn size="small" variant="text" prepend-icon="mdi-pencil" :disabled="r.id === selfId" @click="openEdit(r)">Edit</v-btn>
+            <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" :disabled="r.id === selfId" @click="confirmDelete(r)">Nonaktifkan</v-btn>
+          </template>
+        </RecordCard>
+      </div>
+
+      <div v-else class="pa-2">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <v-list v-else density="compact" lines="one">
+          <v-list-item v-for="r in paginated" :key="r.id" :title="r.nama" :subtitle="r.email">
+            <template #append>
+              <v-chip size="x-small" :color="roleColor(r.role)" variant="tonal" class="mr-1">{{ r.role }}</v-chip>
+              <v-menu location="bottom end">
+                <template #activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
+                </template>
+                <v-list density="compact" min-width="160">
+                  <v-list-item prepend-icon="mdi-pencil" title="Edit" :disabled="r.id === selfId" @click="openEdit(r)" />
+                  <v-list-item prepend-icon="mdi-delete" title="Nonaktifkan" base-color="error" :disabled="r.id === selfId" @click="confirmDelete(r)" />
+                </v-list>
+              </v-menu>
+            </template>
+          </v-list-item>
+        </v-list>
+      </div>
       <v-divider v-if="total" />
       <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
         <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
@@ -44,28 +94,28 @@
       </div>
     </v-card>
 
-    <v-dialog v-model="dialog" max-width="520" persistent>
-      <v-card elevation="2" :border="false">
-        <v-card-title class="text-h6">{{ editing ? 'Edit Pengguna' : 'Tambah Pengguna' }}</v-card-title>
-        <v-card-text>
-          <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
-          <v-text-field v-model="form.nip" label="NIP" variant="outlined" density="compact" hide-details class="mb-2" />
-          <v-text-field v-model="form.email" label="Email *" variant="outlined" density="compact" :error-messages="err.email" class="mb-2" />
-          <v-select v-model="form.role" :items="['admin','verifikator','kepala']" label="Role *" variant="outlined" density="compact" :error-messages="err.role" class="mb-2" />
-          <v-text-field v-model="form.password" :label="editing ? 'Password baru (kosongkan jika tidak ganti)' : 'Password *'" type="password" variant="outlined" density="compact" :error-messages="err.password" class="mb-2" />
-          <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
-        </v-card-text>
-        <v-card-actions><v-spacer /><v-btn variant="text" @click="dialog = false">Batal</v-btn><v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn></v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog v-model="dialog" :title="editing ? 'Edit Pengguna' : 'Tambah Pengguna'" :max-width="520" :icon="editing ? 'mdi-account-edit' : 'mdi-account-plus'">
+      <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
+      <v-text-field v-model="form.nip" label="NIP" variant="outlined" density="compact" hide-details class="mb-2" />
+      <v-text-field v-model="form.email" label="Email *" variant="outlined" density="compact" :error-messages="err.email" class="mb-2" />
+      <v-select v-model="form.role" :items="['admin','verifikator','kepala']" label="Role *" variant="outlined" density="compact" :error-messages="err.role" class="mb-2" />
+      <v-text-field v-model="form.password" :label="editing ? 'Password baru (kosongkan jika tidak ganti)' : 'Password *'" type="password" variant="outlined" density="compact" :error-messages="err.password" class="mb-2" />
+      <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
+      <template #actions>
+        <v-spacer />
+        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
+        <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
+      </template>
+    </AppDialog>
 
-    <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card elevation="2" :border="false">
-        <v-card-title class="text-h6">Nonaktifkan pengguna?</v-card-title>
-        <v-card-text>Yakin nonaktifkan <b>{{ delTarget?.nama }}</b> ({{ delTarget?.email }})? Status jadi Nonaktif (soft delete).</v-card-text>
-        <v-card-actions><v-spacer /><v-btn variant="text" @click="delDialog = false">Batal</v-btn><v-btn color="warning" :loading="deleting" @click="doDelete">Nonaktifkan</v-btn></v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog v-model="delDialog" title="Nonaktifkan pengguna?" :max-width="420" icon="mdi-account-off">
+      Yakin nonaktifkan <b>{{ delTarget?.nama }}</b> ({{ delTarget?.email }})? Status jadi Nonaktif (soft delete).
+      <template #actions>
+        <v-spacer />
+        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
+        <v-btn color="warning" :loading="deleting" @click="doDelete">Nonaktifkan</v-btn>
+      </template>
+    </AppDialog>
 
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
   </div>
@@ -74,6 +124,8 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
 type Row = { id: number; nama: string; nip: string; email: string; role: string; aktif: number; created_at: string }
+
+const { mode } = useViewMode('pengguna')
 
 const session = useUserSession()
 const selfId = computed(() => Number(session.user.value?.id || 0))

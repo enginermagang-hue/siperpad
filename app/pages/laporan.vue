@@ -45,7 +45,10 @@
     </v-row>
 
     <v-card flat elevation="0">
-      <v-table density="default">
+      <div class="d-flex justify-end px-4 pt-3">
+        <ViewModeToggle v-model="modeRekap" />
+      </div>
+      <v-table v-if="modeRekap === 'table'" density="default">
         <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">Target</th><th class="text-right">Realisasi</th><th class="text-right">Capaian</th><th class="text-right">Selisih</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
@@ -61,6 +64,37 @@
           </tr>
         </tbody>
       </v-table>
+
+      <div v-else-if="modeRekap === 'list'" class="pa-3">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <RecordCard
+          v-for="r in paginated"
+          v-else
+          :key="r.id"
+          :title="`${r.kode || '-'} — ${r.nama}`"
+          :subtitle="`${r.kawasan_kode} — ${r.kawasan_nama}`"
+          :fields="[
+            { label: 'Target', value: fmt(r.target), class: 'text-right' },
+            { label: 'Realisasi', value: fmt(r.realisasi), class: 'text-right' },
+            { label: 'Capaian', value: r.capaian + '%', class: r.capaian >= 100 ? 'text-success' : r.capaian >= 75 ? 'text-warning' : 'text-error' },
+            { label: 'Selisih', value: fmt(r.selisih), class: r.selisih >= 0 ? 'text-success' : 'text-error' },
+          ]"
+        />
+      </div>
+
+      <div v-else class="pa-2">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <v-list v-else density="compact" lines="one">
+          <v-list-item v-for="r in paginated" :key="r.id" :title="`${r.kode || '-'} — ${r.nama}`" :subtitle="r.kawasan_kode">
+            <template #append>
+              <span class="text-body-2 font-weight-medium mr-2">{{ fmt(r.realisasi) }}</span>
+              <v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="x-small">{{ r.capaian }}%</v-chip>
+            </template>
+          </v-list-item>
+        </v-list>
+      </div>
       <v-divider v-if="total" />
       <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
         <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
@@ -96,7 +130,10 @@
       </v-row>
 
       <v-card flat elevation="0">
-        <v-table density="default">
+        <div class="d-flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeBanding" />
+        </div>
+        <v-table v-if="modeBanding === 'table'" density="default">
           <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">{{ banding?.a.label || 'A' }}</th><th class="text-right">{{ banding?.b.label || 'B' }}</th><th class="text-right">Selisih</th><th class="text-right">%</th></tr></thead>
           <tbody>
             <tr v-if="bandLoading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
@@ -112,6 +149,37 @@
             </tr>
           </tbody>
         </v-table>
+
+        <div v-else-if="modeBanding === 'list'" class="pa-3">
+          <div v-if="bandLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!bandingFiltered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+          <RecordCard
+            v-for="r in bandingFiltered"
+            v-else
+            :key="r.jenis_id"
+            :title="`${r.kode || '-'} — ${r.nama}`"
+            :subtitle="r.kawasan_kode"
+            :fields="[
+              { label: banding?.a.label || 'A', value: fmt(r.a), class: 'text-right' },
+              { label: banding?.b.label || 'B', value: fmt(r.b), class: 'text-right' },
+              { label: 'Selisih', value: fmt(r.selisih), class: r.selisih >= 0 ? 'text-success' : 'text-error' },
+              { label: '%', value: r.persen + '%' },
+            ]"
+          />
+        </div>
+
+        <div v-else class="pa-2">
+          <div v-if="bandLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!bandingFiltered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+          <v-list v-else density="compact" lines="one">
+            <v-list-item v-for="r in bandingFiltered" :key="r.jenis_id" :title="`${r.kode || '-'} — ${r.nama}`" :subtitle="r.kawasan_kode">
+              <template #append>
+                <span class="text-body-2 font-weight-medium mr-2" :class="r.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(r.selisih) }}</span>
+                <v-chip size="x-small" variant="tonal">{{ r.persen }}%</v-chip>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
       </v-card>
     </div>
 
@@ -121,6 +189,9 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
+
+const { mode: modeRekap } = useViewMode('laporan-rekap')
+const { mode: modeBanding } = useViewMode('laporan-banding')
 
 type RekapRow = { id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target: number; realisasi: number; capaian: number; selisih: number }
 

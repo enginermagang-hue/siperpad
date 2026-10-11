@@ -7,11 +7,15 @@ export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
 
-  const body = await readBody(event) as { kawasan_id?: number; parent_id?: number | null; kode?: string; nama?: string; urutan?: number; aktif?: number; tarif?: number | null }
+  const body = await readBody(event) as { kawasan_id?: number; parent_id?: number | null; kode?: string; kode_rekening?: string; nama?: string; urutan?: number; aktif?: number; tarif?: number | null; mode_tarif?: string; satuan?: string }
   const kode = (body.kode || '').trim()
+  const kode_rekening = (body.kode_rekening || '').trim()
   const nama = (body.nama || '').trim()
   if (!nama) throw createError({ statusCode: 400, message: 'Nama wajib diisi' })
+  const mode_tarif = body.mode_tarif === 'kuantitas' ? 'kuantitas' : 'langsung'
+  const satuan = (body.satuan || '').trim()
   const tarif = body.tarif != null && Number.isFinite(Number(body.tarif)) && Number(body.tarif) >= 0 ? Math.round(Number(body.tarif)) : null
+  if (mode_tarif === 'kuantitas' && (tarif == null || tarif <= 0)) throw createError({ statusCode: 400, message: 'Tarif wajib diisi untuk mode kuantitas' })
 
   const existing = await query<{ kawasan_id: number; level: number }>('SELECT kawasan_id, level FROM jenis_retribusi WHERE id = ?', [id])
   if (!existing.length) throw createError({ statusCode: 404, message: 'Jenis retribusi tidak ditemukan' })
@@ -31,14 +35,14 @@ export default defineEventHandler(async (event) => {
 
   const parentSql = parent_id !== undefined ? ', parent_id = ?' : ''
   const levelSql = level != null ? ', level = ?' : ''
-  const p2: unknown[] = [kode, nama, Number(body.urutan ?? 0), body.aktif != null ? (Number(body.aktif) ? 1 : 0) : 1, tarif]
+  const p2: unknown[] = [kode, kode_rekening, nama, Number(body.urutan ?? 0), body.aktif != null ? (Number(body.aktif) ? 1 : 0) : 1, tarif, mode_tarif, satuan]
   if (level != null) p2.push(level)
   p2.push(kawasan_id)
   if (parent_id !== undefined) p2.push(parent_id)
   p2.push(id)
 
   try {
-    await execute(`UPDATE jenis_retribusi SET kode = ?, nama = ?, urutan = ?, aktif = ?, tarif = ?${levelSql}, kawasan_id = ?${parentSql} WHERE id = ?`, p2)
+    await execute(`UPDATE jenis_retribusi SET kode = ?, kode_rekening = ?, nama = ?, urutan = ?, aktif = ?, tarif = ?, mode_tarif = ?, satuan = ?${levelSql}, kawasan_id = ?${parentSql} WHERE id = ?`, p2)
     return { ok: true }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)

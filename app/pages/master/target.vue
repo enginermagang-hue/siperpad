@@ -17,16 +17,18 @@
 
     <v-card flat elevation="0" class="mb-4">
       <v-card-text class="pb-0">
-        <div class="d-flex flex-wrap ga-3 mb-4">
+        <div class="d-flex flex-wrap ga-3 mb-4 align-center">
           <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 240px" placeholder="Semua" @update:model-value="load" />
           <v-select v-model="tahun" :items="tahunOpts" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 120px" @update:model-value="load" />
           <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode / nama..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 320px" />
+          <v-spacer />
+          <ViewModeToggle v-model="mode" />
         </div>
       </v-card-text>
     </v-card>
 
     <v-card flat elevation="0">
-      <v-table density="default">
+      <v-table v-if="mode === 'table'" density="default">
         <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th>Tahun</th><th class="text-right">Target</th><th v-if="isAdmin" style="width: 70px">Aksi</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -54,6 +56,51 @@
           </tr>
         </tbody>
       </v-table>
+
+      <div v-else-if="mode === 'list'" class="pa-3">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada target untuk tahun ini</div>
+        <RecordCard
+          v-for="r in paginated"
+          v-else
+          :key="r.id"
+          :title="`${r.kode || '-'} — ${r.nama}`"
+          :subtitle="`${r.kawasan_kode} — ${r.kawasan_nama}`"
+          :fields="[
+            { label: 'Tahun', value: r.tahun },
+            { label: 'Target', value: fmt(r.nilai), class: 'text-right font-weight-medium' },
+          ]"
+        >
+          <template #badge>
+            <v-chip v-if="r.nilai_induk != null" size="x-small" color="warning" variant="tonal">Induk: {{ fmt(r.nilai_induk) }}</v-chip>
+          </template>
+          <template v-if="isAdmin" #actions>
+            <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEdit(r)">Edit</v-btn>
+            <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(r)">Hapus</v-btn>
+          </template>
+        </RecordCard>
+      </div>
+
+      <div v-else class="pa-2">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada target untuk tahun ini</div>
+        <v-list v-else density="compact" lines="one">
+          <v-list-item v-for="r in paginated" :key="r.id" :title="`${r.kode || '-'} — ${r.nama}`" :subtitle="`${r.kawasan_kode} — ${r.tahun}`">
+            <template #append>
+              <span class="text-body-2 font-weight-medium mr-2">{{ fmt(r.nilai) }}</span>
+              <v-menu v-if="isAdmin" location="bottom end">
+                <template #activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
+                </template>
+                <v-list density="compact" min-width="160">
+                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
+                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
+                </v-list>
+              </v-menu>
+            </template>
+          </v-list-item>
+        </v-list>
+      </div>
       <v-divider v-if="total" />
       <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
         <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
@@ -65,25 +112,25 @@
       </div>
     </v-card>
 
-    <v-dialog v-model="dialog" max-width="520" persistent>
-      <v-card elevation="2" :border="false">
-        <v-card-title class="text-h6">{{ editing ? 'Edit Target' : 'Tambah Target' }}</v-card-title>
-        <v-card-text>
-          <v-select v-model="form.jenis_retribusi_id" :items="jenisOpts" item-title="label" item-value="value" label="Jenis Retribusi *" variant="outlined" density="compact" :error-messages="err.jenis" class="mb-2" />
-          <v-text-field v-model.number="form.tahun" label="Tahun *" type="number" variant="outlined" density="compact" :error-messages="err.tahun" class="mb-2" />
-          <v-text-field :model-value="nilaiDisplay" label="Nilai Target *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.nilai" class="mb-2" @input="onNilaiInput" />
-        </v-card-text>
-        <v-card-actions><v-spacer /><v-btn variant="text" @click="dialog = false">Batal</v-btn><v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn></v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog v-model="dialog" :title="editing ? 'Edit Target' : 'Tambah Target'" :max-width="520" :icon="editing ? 'mdi-target-account' : 'mdi-bullseye-arrow'">
+      <v-select v-model="form.jenis_retribusi_id" :items="jenisOpts" item-title="label" item-value="value" label="Jenis Retribusi *" variant="outlined" density="compact" :error-messages="err.jenis" class="mb-2" />
+      <v-text-field v-model.number="form.tahun" label="Tahun *" type="number" variant="outlined" density="compact" :error-messages="err.tahun" class="mb-2" />
+      <v-text-field :model-value="nilaiDisplay" label="Nilai Target *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.nilai" class="mb-2" @input="onNilaiInput" />
+      <template #actions>
+        <v-spacer />
+        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
+        <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
+      </template>
+    </AppDialog>
 
-    <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card elevation="2" :border="false">
-        <v-card-title class="text-h6">Hapus target?</v-card-title>
-        <v-card-text>Yakin hapus target <b>{{ delTarget?.nama }}</b> tahun {{ delTarget?.tahun }}?</v-card-text>
-        <v-card-actions><v-spacer /><v-btn variant="text" @click="delDialog = false">Batal</v-btn><v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn></v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog v-model="delDialog" title="Hapus target?" :max-width="420" icon="mdi-delete">
+      Yakin hapus target <b>{{ delTarget?.nama }}</b> tahun {{ delTarget?.tahun }}?
+      <template #actions>
+        <v-spacer />
+        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
+        <v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn>
+      </template>
+    </AppDialog>
 
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
   </div>
@@ -91,6 +138,9 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
+
+const { mode } = useViewMode('target')
+
 type Row = { id: number; jenis_retribusi_id: number; tahun: number; nilai: number; nilai_induk: number | null; kode: string; nama: string; level: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string }
 type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number }

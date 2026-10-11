@@ -85,10 +85,14 @@
     <v-row>
       <v-col cols="12" md="7">
         <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-trophy</v-icon> Top Kontributor PAD — {{ bulanLabel }} {{ tahun }}</v-card-title>
+          <v-card-title class="d-flex align-center ga-2 flex-wrap">
+            <v-icon>mdi-trophy</v-icon> Top Kontributor PAD — {{ bulanLabel }} {{ tahun }}
+            <v-spacer />
+            <ViewModeToggle v-model="mode" />
+          </v-card-title>
           <v-card-text>
             <div v-if="!topKontributor.length" class="text-medium-emphasis py-4 text-center">Belum ada realisasi disetujui pada periode ini</div>
-            <v-table v-else density="default">
+            <v-table v-else-if="mode === 'table'" density="default">
               <thead><tr><th style="width:40px">#</th><th>Pos Penerimaan</th><th>Kawasan</th><th class="text-right">Nilai</th><th class="text-right">Kontribusi</th></tr></thead>
               <tbody>
                 <tr v-for="(t, i) in topKontributor" :key="t.jenis_id">
@@ -100,6 +104,28 @@
                 </tr>
               </tbody>
             </v-table>
+
+            <div v-else-if="mode === 'list'">
+              <RecordCard
+                v-for="(t, i) in topKontributor"
+                :key="t.jenis_id"
+                :title="`${i + 1}. ${t.kode} — ${t.nama}`"
+                :subtitle="t.kawasan_kode"
+                :fields="[
+                  { label: 'Nilai', value: fmt(t.nilai), class: 'text-right font-weight-medium' },
+                  { label: 'Kontribusi', value: t.persen + '%', class: 'text-right' },
+                ]"
+              />
+            </div>
+
+            <v-list v-else density="compact" lines="one">
+              <v-list-item v-for="(t, i) in topKontributor" :key="t.jenis_id" :title="`${i + 1}. ${t.kode} — ${t.nama}`" :subtitle="t.kawasan_kode">
+                <template #append>
+                  <span class="text-body-2 font-weight-medium mr-2">{{ fmt(t.nilai) }}</span>
+                  <v-chip size="x-small" color="primary" variant="tonal">{{ t.persen }}%</v-chip>
+                </template>
+              </v-list-item>
+            </v-list>
           </v-card-text>
         </v-card>
       </v-col>
@@ -143,6 +169,8 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
+
+const { mode } = useViewMode('dashboard-top')
 
 const session = useUserSession()
 const dbHealth = await useFetch('/api/health')

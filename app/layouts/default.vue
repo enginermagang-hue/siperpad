@@ -49,23 +49,15 @@
           <v-list-item title="Target Tahunan PAD" to="/master/target" :active="route.path.startsWith('/master/target')" class="siperpad-sub" />
         </v-list-group>
 
-        <!-- Perbandingan & Analisis -->
-        <v-list-group value="analisis">
-          <template #activator="{ props }">
-            <v-list-item v-bind="props" prepend-icon="mdi-chart-line" title="Perbandingan & Analisis" />
-          </template>
-          <v-list-item title="Perbandingan Agt vs Sept 2026" to="/laporan?tab=banding" :active="route.path.startsWith('/laporan') && route.query.tab === 'banding'" class="siperpad-sub" />
-          <v-list-item title="Tren & Capaian Bulanan" to="/laporan?tab=tren" :active="route.path.startsWith('/laporan') && route.query.tab === 'tren'" class="siperpad-sub" />
-        </v-list-group>
-
         <!-- Rekap & Laporan -->
-        <v-list-group value="rekap">
-          <template #activator="{ props }">
-            <v-list-item v-bind="props" prepend-icon="mdi-file-chart-outline" title="Rekap & Laporan" />
-          </template>
-          <v-list-item title="Laporan Bulanan & Mingguan" to="/laporan" :active="route.path.startsWith('/laporan') && !route.query.tab" class="siperpad-sub" />
-          <v-list-item title="Cetak & Ekspor (PDF/Excel)" to="/laporan?export=1" :active="route.path.startsWith('/laporan') && route.query.export === '1'" class="siperpad-sub" />
-        </v-list-group>
+        <v-list-item
+          prepend-icon="mdi-file-chart-outline"
+          title="Rekap & Laporan"
+          to="/laporan"
+          :active="route.path.startsWith('/laporan') && !route.query.tab"
+          class="mb-1"
+          active-class="siperpad-active"
+        />
 
         <!-- Pengaturan Sistem (gabung: Pengaturan + Pengguna + Verifikasi) -->
         <v-list-group value="pengaturan">

@@ -1,12 +1,34 @@
 import { query } from './db'
 import { APPROVED_STATUS, monthLabel } from './periode'
 
+// Label abjad bersarang untuk penomoran anak (a, b, ..., z, aa, ab, ...).
+function abjad(n: number): string {
+  let s = ''
+  let x = n
+  while (x > 0) {
+    const rem = (x - 1) % 26
+    s = String.fromCharCode(97 + rem) + s
+    x = Math.floor((x - 1) / 26)
+  }
+  return s
+}
+
+// Label penomoran bersarang per level (mengikuti referensi):
+// level 1 -> '1.', level 2 -> 'a.', level 3 -> '1.', level >=4 -> '-'.
+function nomorLevel(level: number, index1Based: number): string {
+  if (level <= 1) return `${index1Based}.`
+  if (level === 2) return `${abjad(index1Based)}.`
+  if (level === 3) return `${index1Based}.`
+  return '-'
+}
+
 export type RekapMingguanRow = {
   jenis_id: number | null // null = synthetic kawasan header or TOTAL
   kawasan_id: number | null
   kawasan_kode: string
   kawasan_nama: string
   kode: string // No column display (A/B or 1/2 or blank)
+  nomor: string // Label penomoran bersarang (mis. '1.', 'a.', '-'); '' untuk kawasan/TOTAL
   nama: string // hierarchy name with indent trimmed; excel will add pad
   level: number // 0=kawasan, 1..4 = jenis hierarchy, 99=TOTAL
   urutan: number
@@ -182,15 +204,15 @@ export async function getRekapMingguan(opts: {
     const sBulanIni = kwAgg.sBelum + totalMingguan
     rows.push({
       jenis_id: null, kawasan_id: kw.id, kawasan_kode: kw.kode, kawasan_nama: kw.nama,
-      kode: kw.kode, nama: kw.id === kawasanList[0]!.id ? `Kawasan Wisata ${kw.nama}` : `Kawasan Wisata ${kw.nama}`,
+      kode: kw.kode, nomor: '', nama: kw.id === kawasanList[0]!.id ? `Kawasan Wisata ${kw.nama}` : `Kawasan Wisata ${kw.nama}`,
       // first kawasan name matches referensi; second uses same template
       level: 0, urutan: kw.urutan, target: kwAgg.target, sBelum: kwAgg.sBelum, m1: kwAgg.m1, m2: kwAgg.m2, m3: kwAgg.m3, m4: kwAgg.m4,
       totalMingguan, sBulanIni, capaian: kwAgg.target > 0 ? sBulanIni / kwAgg.target : 0,
       isKawasan: true, isTotal: false,
     })
     // if single kawasan export, kawasan name already filtered; reuse nama asli
-    // emit descendants depth-first
-    function emit(n: JNode) {
+    // emit descendants depth-first (dengan penomoran bersarang)
+    function emit(n: JNode, index1Based: number) {
       const a = aggMap.get(n.id)!
       const tot = a.m1 + a.m2 + a.m3 + a.m4
       const sBi = a.sBelum + tot
@@ -198,15 +220,16 @@ export async function getRekapMingguan(opts: {
       const kodeDisplay = n.level === 1 ? String(n.urutan) : ''
       rows.push({
         jenis_id: n.id, kawasan_id: n.kawasan_id, kawasan_kode: kw.kode, kawasan_nama: kw.nama,
-        kode: kodeDisplay, nama: n.nama, level: n.level, urutan: n.urutan,
+        kode: kodeDisplay, nomor: nomorLevel(n.level, index1Based), nama: n.nama, level: n.level, urutan: n.urutan,
         target: a.target, sBelum: a.sBelum, m1: a.m1, m2: a.m2, m3: a.m3, m4: a.m4,
         totalMingguan: tot, sBulanIni: sBi, capaian: a.target > 0 ? sBi / a.target : 0,
         isKawasan: false, isTotal: false,
       })
       const sorted = [...n.children].sort((x, y) => x.urutan - y.urutan || x.id - y.id)
-      for (const c of sorted) emit(c)
+      sorted.forEach((c, i) => emit(c, i + 1))
     }
-    for (const r of kwRoots) emit(r)
+    const rootsSorted = [...kwRoots].sort((x, y) => x.urutan - y.urutan || x.id - y.id)
+    rootsSorted.forEach((r, i) => emit(r, i + 1))
   }
 
   // grand TOTAL
@@ -219,7 +242,7 @@ export async function getRekapMingguan(opts: {
   const gSBi = gSBelum + gTot
   rows.push({
     jenis_id: null, kawasan_id: null, kawasan_kode: '', kawasan_nama: '',
-    kode: '', nama: 'TOTAL', level: 99, urutan: 999, target: gTarget, sBelum: gSBelum, m1: gM1, m2: gM2, m3: gM3, m4: gM4,
+    kode: '', nomor: '', nama: 'TOTAL', level: 99, urutan: 999, target: gTarget, sBelum: gSBelum, m1: gM1, m2: gM2, m3: gM3, m4: gM4,
     totalMingguan: gTot, sBulanIni: gSBi, capaian: gTarget > 0 ? gSBi / gTarget : 0,
     isKawasan: false, isTotal: true,
   })

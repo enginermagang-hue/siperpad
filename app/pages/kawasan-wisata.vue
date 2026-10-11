@@ -10,10 +10,13 @@
 
     <v-card flat elevation="0">
       <v-card-text class="pb-0">
-        <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode / nama..." prepend-inner-icon="mdi-magnify" hide-details clearable class="mb-4" style="max-width: 360px" />
+        <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-4">
+          <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode / nama..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 360px" class="flex-grow-1" />
+          <ViewModeToggle v-model="mode" />
+        </div>
       </v-card-text>
 
-      <v-table density="default">
+      <v-table v-if="mode === 'table'" density="default">
         <thead><tr><th>Kode</th><th>Nama</th><th>Urutan</th><th>Status</th><th v-if="isAdmin" style="width: 70px">Aksi</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="5" class="text-center py-6">Memuat...</td></tr>
@@ -37,36 +40,69 @@
           </tr>
         </tbody>
       </v-table>
+
+      <div v-else-if="mode === 'list'" class="pa-3">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <RecordCard
+          v-for="r in filtered"
+          v-else
+          :key="r.id"
+          :title="`${r.kode} — ${r.nama}`"
+          :fields="[{ label: 'Urutan', value: r.urutan }]"
+        >
+          <template #badge>
+            <v-chip :color="r.aktif ? 'success' : 'grey'" size="small">{{ r.aktif ? 'Aktif' : 'Nonaktif' }}</v-chip>
+          </template>
+          <template v-if="isAdmin" #actions>
+            <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEdit(r)">Edit</v-btn>
+            <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(r)">Hapus</v-btn>
+          </template>
+        </RecordCard>
+      </div>
+
+      <div v-else class="pa-2">
+        <div v-if="loading" class="text-center py-6">Memuat...</div>
+        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <v-list v-else density="compact" lines="one">
+          <v-list-item v-for="r in filtered" :key="r.id" :title="`${r.kode} — ${r.nama}`" :subtitle="`Urutan ${r.urutan}`">
+            <template #append>
+              <v-chip :color="r.aktif ? 'success' : 'grey'" size="x-small" class="mr-1">{{ r.aktif ? 'Aktif' : 'Nonaktif' }}</v-chip>
+              <v-menu v-if="isAdmin" location="bottom end">
+                <template #activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
+                </template>
+                <v-list density="compact" min-width="160">
+                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
+                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
+                </v-list>
+              </v-menu>
+            </template>
+          </v-list-item>
+        </v-list>
+      </div>
     </v-card>
 
-    <v-dialog v-model="dialog" max-width="480" persistent>
-      <v-card elevation="2" :border="false">
-        <v-card-title class="text-h6">{{ editing ? 'Edit Kawasan' : 'Tambah Kawasan' }}</v-card-title>
-        <v-card-text>
-          <v-text-field v-model="form.kode" label="Kode *" variant="outlined" density="compact" :error-messages="err.kode" class="mb-2" placeholder="Contoh: A, B, C" />
-          <v-text-field v-model="form.nama" label="Nama kawasan *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
-          <v-text-field v-model.number="form.urutan" label="Urutan" type="number" variant="outlined" density="compact" class="mb-2" />
-          <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="dialog = false">Batal</v-btn>
-          <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog v-model="dialog" :title="editing ? 'Edit Kawasan' : 'Tambah Kawasan'" :max-width="480" :icon="editing ? 'mdi-map-marker-radius' : 'mdi-map-marker-plus'">
+      <v-text-field v-model="form.kode" label="Kode *" variant="outlined" density="compact" :error-messages="err.kode" class="mb-2" placeholder="Contoh: A, B, C" />
+      <v-text-field v-model="form.nama" label="Nama kawasan *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
+      <v-text-field v-model.number="form.urutan" label="Urutan" type="number" variant="outlined" density="compact" class="mb-2" />
+      <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
+      <template #actions>
+        <v-spacer />
+        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
+        <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
+      </template>
+    </AppDialog>
 
-    <v-dialog v-model="delDialog" max-width="420" persistent>
-      <v-card elevation="2" :border="false">
-        <v-card-title class="text-h6">Hapus kawasan?</v-card-title>
-        <v-card-text>Yakin hapus <b>{{ delTarget?.nama }}</b> ({{ delTarget?.kode }})? Tidak bisa jika masih dipakai retribusi.</v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
-          <v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog v-model="delDialog" title="Hapus kawasan?" :max-width="420" icon="mdi-delete">
+      Yakin hapus <b>{{ delTarget?.nama }}</b> ({{ delTarget?.kode }})? Tidak bisa jika masih dipakai retribusi.
+      <template #actions>
+        <v-spacer />
+        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
+        <v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn>
+      </template>
+    </AppDialog>
 
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
   </div>
@@ -74,6 +110,8 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
+
+const { mode } = useViewMode('kawasan')
 
 type Row = { id: number; kode: string; nama: string; urutan: number; aktif: number }
 

@@ -28,7 +28,10 @@
       </v-card>
 
       <v-card flat elevation="0">
-        <v-table density="default">
+        <div class="d-flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeRealisasi" />
+        </div>
+        <v-table v-if="modeRealisasi === 'table'" density="default">
           <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Aksi</th></tr></thead>
           <tbody>
             <tr v-if="loading"><td colspan="8" class="text-center py-6">Memuat...</td></tr>
@@ -48,6 +51,51 @@
             </tr>
           </tbody>
         </v-table>
+
+        <div v-else-if="modeRealisasi === 'list'" class="pa-3">
+          <div v-if="loading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Tidak ada realisasi diajukan</div>
+          <RecordCard
+            v-for="r in paginated"
+            v-else
+            :key="r.id"
+            :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`"
+            :subtitle="r.tanggal"
+            :fields="[
+              { label: 'Kawasan', value: `${r.kawasan_kode} — ${r.kawasan_nama}` },
+              { label: 'Jumlah', value: fmt(r.jumlah), class: 'text-right' },
+              { label: 'Target', value: fmt(r.target_nilai), class: 'text-right' },
+              { label: 'Capaian', value: r.capaian + '%', class: r.capaian >= 100 ? 'text-success' : r.capaian >= 75 ? 'text-warning' : 'text-error' },
+            ]"
+          >
+            <template v-if="canVerif" #actions>
+              <v-btn size="small" color="success" variant="tonal" :loading="actingId === r.id" @click="verif(r, 'disetujui')">Setujui</v-btn>
+              <v-btn size="small" color="error" variant="tonal" :loading="actingId === r.id" @click="verif(r, 'ditolak')">Tolak</v-btn>
+            </template>
+          </RecordCard>
+        </div>
+
+        <div v-else class="pa-2">
+          <div v-if="loading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Tidak ada realisasi diajukan</div>
+          <v-list v-else density="compact" lines="one">
+            <v-list-item v-for="r in paginated" :key="r.id" :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`" :subtitle="r.tanggal">
+              <template #append>
+                <span class="text-body-2 font-weight-medium mr-2">{{ fmt(r.jumlah) }}</span>
+                <v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="x-small" class="mr-1">{{ r.capaian }}%</v-chip>
+                <v-menu v-if="canVerif" location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
+                  </template>
+                  <v-list density="compact" min-width="160">
+                    <v-list-item prepend-icon="mdi-check" title="Setujui" @click="verif(r, 'disetujui')" />
+                    <v-list-item prepend-icon="mdi-close" title="Tolak" base-color="error" @click="verif(r, 'ditolak')" />
+                  </v-list>
+                </v-menu>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
         <v-divider v-if="total" />
         <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
           <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
@@ -74,7 +122,10 @@
         </v-card-text>
       </v-card>
       <v-card flat elevation="0">
-        <v-table density="default">
+        <div class="d-flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeBatch" />
+        </div>
+        <v-table v-if="modeBatch === 'table'" density="default">
           <thead><tr><th>Periode</th><th>Kawasan</th><th>Tipe</th><th>Tahun</th><th>Status</th><th style="width: 200px">Aksi</th></tr></thead>
           <tbody>
             <tr v-if="batchLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -95,22 +146,70 @@
             </tr>
           </tbody>
         </v-table>
+
+        <div v-else-if="modeBatch === 'list'" class="pa-3">
+          <div v-if="batchLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!batches.length" class="text-center py-6 text-medium-emphasis">Belum ada batch</div>
+          <RecordCard
+            v-for="b in batches"
+            v-else
+            :key="b.id"
+            :title="`${b.periode_start} — ${b.periode_end}`"
+            :subtitle="`${b.kawasan_kode} — ${b.kawasan_nama}`"
+            :fields="[
+              { label: 'Tipe', value: b.periode_type },
+              { label: 'Tahun', value: b.tahun },
+            ]"
+          >
+            <template #badge>
+              <v-chip :color="batchColor(b.status)" size="small">{{ b.status }}</v-chip>
+            </template>
+            <template v-if="(b.status === 'draft' && isAdmin) || (b.status === 'diajukan' && canVerif)" #actions>
+              <v-btn v-if="b.status === 'draft' && isAdmin" size="small" color="primary" variant="tonal" @click="ajukanBatch(b)">Ajukan</v-btn>
+              <template v-if="b.status === 'diajukan' && canVerif">
+                <v-btn size="small" color="success" variant="tonal" @click="verifBatch(b, 'disetujui')">Setujui</v-btn>
+                <v-btn size="small" color="error" variant="tonal" @click="verifBatch(b, 'ditolak')">Tolak</v-btn>
+              </template>
+            </template>
+          </RecordCard>
+        </div>
+
+        <div v-else class="pa-2">
+          <div v-if="batchLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!batches.length" class="text-center py-6 text-medium-emphasis">Belum ada batch</div>
+          <v-list v-else density="compact" lines="one">
+            <v-list-item v-for="b in batches" :key="b.id" :title="`${b.periode_start} — ${b.periode_end}`" :subtitle="`${b.kawasan_kode} — ${b.periode_type} ${b.tahun}`">
+              <template #append>
+                <v-chip :color="batchColor(b.status)" size="x-small" class="mr-1">{{ b.status }}</v-chip>
+                <v-menu location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
+                  </template>
+                  <v-list density="compact" min-width="160">
+                    <v-list-item v-if="b.status === 'draft' && isAdmin" prepend-icon="mdi-send" title="Ajukan" @click="ajukanBatch(b)" />
+                    <v-list-item v-if="b.status === 'diajukan' && canVerif" prepend-icon="mdi-check" title="Setujui" @click="verifBatch(b, 'disetujui')" />
+                    <v-list-item v-if="b.status === 'diajukan' && canVerif" prepend-icon="mdi-close" title="Tolak" base-color="error" @click="verifBatch(b, 'ditolak')" />
+                  </v-list>
+                </v-menu>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
       </v-card>
 
-      <v-dialog v-model="batchDialog" max-width="520" persistent>
-        <v-card elevation="2" :border="false">
-          <v-card-title class="text-h6">Buat Batch Laporan</v-card-title>
-          <v-card-text>
-            <v-select v-model="batchForm.kawasan_id" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" variant="outlined" density="compact" :error-messages="batchErr.kawasan_id" class="mb-2" />
-            <v-select v-model="batchForm.periode_type" :items="['mingguan','bulanan','semester','tahunan']" label="Tipe Periode *" variant="outlined" density="compact" class="mb-2" />
-            <v-text-field v-model="batchForm.periode_start" label="Periode Start *" type="date" variant="outlined" density="compact" class="mb-2" />
-            <v-text-field v-model="batchForm.periode_end" label="Periode End *" type="date" variant="outlined" density="compact" class="mb-2" />
-            <v-text-field v-model.number="batchForm.tahun" label="Tahun *" type="number" variant="outlined" density="compact" class="mb-2" />
-            <v-text-field v-model="batchForm.catatan" label="Catatan" variant="outlined" density="compact" hide-details />
-          </v-card-text>
-          <v-card-actions><v-spacer /><v-btn variant="text" @click="batchDialog = false">Batal</v-btn><v-btn color="primary" :loading="batchSaving" @click="createBatch">Simpan</v-btn></v-card-actions>
-        </v-card>
-      </v-dialog>
+      <AppDialog v-model="batchDialog" title="Buat Batch Laporan" :max-width="520" icon="mdi-file-document-plus">
+        <v-select v-model="batchForm.kawasan_id" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" variant="outlined" density="compact" :error-messages="batchErr.kawasan_id" class="mb-2" />
+        <v-select v-model="batchForm.periode_type" :items="['mingguan','bulanan','semester','tahunan']" label="Tipe Periode *" variant="outlined" density="compact" class="mb-2" />
+        <v-text-field v-model="batchForm.periode_start" label="Periode Start *" type="date" variant="outlined" density="compact" class="mb-2" />
+        <v-text-field v-model="batchForm.periode_end" label="Periode End *" type="date" variant="outlined" density="compact" class="mb-2" />
+        <v-text-field v-model.number="batchForm.tahun" label="Tahun *" type="number" variant="outlined" density="compact" class="mb-2" />
+        <v-text-field v-model="batchForm.catatan" label="Catatan" variant="outlined" density="compact" hide-details />
+        <template #actions>
+          <v-spacer />
+          <v-btn variant="text" @click="batchDialog = false">Batal</v-btn>
+          <v-btn color="primary" :loading="batchSaving" @click="createBatch">Simpan</v-btn>
+        </template>
+      </AppDialog>
     </div>
 
     <!-- Kunci Periode -->
@@ -127,7 +226,10 @@
         </v-card-text>
       </v-card>
       <v-card flat elevation="0">
-        <v-table density="default">
+        <div class="d-flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeKunci" />
+        </div>
+        <v-table v-if="modeKunci === 'table'" density="default">
           <thead><tr><th>Tahun</th><th>Bulan</th><th>Kawasan</th><th>Dikunci oleh</th><th>Waktu</th><th style="width:120px">Aksi</th></tr></thead>
           <tbody>
             <tr v-if="lockRowsLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -142,6 +244,38 @@
             </tr>
           </tbody>
         </v-table>
+
+        <div v-else-if="modeKunci === 'list'" class="pa-3">
+          <div v-if="lockRowsLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!lockRows.length" class="text-center py-6 text-medium-emphasis">Belum ada periode terkunci</div>
+          <RecordCard
+            v-for="l in lockRows"
+            v-else
+            :key="l.id"
+            :title="`${bulanLabel(l.bulan)} ${l.tahun}`"
+            :subtitle="`${l.kawasan_kode} — ${l.kawasan_nama}`"
+            :fields="[
+              { label: 'Dikunci oleh', value: l.locked_by_nama || '-' },
+              { label: 'Waktu', value: l.locked_at },
+            ]"
+          >
+            <template v-if="isAdmin" #actions>
+              <v-btn size="small" color="warning" variant="tonal" prepend-icon="mdi-lock-open-variant" @click="bukaKunci(l)">Buka</v-btn>
+            </template>
+          </RecordCard>
+        </div>
+
+        <div v-else class="pa-2">
+          <div v-if="lockRowsLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!lockRows.length" class="text-center py-6 text-medium-emphasis">Belum ada periode terkunci</div>
+          <v-list v-else density="compact" lines="one">
+            <v-list-item v-for="l in lockRows" :key="l.id" :title="`${bulanLabel(l.bulan)} ${l.tahun}`" :subtitle="`${l.kawasan_kode} — ${l.locked_by_nama || '-'}`">
+              <template #append>
+                <v-btn v-if="isAdmin" size="x-small" color="warning" variant="tonal" @click="bukaKunci(l)">Buka</v-btn>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
       </v-card>
     </div>
 
@@ -162,7 +296,10 @@
         </v-card-text>
       </v-card>
       <v-card flat elevation="0">
-        <v-table density="default">
+        <div class="d-flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeCatatan" />
+        </div>
+        <v-table v-if="modeCatatan === 'table'" density="default">
           <thead><tr><th>Periode</th><th>Kawasan</th><th>Pos</th><th>Catatan</th><th>Status</th><th>Oleh</th><th style="width:140px">Aksi</th></tr></thead>
           <tbody>
             <tr v-if="catLoading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
@@ -181,6 +318,51 @@
             </tr>
           </tbody>
         </v-table>
+
+        <div v-else-if="modeCatatan === 'list'" class="pa-3">
+          <div v-if="catLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!catatan.length" class="text-center py-6 text-medium-emphasis">Belum ada catatan</div>
+          <RecordCard
+            v-for="c in catatan"
+            v-else
+            :key="c.id"
+            :title="`${bulanLabel(c.bulan)} ${c.tahun} — ${c.kawasan_kode}`"
+            :subtitle="c.jenis_nama || '—'"
+            :fields="[
+              { label: 'Oleh', value: c.created_by_nama || '-' },
+            ]"
+          >
+            <template #badge>
+              <v-chip size="small" :color="c.status === 'selesai' ? 'success' : 'warning'">{{ c.status }}</v-chip>
+            </template>
+            <div class="text-body-2 mt-2">{{ c.isi }}</div>
+            <template #actions>
+              <v-btn size="small" variant="tonal" color="success" @click="toggleCatatan(c)">{{ c.status === 'selesai' ? 'Buka' : 'Selesai' }}</v-btn>
+              <v-btn v-if="isAdmin" size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="hapusCatatan(c)">Hapus</v-btn>
+            </template>
+          </RecordCard>
+        </div>
+
+        <div v-else class="pa-2">
+          <div v-if="catLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!catatan.length" class="text-center py-6 text-medium-emphasis">Belum ada catatan</div>
+          <v-list v-else density="compact" lines="two">
+            <v-list-item v-for="c in catatan" :key="c.id" :title="`${bulanLabel(c.bulan)} ${c.tahun} — ${c.kawasan_kode}`" :subtitle="c.isi">
+              <template #append>
+                <v-chip size="x-small" :color="c.status === 'selesai' ? 'success' : 'warning'" class="mr-1">{{ c.status }}</v-chip>
+                <v-menu location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
+                  </template>
+                  <v-list density="compact" min-width="160">
+                    <v-list-item :prepend-icon="c.status === 'selesai' ? 'mdi-check' : 'mdi-undo'" :title="c.status === 'selesai' ? 'Buka' : 'Selesai'" @click="toggleCatatan(c)" />
+                    <v-list-item v-if="isAdmin" prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="hapusCatatan(c)" />
+                  </v-list>
+                </v-menu>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
       </v-card>
     </div>
 
@@ -196,7 +378,10 @@
         </v-card-text>
       </v-card>
       <v-card flat elevation="0">
-        <v-table density="default">
+        <div class="d-flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeAudit" />
+        </div>
+        <v-table v-if="modeAudit === 'table'" density="default">
           <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Entitas</th><th>ID</th><th>Before → After</th></tr></thead>
           <tbody>
             <tr v-if="auditLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
@@ -211,6 +396,35 @@
             </tr>
           </tbody>
         </v-table>
+
+        <div v-else-if="modeAudit === 'list'" class="pa-3">
+          <div v-if="auditLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!auditRows.length" class="text-center py-6 text-medium-emphasis">Belum ada log</div>
+          <RecordCard
+            v-for="a in auditRows"
+            v-else
+            :key="a.id"
+            :title="`${a.aksi} — ${a.entitas} #${a.entitas_id}`"
+            :subtitle="a.user_nama || a.user_email || a.user_id"
+            :fields="[
+              { label: 'Waktu', value: a.at },
+            ]"
+          >
+            <div class="text-caption mt-1">{{ a.before || '-' }} → {{ a.after || '-' }}</div>
+          </RecordCard>
+        </div>
+
+        <div v-else class="pa-2">
+          <div v-if="auditLoading" class="text-center py-6">Memuat...</div>
+          <div v-else-if="!auditRows.length" class="text-center py-6 text-medium-emphasis">Belum ada log</div>
+          <v-list v-else density="compact" lines="two">
+            <v-list-item v-for="a in auditRows" :key="a.id" :title="`${a.aksi} — ${a.entitas} #${a.entitas_id}`" :subtitle="`${a.at} · ${a.user_nama || a.user_email || a.user_id}`">
+              <template #append>
+                <v-chip size="x-small" :color="auditColor(a.aksi)">{{ a.aksi }}</v-chip>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
       </v-card>
     </div>
 
@@ -220,6 +434,13 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'default', middleware: 'auth' })
+
+const { mode: modeRealisasi } = useViewMode('verifikasi-realisasi')
+const { mode: modeBatch } = useViewMode('verifikasi-batch')
+const { mode: modeKunci } = useViewMode('verifikasi-kunci')
+const { mode: modeCatatan } = useViewMode('verifikasi-catatan')
+const { mode: modeAudit } = useViewMode('verifikasi-audit')
+
 type Row = { id: number; jenis_retribusi_id: number; tanggal: string; jumlah: number; jenis_kode: string; jenis_nama: string; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target_nilai: number; capaian: number; status: string; catatan?: string }
 type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number }

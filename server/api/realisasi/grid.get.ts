@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
   const mStart = monthStart(tahun, bulan)
   const nStart = nextMonthStart(tahun, bulan)
 
-  const leaves = await query<{ id: number; kode: string; nama: string; level: number; urutan: number; parent_id: number | null; tarif: number | null }>(
-    `SELECT jr.id, jr.kode, jr.nama, jr.level, jr.urutan, jr.parent_id, jr.tarif
+  const leaves = await query<{ id: number; kode: string; nama: string; level: number; urutan: number; parent_id: number | null; tarif: number | null; mode_tarif: string; satuan: string }>(
+    `SELECT jr.id, jr.kode, jr.nama, jr.level, jr.urutan, jr.parent_id, jr.tarif, jr.mode_tarif, jr.satuan
      FROM jenis_retribusi jr
      WHERE jr.kawasan_id = ? AND jr.aktif = 1
        AND NOT EXISTS (SELECT 1 FROM jenis_retribusi c WHERE c.parent_id = jr.id)
@@ -53,18 +53,24 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // status per (jenis, minggu representatif) — untuk edit guard
-  const statusRows = await query<{ jenis_retribusi_id: number; tanggal: string; id: number; status: string; catatan: string }>(
-    `SELECT id, jenis_retribusi_id, tanggal, status, catatan FROM realisasi
+  // status per (jenis, minggu representatif) — untuk edit guard + metadata kuantitas/tarif
+  const statusRows = await query<{ jenis_retribusi_id: number; tanggal: string; id: number; status: string; catatan: string; kuantitas: number | null; tarif: number | null }>(
+    `SELECT id, jenis_retribusi_id, tanggal, status, catatan, kuantitas, tarif FROM realisasi
      WHERE substr(tanggal,1,4) = ? AND tanggal >= ? AND tanggal < ? AND jenis_retribusi_id IN (SELECT id FROM jenis_retribusi WHERE kawasan_id = ?)`,
     [String(tahun), mStart, nStart, kawasanId],
   )
   const repByDay: Record<number, string> = { 1: '01', 2: '08', 3: '15', 4: '22' }
-  const statusMap = new Map<string, { id: number; status: string; catatan: string }>()
+  const statusMap = new Map<string, { id: number; status: string; catatan: string; kuantitas: number | null; tarif: number | null }>()
   for (const s of statusRows) {
     const day = Number(String(s.tanggal).slice(8, 10))
     const bucket = day <= 7 ? 1 : day <= 14 ? 2 : day <= 21 ? 3 : 4
-    statusMap.set(`${s.jenis_retribusi_id}-${bucket}`, { id: Number(s.id), status: String(s.status), catatan: String(s.catatan || '') })
+    statusMap.set(`${s.jenis_retribusi_id}-${bucket}`, {
+      id: Number(s.id),
+      status: String(s.status),
+      catatan: String(s.catatan || ''),
+      kuantitas: s.kuantitas == null ? null : Number(s.kuantitas),
+      tarif: s.tarif == null ? null : Number(s.tarif),
+    })
   }
 
   const locked = await isPeriodeLocked(tahun, bulan, kawasanId)
@@ -73,7 +79,15 @@ export default defineEventHandler(async (event) => {
     const a = aggMap.get(Number(l.id)) || { sBelum: 0, m1: 0, m2: 0, m3: 0, m4: 0 }
     const minggu = [1, 2, 3, 4].map((b) => {
       const st = statusMap.get(`${l.id}-${b}`)
-      return { minggu: b, nilai: [0, a.m1, a.m2, a.m3, a.m4][b]!, realisasi_id: st?.id ?? null, status: st?.status ?? null, catatan: st?.catatan ?? '' }
+      return {
+        minggu: b,
+        nilai: [0, a.m1, a.m2, a.m3, a.m4][b]!,
+        kuantitas: st?.kuantitas ?? null,
+        tarif: st?.tarif ?? null,
+        realisasi_id: st?.id ?? null,
+        status: st?.status ?? null,
+        catatan: st?.catatan ?? '',
+      }
     })
     return {
       jenis_id: Number(l.id),
@@ -81,6 +95,8 @@ export default defineEventHandler(async (event) => {
       nama: String(l.nama),
       level: Number(l.level),
       tarif: l.tarif == null ? null : Number(l.tarif),
+      mode_tarif: l.mode_tarif === 'kuantitas' ? 'kuantitas' : 'langsung',
+      satuan: String(l.satuan || ''),
       target: targetMap.get(Number(l.id)) || 0,
       sBelum: a.sBelum,
       minggu,

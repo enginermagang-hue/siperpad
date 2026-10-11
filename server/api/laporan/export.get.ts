@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import { getRekapPerJenis, getTotals, getTargetAnomali } from '../../utils/rekap'
+import { getRekapPerJenis, getTargetAnomali } from '../../utils/rekap'
 import { getRekapMingguan } from '../../utils/rekapMingguan'
 import { query } from '../../utils/db'
 
@@ -148,26 +148,18 @@ async function buildWorkbookMingguan(opts: { kawasanId?: number; tahun: number; 
     // No column
     const cA = wsRow.getCell(1)
     cA.value = row.kode || ''
-    // Jenis Penerimaan with indent by level (4 spaces per level like referensi)
+    // Jenis Penerimaan dengan penomoran bersarang per level (indent + nomor).
     const cB = wsRow.getCell(2)
     let displayName = row.nama
     if (isKawasan) {
-      // kawasan header already full
-    } else if (row.level === 1) {
-      displayName = `    ${row.nama}`
-    } else if (row.level === 2) {
-      // parent's children at level 2: in referensi "        Sewa..." 8 spaces or "            1. Food Court"
-      // use 8 spaces for level 2 simple, 12 for deeper? follow referensi indentation
-      displayName = `        ${row.nama}`
-    } else if (row.level === 3) {
-      displayName = `            ${row.nama}`
-      // for sub-items like "a. Nomor B1" has extra indent
-      if (row.nama.startsWith('Food Court') || row.nama.includes('Nomor B')) displayName = `                ${row.nama}`
-    } else if (row.level >= 4) {
-      displayName = `                ${row.nama}`
-      if (row.nama === 'Dewasa' || row.nama === 'Anak' || row.nama === 'Wisatawan Mancanegara') displayName = `                    - ${row.nama}`
+      displayName = row.nama
+    } else if (isTotal) {
+      displayName = 'TOTAL'
+    } else {
+      const pad = ' '.repeat(Math.max(0, (row.level - 1) * 3))
+      const prefix = row.nomor ? `${row.nomor} ` : ''
+      displayName = `${pad}${prefix}${row.nama}`
     }
-    if (isTotal) displayName = 'TOTAL'
     cB.value = displayName
 
     const cC = wsRow.getCell(3); cC.value = row.target
@@ -352,6 +344,332 @@ async function buildWorkbookMingguan(opts: { kawasanId?: number; tahun: number; 
   return { buf, kawasanList, dataEndRow }
 }
 
+// === LAPORAN REALISASI PENERIMAAN (PDF) ===
+// Layout mengikuti referensi/contoh laporan.pdf: landscape 14"x8.5" (1008 x 612 pt),
+// kolom: Kode Rekening | JENIS PENERIMAAN | Volume/Satuan | Target 2026 |
+//        s/d Bulan Lalu | Bulan Ini | S/D Bulan Ini | % | KETERANGAN
+const PAGE_W = 1008
+const PAGE_H = 612
+const MARGIN = 20
+
+// Blok tanda tangan (statis; mudah diganti bila pejabat berubah).
+const PEJABAT = {
+  tempatTanggal: (tgl: number, bulanLabel: string, tahun: number) => `Kupang, ${tgl} ${bulanLabel} ${tahun}`,
+  kiri: {
+    pembuka: 'Mengetahui',
+    jabatan: ['Kepala Dinas Pariwisata dan Ekonomi Kreatif', 'Provinsi Nusa Tenggara Timur'],
+    nama: 'Drs. Doris Alexander Rihi, M.Si',
+    pangkat: 'Pembina Utama Madya (IV/d)',
+    nip: 'NIP 197012291990031005',
+  },
+  kanan: {
+    pembuka: 'Bendahara Penerimaan,',
+    jabatan: [] as string[],
+    nama: 'B. Agustin Da Costa, S.Sos',
+    pangkat: 'Penata Tingkat I (III/d)',
+    nip: 'NIP.198008302009012002',
+  },
+}
+
+type PdfRow = {
+  kode: string
+  nomor: string
+  nama: string
+  level: number
+  isKawasan: boolean
+  isTotal: boolean
+  volume: string
+  target: number
+  sBelum: number
+  bulanIni: number
+  sBulanIni: number
+  capaian: number // 0..1
+  keterangan: string
+}
+
+function buildPdfLaporan(opts: {
+  rows: PdfRow[]
+  bulanLabel: string
+  tahun: number
+  bulan: number
+  tanggalAngka: number
+  tanggalLabel: string
+}): Promise<Buffer> {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const PDFDocument = _require('pdfkit') as unknown as new (o: unknown) => any
+  // PAGE_W x PAGE_H adalah dimensi sebenarnya (1008 x 612 pt = landscape 14"x8.5").
+  // pdfkit menukar width/height saat layout:landscape, maka pakai layout portrait.
+  const doc = new PDFDocument({ size: [PAGE_W, PAGE_H], margin: MARGIN, layout: 'portrait' })
+  const chunks: Buffer[] = []
+  doc.on('data', (c: Buffer) => chunks.push(c))
+  const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))))
+
+  // Column widths (total 968 = PAGE_W - 2*MARGIN)
+  const cols = [
+    { key: 'kode', label: 'Kode Rekening', w: 74, align: 'left' as const },
+    { key: 'nama', label: 'JENIS PENERIMAAN', w: 338, align: 'left' as const },
+    { key: 'volume', label: 'Volume / Satuan', w: 56, align: 'center' as const },
+    { key: 'target', label: 'TARGET PENERIMAAN 2026 ( Rp )', w: 98, align: 'right' as const },
+    { key: 'sBelum', label: 'S / D BULAN LALU ( RP )', w: 92, align: 'right' as const },
+    { key: 'bulanIni', label: 'BULAN INI ( Rp )', w: 84, align: 'right' as const },
+    { key: 'sBulanIni', label: 'S/D BULAN INI ( Rp )', w: 92, align: 'right' as const },
+    { key: 'capaian', label: '%', w: 54, align: 'right' as const },
+    { key: 'ket', label: 'KETERANGAN', w: 80, align: 'left' as const },
+  ]
+  const tableLeft = MARGIN
+  const tableW = cols.reduce((s, c) => s + c.w, 0)
+  // Ukuran font (diperbesar agar mudah dibaca)
+  const FONT_TITLE1 = 13
+  const FONT_TITLE2 = 11
+  const FONT_HEADER = 8
+  const FONT_HEADER_SUB = 6.5
+  const FONT_NUM = 7
+  const FONT_BODY = 9.5
+  const FONT_KET = 8.5
+  const FONT_SIGN = 9.5
+  // Geometri
+  const HEADER_LABEL_H = 13 // baris label utama (1 baris)
+  const HEADER_SUB_H = 10 // baris sub-label "( Rp )"
+  const HEADER_TOP_H = HEADER_LABEL_H + HEADER_SUB_H
+  const HEADER_NUM_H = 12 // tinggi baris nomor 1..9
+  const HEADER_H = HEADER_TOP_H + HEADER_NUM_H
+  const ROW_H = 21
+  const FOOTER_H = 8
+  const bottomLimit = PAGE_H - MARGIN - FOOTER_H
+
+  const fmtRupiah = (n: number) => {
+    if (!n) return '-'
+    return n.toLocaleString('id-ID')
+  }
+  const fmtPersen = (ratio: number, target: number) => (target > 0 ? `${(ratio * 100).toFixed(2)}%` : '-')
+
+  // Kecilkan ukuran font hingga teks muat 1 baris di lebar w (min 6pt).
+  function fitFontSize(text: string, w: number, start = FONT_HEADER, min = 6): number {
+    let size = start
+    while (size > min) {
+      doc.font('Helvetica-Bold').fontSize(size)
+      if (doc.widthOfString(text) <= w - 4) return size
+      size -= 0.25
+    }
+    return min
+  }
+
+  function drawTitle() {
+    doc.font('Helvetica-Bold').fontSize(FONT_TITLE1).fillColor('#000000')
+      .text('LAPORAN REALISASI PENERIMAAN', MARGIN, doc.y, { width: tableW, align: 'center' })
+    doc.font('Helvetica-Bold').fontSize(FONT_TITLE2)
+      .text('DINAS PARIWISATA DAN EKONOMI KREATIF PROVINSI NTT', MARGIN, doc.y, { width: tableW, align: 'center' })
+    doc.font('Helvetica-Bold').fontSize(FONT_TITLE2)
+      .text(`KEADAAN SAMPAI DENGAN ${opts.tanggalLabel}`, MARGIN, doc.y, { width: tableW, align: 'center' })
+    doc.moveDown(0.4)
+  }
+
+  function drawHeader() {
+    const yTop = doc.y
+    // Row labels via explicit text per cell (auto-fit agar tidak tumpang tindih)
+    const drawCellText = (x: number, y: number, w: number, h: number, text: string, o?: { size?: number; align?: 'left' | 'center' | 'right' }) => {
+      const size = o?.size ?? FONT_HEADER
+      doc.font('Helvetica-Bold').fontSize(size)
+      doc.text(text, x + 2, y + (h - size) / 2, { width: w - 4, align: o?.align ?? 'left', lineBreak: false })
+    }
+    let x = tableLeft
+    const fullH = HEADER_H
+    const yLabel = yTop
+    const ySub = yTop + HEADER_LABEL_H
+    for (const c of cols) {
+      doc.rect(x, yTop, c.w, fullH).strokeColor('#000000').lineWidth(0.5).stroke()
+      // Label dua bagian (mis. "TARGET PENERIMAAN 2026 ( Rp )")
+      const lines = c.label.split(' ( ')
+      if (lines.length > 1) {
+        const label = lines[0]!
+        const sub = `( ${lines[1]}`
+        drawCellText(x, yLabel, c.w, HEADER_LABEL_H, label, { size: fitFontSize(label, c.w), align: 'center' })
+        drawCellText(x, ySub, c.w, HEADER_SUB_H, sub, { size: fitFontSize(sub, c.w, FONT_HEADER_SUB, 5.5), align: 'center' })
+        doc.moveTo(x, ySub).lineTo(x + c.w, ySub).strokeColor('#000000').lineWidth(0.5).stroke()
+      } else if (c.key === 'capaian') {
+        drawCellText(x, yLabel, c.w, HEADER_LABEL_H, '%', { size: FONT_HEADER, align: 'center' })
+        drawCellText(x, ySub, c.w, HEADER_SUB_H, '8=(7/4*100%)', { size: fitFontSize('8=(7/4*100%)', c.w, FONT_HEADER_SUB, 5.5), align: 'center' })
+        doc.moveTo(x, ySub).lineTo(x + c.w, ySub).strokeColor('#000000').lineWidth(0.5).stroke()
+      } else {
+        drawCellText(x, yLabel, c.w, HEADER_TOP_H, c.label, { size: fitFontSize(c.label, c.w, FONT_HEADER, 6), align: 'center' })
+      }
+      x += c.w
+    }
+    // numbering row: 1..9
+    const yNum = yTop + HEADER_TOP_H
+    doc.rect(tableLeft, yNum, tableW, HEADER_NUM_H).strokeColor('#000000').lineWidth(0.5).stroke()
+    x = tableLeft
+    const nums = ['1', '2', '3', '4', '5', '6', '7 = ( 5 + 6 )', '8', '9']
+    cols.forEach((c, i) => {
+      if (i > 0) doc.moveTo(x, yNum).lineTo(x, yNum + HEADER_NUM_H).stroke()
+      drawCellText(x, yNum, c.w, HEADER_NUM_H, nums[i]!, { size: fitFontSize(nums[i]!, c.w, FONT_NUM, 5.5), align: 'center' })
+      x += c.w
+    })
+    doc.y = yNum + HEADER_NUM_H
+    doc.x = tableLeft
+  }
+
+  function drawRow(row: { cells: string[]; bold?: boolean; align?: ('left' | 'center' | 'right')[]; height?: number }) {
+    // Kolom yang boleh dibungkus ke beberapa baris (word-wrap).
+    const WRAP_KEYS = new Set(['nama', 'ket'])
+    const font = row.bold ? 'Helvetica-Bold' : 'Helvetica'
+
+    // Hitung tinggi sel (multi-baris) per kolom.
+    const cellHeights: number[] = cols.map((c, i) => {
+      const txt = row.cells[i] ?? ''
+      const size = c.key === 'ket' ? FONT_KET : FONT_BODY
+      doc.font(font).fontSize(size)
+      if (!txt) return size
+      const h = WRAP_KEYS.has(c.key)
+        ? doc.heightOfString(txt, { width: c.w - 6 })
+        : size
+      return h
+    })
+    const maxContentH = Math.max(...cellHeights)
+    // Tinggi baris = maksimum konten + padding, minimal ROW_H.
+    const h = row.height ?? Math.max(ROW_H, Math.ceil(maxContentH) + 8)
+
+    if (doc.y + h > bottomLimit) {
+      doc.addPage()
+      doc.y = MARGIN
+      drawTitle()
+      drawHeader()
+    }
+    const y = doc.y
+    doc.rect(tableLeft, y, tableW, h).strokeColor('#000000').lineWidth(0.5).stroke()
+    let x = tableLeft
+    cols.forEach((c, i) => {
+      if (i > 0) doc.moveTo(x, y).lineTo(x, y + h).stroke()
+      const txt = row.cells[i] ?? ''
+      const align = row.align?.[i] ?? c.align
+      const size = c.key === 'ket' ? FONT_KET : FONT_BODY
+      doc.font(font).fontSize(size)
+      const textY = y + (h - cellHeights[i]!) / 2
+      if (WRAP_KEYS.has(c.key)) {
+        doc.text(txt, x + 3, textY, { width: c.w - 6, align, lineBreak: true })
+      } else {
+        doc.text(txt, x + 3, textY, { width: c.w - 6, align, lineBreak: false, ellipsis: true })
+      }
+      x += c.w
+    })
+    doc.y = y + h
+    doc.x = tableLeft
+  }
+
+  function indentName(nama: string, level: number, nomor: string): string {
+    if (level <= 0) return nama
+    const pad = ' '.repeat(Math.max(0, (level - 1) * 3))
+    const prefix = nomor ? `${nomor} ` : ''
+    return `${pad}${prefix}${nama}`
+  }
+
+  // ===== render =====
+  doc.y = MARGIN
+  drawTitle()
+  drawHeader()
+
+  for (const r of opts.rows) {
+    const cells = [
+      r.kode,
+      indentName(r.nama, r.level, r.nomor),
+      r.volume,
+      fmtRupiah(r.target),
+      fmtRupiah(r.sBelum),
+      fmtRupiah(r.bulanIni),
+      fmtRupiah(r.sBulanIni),
+      fmtPersen(r.capaian, r.target),
+      r.keterangan,
+    ]
+    drawRow({
+      cells,
+      bold: r.isKawasan || r.isTotal,
+      align: ['left', 'left', 'center', 'right', 'right', 'right', 'right', 'right', 'left'],
+    })
+  }
+
+  // ===== tanda tangan =====
+  let y = doc.y + 18
+  if (y + 110 > PAGE_H - MARGIN) {
+    doc.addPage()
+    y = MARGIN + 10
+  }
+  const colW = tableW / 2
+  const leftX = tableLeft + 6
+  const rightX = tableLeft + colW + 20
+  doc.font('Helvetica').fontSize(FONT_SIGN).fillColor('#000000')
+  // kiri
+  let ly = y
+  doc.text(PEJABAT.kiri.pembuka, leftX, ly, { width: colW - 20 }); ly += 14
+  PEJABAT.kiri.jabatan.forEach((l) => { doc.text(l, leftX, ly, { width: colW - 20 }); ly += 12 })
+  ly += 42 // ruang tanda tangan
+  doc.font('Helvetica-Bold').fontSize(FONT_SIGN + 0.5).text(PEJABAT.kiri.nama, leftX, ly, { width: colW - 20 }); ly += 13
+  doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kiri.pangkat, leftX, ly, { width: colW - 20 }); ly += 12
+  doc.text(PEJABAT.kiri.nip, leftX, ly, { width: colW - 20 })
+  // kanan
+  let ry = y
+  doc.text(PEJABAT.tempatTanggal(opts.tanggalAngka, opts.bulanLabel, opts.tahun), rightX, ry, { width: colW - 20 }); ry += 14
+  doc.text(PEJABAT.kanan.pembuka, rightX, ry, { width: colW - 20 }); ry += 54
+  doc.font('Helvetica-Bold').fontSize(FONT_SIGN + 0.5).text(PEJABAT.kanan.nama, rightX, ry, { width: colW - 20 }); ry += 13
+  doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kanan.pangkat, rightX, ry, { width: colW - 20 }); ry += 12
+  doc.text(PEJABAT.kanan.nip, rightX, ry, { width: colW - 20 })
+
+  doc.end()
+  return done
+}
+
+async function buildPdfRows(opts: { kawasanId?: number; tahun: number; bulan: number }): Promise<{ rows: PdfRow[]; bulanLabel: string; tanggalAngka: number; tanggalLabel: string }> {
+  const { rows: mingguanRows, bulanLabel } = await getRekapMingguan({ kawasanId: opts.kawasanId, tahun: opts.tahun, bulan: opts.bulan })
+
+  // peta kode rekening & satuan per jenis_id
+  const jenisRows = await query<{ id: number; kode_rekening: string | null; satuan: string | null }>(
+    `SELECT id, kode_rekening, satuan FROM jenis_retribusi WHERE aktif = 1`
+  )
+  const kodeMap = new Map<number, string>()
+  const satuanMap = new Map<number, string>()
+  for (const j of jenisRows) {
+    kodeMap.set(Number(j.id), String(j.kode_rekening || ''))
+    satuanMap.set(Number(j.id), String(j.satuan || ''))
+  }
+
+  // catatan anomali target per jenis -> keterangan
+  const ketMap = new Map<number, string>()
+  try {
+    const anomali = await getTargetAnomali({ kawasanId: opts.kawasanId, tahun: opts.tahun })
+    for (const a of anomali) {
+      ketMap.set(Number(a.jenis_id),
+        `Anomali target: induk ≠ jumlah anak (selisih ${a.selisih.toLocaleString('id-ID')})`)
+    }
+  } catch { /* abaikan */ }
+
+  const lastDay = new Date(opts.tahun, opts.bulan, 0).getDate()
+  const tanggalLabel = `${lastDay} ${bulanLabel.toUpperCase()} ${opts.tahun}`
+
+  const pdfRows: PdfRow[] = mingguanRows.map((r) => {
+    const isKawasan = r.isKawasan
+    const isTotal = r.isTotal
+    let kodeRek = ''
+    if (!isKawasan && !isTotal && r.jenis_id != null) kodeRek = kodeMap.get(Number(r.jenis_id)) || ''
+    const volume = isKawasan || isTotal ? '' : (r.jenis_id != null && satuanMap.get(Number(r.jenis_id))) || '1 Tahun'
+    return {
+      kode: kodeRek,
+      nomor: isKawasan || isTotal ? '' : r.nomor,
+      nama: isKawasan ? `Kawasan Wisata ${r.kawasan_nama}` : r.nama,
+      level: isKawasan ? 0 : r.level,
+      isKawasan,
+      isTotal,
+      volume,
+      target: r.target,
+      sBelum: r.sBelum,
+      bulanIni: r.totalMingguan,
+      sBulanIni: r.sBulanIni,
+      capaian: r.capaian,
+      keterangan: !isKawasan && !isTotal && r.jenis_id != null ? (ketMap.get(Number(r.jenis_id)) || '') : '',
+    }
+  })
+
+  return { rows: pdfRows, bulanLabel, tanggalAngka: lastDay, tanggalLabel }
+}
+
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
@@ -366,10 +684,9 @@ export default defineEventHandler(async (event) => {
   const format = (q.format || 'csv').toLowerCase()
   if (!['csv', 'xlsx', 'pdf'].includes(format)) throw createError({ statusCode: 400, message: 'Format harus csv/xlsx/pdf' })
 
-  // CSV / PDF keep flat rekap
-  if (format === 'csv' || format === 'pdf') {
+  // CSV keep flat rekap
+  if (format === 'csv') {
     const perJenis = await getRekapPerJenis({ kawasanId, tahun })
-    const totals = await getTotals(perJenis)
     let kawasanLabel = 'Semua Kawasan'
     if (kawasanId) {
       const r = await query<{ nama: string; kode: string }>('SELECT nama, kode FROM kawasan WHERE id = ?', [kawasanId])
@@ -384,76 +701,24 @@ export default defineEventHandler(async (event) => {
       capaian: r.capaian,
       selisih: r.selisih,
     }))
-    if (format === 'csv') {
-      const csv = toCsv(flat)
-      setHeader(event, 'Content-Type', 'text/csv; charset=utf-8')
-      setHeader(event, 'Content-Disposition', `attachment; filename="rekap-${tahun}-${kawasanLabel.replace(/[^A-Za-z0-9]+/g, '_')}.csv"`)
-      return csv
+    const csv = toCsv(flat)
+    setHeader(event, 'Content-Type', 'text/csv; charset=utf-8')
+    setHeader(event, 'Content-Disposition', `attachment; filename="rekap-${tahun}-${kawasanLabel.replace(/[^A-Za-z0-9]+/g, '_')}.csv"`)
+    return csv
+  }
+
+  // pdf — LAPORAN REALISASI PENERIMAAN (landscape 14"x8.5", struktur referensi)
+  if (format === 'pdf') {
+    const { rows, bulanLabel, tanggalAngka, tanggalLabel } = await buildPdfRows({ kawasanId, tahun, bulan })
+    const pdfBuf = await buildPdfLaporan({ rows, bulanLabel, tahun, bulan, tanggalAngka, tanggalLabel })
+    let kawasanSlug = 'Semua-Kawasan'
+    if (kawasanId) {
+      const r = await query<{ nama: string; kode: string }>('SELECT nama, kode FROM kawasan WHERE id = ?', [kawasanId])
+      if (r.length) kawasanSlug = `${r[0]!.kode}-${r[0]!.nama.replace(/[^A-Za-z0-9]+/g, '_')}`
     }
-    // pdf — portrait A4 via pdfkit
-    const PDFDocument = _require('pdfkit') as unknown as new (opts: unknown) => InstanceType<typeof import('pdfkit')>
-    const doc = new PDFDocument({ size: 'A4', margin: 36, layout: 'portrait' })
-    const chunks: Buffer[] = []
-    doc.on('data', (c: Buffer) => chunks.push(c))
-    const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))))
-    doc.fontSize(14).text('Rekap Retribusi PAD', { align: 'center' })
-    doc.fontSize(9).text(`${kawasanLabel} — Tahun ${tahun}`, { align: 'center' })
-    doc.fontSize(7).text(`Tanggal cetak: ${new Date().toLocaleString('id-ID')}`, { align: 'center' })
-    doc.moveDown(0.6)
-    const cols = [
-      { w: 48, label: 'Kode' },
-      { w: 170, label: 'Jenis' },
-      { w: 90, label: 'Kawasan' },
-      { w: 60, label: 'Target', align: 'right' as const },
-      { w: 60, label: 'Realisasi', align: 'right' as const },
-      { w: 52, label: 'Capaian', align: 'right' as const },
-      { w: 60, label: 'Selisih', align: 'right' as const },
-    ]
-    const tableLeft = 36
-    const rowH = 12
-    let y = (doc as unknown as { y: number }).y
-    const fmt = (n: number) => n.toLocaleString('id-ID')
-    function drawRow(vals: string[], bold = false, yPos: number) {
-      let x = tableLeft
-      doc.fontSize(6)
-      if (bold) doc.font('Helvetica-Bold')
-      else doc.font('Helvetica')
-      for (let i = 0; i < cols.length; i++) {
-        const c = cols[i]!
-        const v = vals[i] ?? ''
-        const opts: Record<string, unknown> = { width: c.w, align: c.align || 'left', continued: false }
-        doc.text(v, x + 2, yPos + 2, opts as never)
-        doc.rect(x, yPos, c.w, rowH).strokeColor('#cccccc').stroke()
-        x += c.w
-      }
-    }
-    drawRow(cols.map((c) => c.label), true, y)
-    y += rowH
-    doc.font('Helvetica').fontSize(6)
-    for (const r of flat) {
-      if (y > 770) {
-        doc.addPage()
-        y = 36
-        drawRow(cols.map((c) => c.label), true, y)
-        y += rowH
-      }
-      drawRow([r.kode, r.nama.slice(0, 48), r.kawasan.slice(0, 22), fmt(r.target), fmt(r.realisasi), `${r.capaian}%`, fmt(r.selisih)], false, y)
-      y += rowH
-    }
-    if (y > 730) {
-      doc.addPage()
-      y = 36
-    }
-    y += 6
-    doc.font('Helvetica-Bold').fontSize(7).text(`TOTAL TARGET: ${fmt(totals.totalTarget)}`, tableLeft, y)
-    y += 10
-    doc.text(`TOTAL REALISASI: ${fmt(totals.totalRealisasi)}`, tableLeft, y)
-    y += 10
-    doc.text(`CAPAIAN: ${totals.capaian}%   SELISIH: ${fmt(totals.selisih)}`, tableLeft, y)
-    doc.end()
-    const pdfBuf = await done
+    const bulanPadded = String(bulan).padStart(2, '0')
     setHeader(event, 'Content-Type', 'application/pdf')
-    setHeader(event, 'Content-Disposition', `attachment; filename="rekap-${tahun}.pdf"`)
+    setHeader(event, 'Content-Disposition', `attachment; filename="laporan-realisasi-${kawasanSlug}-${tahun}-${bulanPadded}.pdf"`)
     return pdfBuf
   }
 
