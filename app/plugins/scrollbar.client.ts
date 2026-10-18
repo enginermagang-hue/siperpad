@@ -12,13 +12,11 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   if (!import.meta.client || !document?.body) return
 
-  // Scroll dokumen utama (body) tetap memakai OverlayScrollbars.
-  //
-  // CATATAN: auto-apply ke seluruh elemen yang meluap (startAutoScrollbars)
-  // SENGAJA TIDAK dipakai. OverlayScrollbars memaksa `display:flex` +
-  // `position:relative` pada host-nya, sehingga merusak elemen yang dibuat
-  // dinamis oleh Preline (mis. dropdown HSSelect yang butuh
-  // `position:absolute`). Area scroll internal sudah memakai utility
-  // `overflow-y-auto` bawaan Tailwind/Preline, jadi tidak perlu OS di sana.
+  // OverlayScrollbars dipasang TERARAH, bukan auto-apply ke semua elemen:
+  //  - di sini: <body> (scroll dokumen)
+  //  - app/layouts/default.vue: container scroll sidebar
+  // Body dialog memakai scrollbar CSS native (lihat .siperpad-dialog-scroll),
+  // karena viewport OS selalu `overflow-y: scroll` sehingga memotong dropdown
+  // AppSelect yang `position:absolute` di dalam wrapper (dropdownScope 'parent').
   OverlayScrollbars(document.body, bodyScrollbarOptions)
 })

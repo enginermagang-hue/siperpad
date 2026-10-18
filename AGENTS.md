@@ -20,7 +20,7 @@ Jangan pernah menjalankan `npm run dev`, `npm run build`, atau `npx nuxt build` 
 - `app/layouts/` — layout wrappers
 - `app/composables/` — shared client composables
 - `app/components/` — shared components (incl. Preline adapters: `AppSelect`, `AppMenu`, `AppDialog`, `AppToast`, `AppPagination`)
-- `app/plugins/` — Nuxt plugins (client-only OverlayScrollbars init)
+- `app/plugins/` — Nuxt plugins (client-only OverlayScrollbars init for `<body>`)
 - `app/assets/css/main.css` — Tailwind v4 entry + Preline `@source`/`variants`/`theme`
 - `server/api/` — Nitro server routes (file = `[route].[method].ts`)
 - `server/utils/` — server-side helpers (Turso client, Dropbox client)
@@ -39,7 +39,13 @@ Preline's JS plugins are **DOM-driven**, so they are confined to two adapters:
 - `AppSelect.vue` — wraps `HSSelect`; keeps `<select>` in the DOM and re-inits when the option list changes.
 - `AppMenu.vue` — wraps `HSDropdown`; one instance per component, destroyed on unmount (safe inside `v-for`).
 
-Do **not** add `startAutoScrollbars`-style blanket OverlayScrollbars init: OverlayScrollbars forces `display:flex` + `position:relative` on its host, which breaks dynamically created Preline nodes (dropdowns need `position:absolute`). Only `document.body` gets OverlayScrollbars.
+Do **not** re-enable blanket OverlayScrollbars auto-apply. OverlayScrollbars forces `display:flex` + `position:relative` on its host, and its viewport is always `overflow-y: scroll` — a permanent clipping context. That breaks dynamically created Preline nodes: `HSSelect` uses `dropdownScope: 'parent'` (dropdown is `position:absolute` inside its wrapper), so it gets clipped. Note that `AppSelect`'s `inModal` prop only sets `dropdownVerticalFixedPlacement` (adds `top-full` + margin) — it does **not** make the dropdown `position: fixed`.
+
+OverlayScrollbars is therefore mounted **explicitly** on exactly two elements:
+- `document.body` — `app/plugins/scrollbar.client.ts`
+- sidebar scroll container — `mountScrollbar()` in `app/layouts/default.vue`
+
+Dialog body (`AppDialog.vue`) uses the native CSS scrollbar class `.siperpad-dialog-scroll` (defined in `main.css`) instead, keeping `overflow-y-auto` so clipping only happens when the content actually overflows. Scrollbar visibility is `auto` (OS default), so bars only appear on overflow.
 
 Icons come from `lucide-vue-next` (imported per file). Dark mode is a `dark` class on `<html>` managed by `useTheme()` (cookie-backed, SSR-safe). Breakpoint helper is `useBreakpoint()` with `md` = 768px (Tailwind), not Vuetify's 960px.
 

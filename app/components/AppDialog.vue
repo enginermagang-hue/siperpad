@@ -52,7 +52,13 @@
             </div>
 
             <!-- Body -->
-            <div class="px-4 py-4 overflow-y-auto flex-1">
+            <!--
+              Scrollbar native bergaya tema (lihat .siperpad-dialog-scroll).
+              Sengaja TIDAK memakai OverlayScrollbars: viewport OS selalu
+              `overflow-y: scroll` sehingga memotong dropdown AppSelect yang
+              ber-`position:absolute` di dalam body dialog.
+            -->
+            <div class="px-4 py-4 overflow-y-auto flex-1 siperpad-dialog-scroll">
               <slot />
             </div>
 

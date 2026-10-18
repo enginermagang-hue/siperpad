@@ -1,7 +1,14 @@
 // Konfigurasi scrollbar bersama (OverlayScrollbars).
-// Dipakai plugin (scroll dokumen), layout (scroll sidebar), dan auto-apply
-// (area scroll internal: dialog/menu/list/tabel).
+// Dipakai plugin (scroll dokumen) dan layout (scroll sidebar).
 // Warna --os-* didefinisikan di app/assets/css/main.css (tema kustom os-theme-siperpad).
+//
+// CATATAN: OverlayScrollbars SENGAJA tidak di-auto-apply ke seluruh dokumen.
+// Stylesheet package memaksa `display:flex` + `position:relative` pada host dan
+// `overflow-y:scroll` pada viewport-nya. Viewport yang selalu `overflow:scroll`
+// menjadi clipping context permanen, sehingga dropdown Preline (HSSelect dengan
+// `dropdownScope: 'parent'`, yaitu `position:absolute` di dalam wrapper) ikut
+// terpotong walau konten dialog masih pendek. Karena itu OS hanya dipasang pada
+// elemen yang sudah diketahui aman: <body> dan container scroll sidebar.
 import { OverlayScrollbars } from 'overlayscrollbars'
 import type { PartialOptions } from 'overlayscrollbars'
 
@@ -9,6 +16,7 @@ export const SCROLLBAR_THEME = 'os-theme-siperpad'
 
 export const scrollbarOptions: PartialOptions = {
   scrollbars: {
+    // `visibility: 'auto'` (default OS) -> scrollbar hanya tampil saat overflow.
     autoHide: 'never',
     autoHideDelay: 600,
     theme: SCROLLBAR_THEME,
@@ -23,144 +31,34 @@ export const bodyScrollbarOptions: PartialOptions = {
   overflow: { x: 'hidden', y: 'scroll' },
 }
 
-// Elemen yang TIDAK boleh diinisialisasi OverlayScrollbars:
-// - html/body: ditangani plugin utama (overlay untuk scroll dokumen).
-// - elemen OS sendiri (punya atribut data-overlayscrollbars*).
-// - elemen di DALAM viewport OS (mis. wrapper internal OverlayScrollbars),
-//   agar tidak terjadi init berantai. CATATAN: jangan pakai closest('[data-overlayscrollbars]')
-//   karena html sendiri adalah host OS, sehingga semua elemen akan ter-skip.
-const SKIP_SELF_SELECTOR = 'html, body, .os-scrollbar'
+// Opsi container scroll sidebar: vertikal saja, tanpa track horizontal
+// (di mode rail lebar 72px hampir tidak pernah ada ruang untuk itu).
+export const sidebarScrollbarOptions: PartialOptions = bodyScrollbarOptions
 
 // Elemen struktur (nav, table, tr, td, thead, tbody, ul, ol, form, fieldset, dll)
 // TIDAK boleh menjadi host OS: stylesheet OverlayScrollbars memaksa
 // `[data-overlayscrollbars~=host] { display: flex }`, yang merusak layout
 // elemen-elemen ini (mis. <nav> jadi horizontal, <tr> jadi flex).
-// OverlayScrollbars hanya aman untuk container blok generik.
 const UNSAFE_HOST_SELECTOR =
   'nav, table, thead, tbody, tfoot, tr, td, th, ul, ol, dl, form, fieldset, select, option'
 
 /**
- * Inisialisasi OverlayScrollbars ke sebuah elemen scroll.
- * Mengembalikan instance bila berhasil, atau null bila elemen tidak layak.
+ * Pasang OverlayScrollbars pada elemen yang SUDAH diketahui aman (dipanggil
+ * eksplisit dari layout). Berbeda dengan auto-apply, tidak ada pemeriksaan
+ * "sedang meluap?" karena elemen bisa belum overflow saat mount (sidebar
+ * pendek, dialog baru dibuka) — OverlayScrollbars punya ResizeObserver sendiri
+ * dan akan memunculkan scrollbar begitu overflow terjadi.
  */
-export function initScrollbarOn(el: HTMLElement): OverlayScrollbars | null {
-  if (el.hasAttribute('data-overlayscrollbars') ||
-      el.hasAttribute('data-overlayscrollbars-viewport') ||
-      el.hasAttribute('data-overlayscrollbars-contents')) {
-    return null
-  }
-  if (el.matches(SKIP_SELF_SELECTOR)) return null
-  // jangan jadikan host untuk elemen struktur (display:flex akan merusak layout)
+export function mountScrollbar(
+  el: HTMLElement | null | undefined,
+  opts: PartialOptions = sidebarScrollbarOptions,
+): OverlayScrollbars | null {
+  if (!import.meta.client || !el) return null
+  if (el.hasAttribute('data-overlayscrollbars')) return null
   if (el.matches(UNSAFE_HOST_SELECTOR)) return null
-  if (el.tagName === 'MAIN' || el.tagName === 'ASIDE') return null
-  // skip bila berada di dalam viewport OS INTERNAL (bukan html/documentElement,
-  // yang juga punya atribut viewport saat OS mengelola scroll dokumen).
-  if (hasInternalOSAncestor(el)) return null
-  // hanya untuk elemen yang benar-benar overflow secara vertikal/horizontal
-  if (!isOverflowing(el)) return null
   try {
-    return OverlayScrollbars(el, scrollbarOptions)
+    return OverlayScrollbars(el, opts)
   } catch {
     return null
-  }
-}
-
-/**
- * True bila elemen berada di dalam viewport OS internal (mis. wrapper dialog/menu
- * yang sudah dikelola OS) — bukan sekadar di bawah html yang menjadi host dokumen.
- */
-function hasInternalOSAncestor(el: HTMLElement): boolean {
-  let ancestor = el.parentElement
-  while (ancestor && ancestor !== document.documentElement) {
-    if (ancestor.classList.contains('os-scrollbar') ||
-        ancestor.getAttribute('data-overlayscrollbars-viewport') != null) {
-      return true
-    }
-    ancestor = ancestor.parentElement
-  }
-  return false
-}
-
-/** True bila node berada di dalam internal OS (viewport/scrollbar), bukan html. */
-function isInsideInternalOS(el: Element | null): boolean {
-  return el instanceof HTMLElement ? hasInternalOSAncestor(el) : false
-}
-
-function isOverflowing(el: HTMLElement): boolean {
-  const cs = getComputedStyle(el)
-  const canScrollY = cs.overflowY === 'auto' || cs.overflowY === 'scroll'
-  const canScrollX = cs.overflowX === 'auto' || cs.overflowX === 'scroll'
-  const overflowY = canScrollY && el.scrollHeight > el.clientHeight + 1
-  const overflowX = canScrollX && el.scrollWidth > el.clientWidth + 1
-  return overflowY || overflowX
-}
-
-/**
- * Pindai dokumen (atau subtree) dan terapkan OverlayScrollbars ke semua elemen
- * scroll yang meluap. Mengembalikan jumlah elemen yang baru diinisialisasi.
- */
-export function applyScrollbarsToScrollableElements(root: ParentNode = document): number {
-  let applied = 0
-  root.querySelectorAll<HTMLElement>('*').forEach((el) => {
-    if (initScrollbarOn(el)) applied++
-  })
-  return applied
-}
-
-/**
- * Mulai pemantauan otomatis: terapkan sekarang, lalu tiap kali DOM berubah
- * (dialog/menu ditambahkan ke body) dan saat ukuran berubah.
- * Mengembalikan fungsi cleanup.
- */
-export function startAutoScrollbars(): () => void {
-  if (!import.meta.client || !document?.body) return () => {}
-
-  const run = () => applyScrollbarsToScrollableElements(document)
-
-  // terapkan awal (setelah render pertama)
-  run()
-
-  // debounce agar tidak memindai berulang-ulang saat banyak mutasi
-  let scheduled = false
-  const schedule = () => {
-    if (scheduled) return
-    scheduled = true
-    requestAnimationFrame(() => {
-      scheduled = false
-      run()
-    })
-  }
-
-  const observer = new MutationObserver((mutations) => {
-    // abaikan mutasi yang berasal dari internal OS sendiri supaya tidak loop.
-    // cukup cek viewport OS / elemen scrollbar, BUKAN html (host dokumen).
-    for (const m of mutations) {
-      const target = m.target as HTMLElement
-      if (isInsideInternalOS(target)) continue
-      if (m.addedNodes.length || m.removedNodes.length || m.type === 'attributes') {
-        schedule()
-        return
-      }
-    }
-  })
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['class', 'style'],
-  })
-
-  // re-apply saat ukuran viewport berubah (tabel/dialog bisa mulai meluap)
-  let resizeScheduled = false
-  const onResize = () => {
-    if (resizeScheduled) return
-    resizeScheduled = true
-    setTimeout(() => { resizeScheduled = false; run() }, 200)
-  }
-  window.addEventListener('resize', onResize)
-
-  return () => {
-    observer.disconnect()
-    window.removeEventListener('resize', onResize)
   }
 }

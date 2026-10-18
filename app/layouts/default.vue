@@ -31,11 +31,16 @@
       <hr class="border-white/20" />
 
       <!--
-        Div ini adalah container scroll sidebar. OverlayScrollbars memaksa
-        `display:flex` pada host-nya, jadi container ini sudah `flex flex-col`
-        agar hasilnya tetap sesuai (item sidebar bertumpuk vertikal).
+        Container scroll sidebar (OverlayScrollbars, lihat mountScrollbar di
+        script). Stylesheet OS memaksa `display:flex` pada host-nya, jadi
+        container ini sudah `flex flex-col` agar item sidebar tetap bertumpuk
+        vertikal. `overflow-x-hidden` mencegah track horizontal muncul di mode
+        rail 72px.
       -->
-      <div class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden py-2">
+      <div
+        ref="sidebarScrollEl"
+        class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden py-2"
+      >
         <nav aria-label="Menu utama">
         <!-- Dashboard -->
         <NuxtLink
@@ -464,6 +469,8 @@ import {
   UserCog,
   ClipboardList,
 } from 'lucide-vue-next'
+import type { OverlayScrollbars } from 'overlayscrollbars'
+import { mountScrollbar } from '~/utils/scrollbar'
 
 const route = useRoute()
 const { mdAndUp } = useBreakpoint()
@@ -491,6 +498,23 @@ onMounted(() => {
 })
 
 const isRail = computed(() => ready.value && mdAndUp.value && collapsed.value)
+
+// Custom scrollbar untuk daftar menu sidebar (OverlayScrollbars).
+// Dipasang eksplisit di sini, bukan lewat auto-apply global: isi sidebar hanya
+// NuxtLink/button sehingga tidak ada node Preline ber-position:absolute yang
+// bisa terpotong oleh viewport OS.
+const sidebarScrollEl = ref<HTMLDivElement | null>(null)
+let sidebarOS: OverlayScrollbars | null = null
+
+onMounted(async () => {
+  await nextTick()
+  sidebarOS = mountScrollbar(sidebarScrollEl.value)
+})
+
+onBeforeUnmount(() => {
+  sidebarOS?.destroy()
+  sidebarOS = null
+})
 
 // shared tahun for T.A. chip — ikut tahun ref dashboard (useState)
 const tahun = useState<number>('tahun', () => new Date().getFullYear())
