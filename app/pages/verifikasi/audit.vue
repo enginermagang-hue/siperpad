@@ -82,7 +82,7 @@
           v-else
           :key="a.id"
           :title="a.aksi + ' — ' + a.entitas + ' #' + a.entitas_id"
-          :subtitle="a.user_nama || a.user_email || a.user_id"
+          :subtitle="a.user_nama || a.user_email || String(a.user_id)"
           :fields="[
             { label: 'Waktu', value: a.at },
           ]"

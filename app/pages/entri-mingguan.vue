@@ -628,7 +628,7 @@ const previewTotal = computed(() => Math.round((Number(form.kuantitas) || 0) * (
 
 // Saat jenis dipilih: tolak bila minggu aktif sudah terkunci (pengaman bila
 // opsi lolos via keyboard/autocomplete meski sudah disabled).
-function onJenisChange(val: number | null) {
+function onJenisChange(val: string | number | null) {
   if (val == null) return
   const st = cellStatusOf(Number(val))
   if (isStatusLocked(st)) {

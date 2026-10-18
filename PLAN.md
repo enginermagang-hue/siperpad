@@ -34,8 +34,8 @@
 | Lapisan | Teknologi |
 |---------|-----------|
 | Framework | Nuxt 4 (file-based routing `app/pages/`) |
-| UI | Vuetify 3 (`v-table` manual, `v-pagination`, `v-select`), `@mdi/font` 7.4.47, `vue3-apexcharts` + `apexcharts` |
-| Auth | `nuxt-auth-utils` — session cookie, `NUT_SESSION_PASSWORD` 32+ char |
+| UI | Preline UI 5 + Tailwind CSS 4 (`@tailwindcss/vite`, `@tailwindcss/forms`), `lucide-vue-next` (ikon), `vue3-apexcharts` + `apexcharts` |
+| Auth | `nuxt-auth-utils` — session cookie, `NUXT_SESSION_PASSWORD` 32+ char |
 | Database | Turso / libSQL (`@libsql/client` 0.18), migrasi SQL `server/database/migrations/*.sql` |
 | Storage/Backup | Dropbox SDK 10.47 (`/siperpad`, token saat ini kosong) |
 | Export | `xlsx` (SheetJS flat) + `exceljs` 4.4 (XLSX mingguan ber-styling), `pdfkit` (PDF portrait A4), CSV zero-dep |
@@ -82,7 +82,7 @@ Seed: `server/database/seed.ts`, migrasi runner `server/utils/db.ts` + endpoint 
 | API Kawasan | `server/api/kawasan.get.ts`, `kawasan.post.ts`, `kawasan/[id].get/put/delete.ts` | ✅ | ✅ |
 | API Jenis Retribusi | `server/api/jenis-retribusi.get.ts`, `jenis-retribusi.post.ts`, `jenis-retribusi/[id].get/put/delete.ts` | level auto dari parent, unique guard, soft delete | ✅ |
 
-Sidebar: group **MASTER DATA** (`Kawasan Wisata` `mdi-map-marker-multiple` + `Jenis Retribusi` `mdi-format-list-bulleted`).
+Sidebar: group **MASTER DATA** (`Kawasan Wisata` ikon `MapPin` + `Jenis Retribusi` ikon `List`).
 
 Dihapus: `app/pages/master-data.vue` (placeholder).
 
@@ -218,7 +218,7 @@ GET /api/laporan/export?format=csv|pdf|xlsx&kawasan_id&tahun&periode_type&period
 - Header filter: kawasan, tahun, periode_type
 - Ringkasan cards: Total Target, Total Realisasi, Capaian %, Selisih
 - Tabel rekap per jenis retribusi (hierarki indent by level)
-- Grafik: realisasi 6/12 bulan (Vuetify sparkline atau `chart.js` minimal — `ponytail: chart.js only when grafik diminta pimpinan`)
+- Grafik: realisasi 6/12 bulan (`vue3-apexcharts`; sudah terpasang — tidak perlu `chart.js`)
 - Tombol ekspor: CSV | XLSX | PDF (download via `window.open` ke endpoint export)
 - Daftar batch: status, ajukan/verifikasi actions (role-gated)
 
@@ -284,7 +284,7 @@ Setiap langkah: migrasi tidak diperlukan (schema sudah siap); hanya API + halama
 ## 7. Catatan Implementasi
 
 - **Pagination:** client-side (`perPage` ref + `paginated` slice) untuk master; server-side dipertimbangkan jika `realisasi` > 500 baris.
-- **Icons:** `@mdi/font` 7.4.47 — pakai icon yang ada (`mdi-format-list-bulleted`, `mdi-map-marker-multiple`); hindari `mdi-list-box-multiple-outline` (tidak ada di 7.x).
+- **Icons:** `lucide-vue-next` — import per file (`import { MapPin } from 'lucide-vue-next'`). Sudah diverifikasi: seluruh nama ikon yang dipakai ada di paket (65 nama unik).
 - **Auth:** role `user`/`admin`/`kepala` (lihat §3.8). Tulis master/users/sync/periode-lock guard `admin`; input & ajukan realisasi/batch guard `user`; verifikasi & ekspor guard `admin`/`kepala`; baca boleh semua role terautentikasi.
 - **Soft delete:** `jenis_retribusi` dan `realisasi` pakai `aktif=0` / `status` agar histori target/rekap tidak hilang (FK `ON DELETE CASCADE` tidak terpicu).
 - **Perhitungan:** pusatkan di `server/utils/rekap.ts` (dipakai rekap API + export) — hindari duplikasi rumus di frontend.

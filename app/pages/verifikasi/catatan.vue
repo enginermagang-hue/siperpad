@@ -184,6 +184,7 @@
 
 <script setup lang="ts">
 import { ClipboardList, LoaderCircle, Plus, Trash2, Undo2, Check } from 'lucide-vue-next'
+import type { MenuItem } from '~/components/AppMenu.vue'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
@@ -207,8 +208,8 @@ function statusChip(s: string) {
     : 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
 }
 
-function menuItems(c: CatRow) {
-  const items: { label: string; icon: unknown; variant?: 'danger'; onClick: () => void }[] = [
+function menuItems(c: CatRow): MenuItem[] {
+  const items: MenuItem[] = [
     {
       label: c.status === 'selesai' ? 'Buka' : 'Selesai',
       icon: c.status === 'selesai' ? Undo2 : Check,

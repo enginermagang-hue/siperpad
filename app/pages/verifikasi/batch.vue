@@ -262,6 +262,7 @@
 
 <script setup lang="ts">
 import { Check, FilePlus, LoaderCircle, Plus, Send, X } from 'lucide-vue-next'
+import type { MenuItem } from '~/components/AppMenu.vue'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
@@ -295,8 +296,8 @@ function statusChip(s: string) {
 }
 
 // Aksi yang tersedia per status/role, untuk mode compact (AppMenu).
-function menuItems(b: Batch) {
-  const items: { label: string; icon: unknown; variant?: 'danger'; onClick: () => void }[] = []
+function menuItems(b: Batch): MenuItem[] {
+  const items: MenuItem[] = []
   if (b.status === 'draft' && isUser.value) {
     items.push({ label: 'Ajukan', icon: Send, onClick: () => ajukanBatch(b) })
   }
