@@ -15,6 +15,14 @@ export const scrollbarOptions: PartialOptions = {
   },
 }
 
+// Opsi khusus host dokumen (body): hanya scrollbar vertikal yang ditampilkan.
+// Tanpa ini OverlayScrollbars tetap merender track horizontal setinggi 8px
+// meski tidak ada overflow horizontal, sehingga muncul bar kosong di bawah.
+export const bodyScrollbarOptions: PartialOptions = {
+  ...scrollbarOptions,
+  overflow: { x: 'hidden', y: 'scroll' },
+}
+
 // Elemen yang TIDAK boleh diinisialisasi OverlayScrollbars:
 // - html/body: ditangani plugin utama (overlay untuk scroll dokumen).
 // - elemen OS sendiri (punya atribut data-overlayscrollbars*).

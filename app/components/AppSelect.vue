@@ -75,11 +75,14 @@ const CHEVRON =
 const hsConfig = computed(() =>
   JSON.stringify({
     placeholder: props.placeholder ?? 'Semua',
+    // Scope 'parent' menempelkan dropdown di dalam wrapper (position:absolute
+    // terhadap wrapper .hs-select) sehingga tidak menambah tinggi layout.
+    dropdownScope: 'parent',
     toggleTag: '<button type="button" aria-expanded="false"></button>',
     toggleClasses:
       'hs-select-disabled:pointer-events-none hs-select-disabled:opacity-50 relative py-2 ps-3 pe-9 flex text-nowrap w-full cursor-pointer bg-layer border border-layer-line text-layer-foreground rounded-lg text-start text-sm hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus',
     dropdownClasses:
-      'mt-2 z-[100] w-full max-h-72 p-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto',
+      'absolute top-full mt-2 z-[100] w-full max-h-72 p-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto',
     optionClasses:
       'hs-selected:bg-select-item-active py-2 px-3 w-full text-sm text-select-item-foreground cursor-pointer hover:bg-select-item-hover rounded-lg focus:outline-hidden focus:bg-select-item-focus',
     optionAllowEmptyOption: props.clearable,
@@ -105,12 +108,17 @@ function onNativeChange(e: Event) {
 async function init() {
   if (!import.meta.client || !selectEl.value) return
   const { HSSelect } = await import('preline/non-auto')
-  hsSelect.value?.destroy()
-  // destroy() menghapus markup generated; select asli tetap ada.
-  if (!selectEl.value) return
-  hsSelect.value = new HSSelect(selectEl.value) as unknown as {
-    destroy: () => void
-    setValue: (v: string | string[]) => void
+  try {
+    hsSelect.value?.destroy()
+    // destroy() menghapus markup generated; select asli tetap ada.
+    if (!selectEl.value) return
+    hsSelect.value = new HSSelect(selectEl.value) as unknown as {
+      destroy: () => void
+      setValue: (v: string | string[]) => void
+    }
+  } catch {
+    // Jangan biarkan kegagalan satu select memutus render halaman.
+    hsSelect.value = null
   }
 }
 
@@ -138,6 +146,14 @@ watch(normalized, (val) => {
   if (!import.meta.client) return
   // Guard: jangan setValue bila sudah sama (mencegah loop change -> emit -> watch).
   if (selectEl.value && selectEl.value.value === val) return
-  hsSelect.value?.setValue(val)
+  // setValue melempar bila dipanggil saat instance belum selesai init
+  // (mis. model diisi tepat setelah mount). Abaikan: select asli sudah
+  // memegang nilai terbaru lewat binding :value, dan init berikutnya
+  // membaca nilai itu.
+  try {
+    hsSelect.value?.setValue(val)
+  } catch {
+    /* instance belum siap — nilai akan terbaca saat init */
+  }
 })
 </script>

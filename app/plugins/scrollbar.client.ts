@@ -4,7 +4,7 @@
 import 'overlayscrollbars/overlayscrollbars.css'
 import { OverlayScrollbars } from 'overlayscrollbars'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-vue'
-import { scrollbarOptions, startAutoScrollbars } from '~/utils/scrollbar'
+import { bodyScrollbarOptions } from '~/utils/scrollbar'
 
 export default defineNuxtPlugin((nuxtApp) => {
   // daftarkan komponen global agar bisa dipakai tanpa import per-file
@@ -12,11 +12,13 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   if (!import.meta.client || !document?.body) return
 
-  // 1) scroll dokumen utama (body)
-  OverlayScrollbars(document.body, scrollbarOptions)
-
-  // 2) auto-apply ke area scroll internal (dialog/menu/list/tabel)
-  //    hanya elemen yang benar-benar meluap yang diinisialisasi.
-  const stopAuto = startAutoScrollbars()
-  window.addEventListener('beforeunload', () => stopAuto())
+  // Scroll dokumen utama (body) tetap memakai OverlayScrollbars.
+  //
+  // CATATAN: auto-apply ke seluruh elemen yang meluap (startAutoScrollbars)
+  // SENGAJA TIDAK dipakai. OverlayScrollbars memaksa `display:flex` +
+  // `position:relative` pada host-nya, sehingga merusak elemen yang dibuat
+  // dinamis oleh Preline (mis. dropdown HSSelect yang butuh
+  // `position:absolute`). Area scroll internal sudah memakai utility
+  // `overflow-y-auto` bawaan Tailwind/Preline, jadi tidak perlu OS di sana.
+  OverlayScrollbars(document.body, bodyScrollbarOptions)
 })

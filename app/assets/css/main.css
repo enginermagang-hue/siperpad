@@ -54,3 +54,10 @@ body {
   --os-handle-bg-hover: var(--primary);
   --os-handle-bg-active: var(--primary);
 }
+
+/* Halaman ini tidak pernah scroll horizontal (layout pakai grid + overflow-x-auto
+   pada tabel). Sembunyikan track horizontal OverlayScrollbars agar tidak ada
+   bar kosong 8px di dasar viewport. */
+.os-scrollbar-horizontal {
+  display: none !important;
+}

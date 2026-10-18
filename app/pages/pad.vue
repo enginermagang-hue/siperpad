@@ -1,78 +1,172 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
-      <div class="d-flex align-center">
-        <v-icon size="36" color="primary" class="mr-3">mdi-cash-multiple</v-icon>
-        <h1 class="text-h4 font-weight-medium">Data PAD — Realisasi</h1>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <Banknote class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">Data PAD — Realisasi</h1>
       </div>
-      <v-btn v-if="isUser" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Realisasi</v-btn>
+      <button
+        v-if="isUser"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+               text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
+        @click="openAdd"
+      >
+        <Plus class="shrink-0 size-4" aria-hidden="true" />
+        Tambah Realisasi
+      </button>
     </div>
 
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text class="pb-0">
-        <div class="d-flex flex-wrap ga-3 mb-4">
-          <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="load" />
-          <v-select v-model="filterJenis" :items="jenisFilterOpts" item-title="label" item-value="value" label="Jenis" density="compact" variant="outlined" hide-details clearable style="max-width: 260px" placeholder="Semua jenis" @update:model-value="load" />
-          <v-select v-model="filterStatus" :items="statusOpts" density="compact" variant="outlined" hide-details clearable style="max-width: 160px" placeholder="Semua status" @update:model-value="load" />
-          <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode/nama/catatan..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 260px" />
+    <!-- Filter -->
+    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+      <div class="flex flex-wrap gap-3">
+        <div class="w-full max-w-[200px]">
+          <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Kawasan: Semua" clearable @update:model-value="load" />
         </div>
-      </v-card-text>
-    </v-card>
+        <div class="w-full max-w-[260px]">
+          <AppSelect v-model="filterJenis" :items="jenisFilterOpts" placeholder="Semua jenis" clearable @update:model-value="load" />
+        </div>
+        <div class="w-full max-w-[160px]">
+          <AppSelect v-model="filterStatus" :items="statusOpts" placeholder="Semua status" clearable @update:model-value="load" />
+        </div>
+        <div class="relative w-full max-w-[260px]">
+          <Search
+            class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+            aria-hidden="true"
+          />
+          <input
+            v-model="q"
+            type="text"
+            placeholder="Cari kode/nama/catatan..."
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+          />
+        </div>
+      </div>
+    </div>
 
-    <v-card flat elevation="0">
-      <div class="d-flex justify-end px-4 pt-3">
+    <div class="rounded-lg border border-card-line bg-card">
+      <div class="flex justify-end px-4 pt-3">
         <ViewModeToggle v-model="mode" />
       </div>
 
-      <v-table v-if="mode === 'table'" density="default">
-        <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Status</th><th v-if="isUser" style="width: 140px">Aksi</th></tr></thead>
-        <tbody>
-          <tr v-if="loading"><td :colspan="colCount" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td :colspan="colCount" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
-          <template v-for="r in paginated" :key="r.id">
-            <tr class="expand-row" @click="toggleExpand(r.id)">
-              <td>
-                <v-icon size="small" class="expand-chevron mr-1" :class="{ 'expand-chevron--open': expandedId === r.id }">mdi-chevron-right</v-icon>
-                {{ r.tanggal }}
-              </td>
-              <td class="font-weight-medium">{{ r.jenis_kode || '-' }}</td>
-              <td>{{ r.jenis_nama }}</td>
-              <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
-              <td class="text-right">{{ fmt(r.jumlah) }}</td>
-              <td class="text-right">{{ fmt(r.target_nilai) }}</td>
-              <td class="text-right"><v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="small">{{ r.capaian }}%</v-chip></td>
-              <td><v-chip :color="statusColor(r.status)" size="small">{{ r.status }}</v-chip></td>
-              <td v-if="isUser">
-                <v-btn v-if="r.status === 'draft'" icon="mdi-pencil" variant="text" size="small" @click.stop="openEdit(r)" />
-                <v-btn v-if="r.status === 'draft'" icon="mdi-send" variant="text" size="small" color="primary" @click.stop="confirmAjukan(r)" />
-                <v-btn v-if="r.status === 'draft'" icon="mdi-delete" variant="text" size="small" color="error" @click.stop="confirmDelete(r)" />
-              </td>
+      <!-- Mode tabel -->
+      <div v-if="mode === 'table'" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-table-line text-sm">
+          <thead>
+            <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+              <th class="px-3 py-2.5 text-start font-medium">Tanggal</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kode</th>
+              <th class="px-3 py-2.5 text-start font-medium">Jenis</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
+              <th class="px-3 py-2.5 text-end font-medium">Jumlah</th>
+              <th class="px-3 py-2.5 text-end font-medium">Target</th>
+              <th class="px-3 py-2.5 text-end font-medium">Capaian</th>
+              <th class="px-3 py-2.5 text-start font-medium">Status</th>
+              <th v-if="isUser" class="w-[140px] px-3 py-2.5 text-start font-medium">Aksi</th>
             </tr>
-            <tr v-if="expandedId === r.id">
-              <td :colspan="colCount" class="pa-0">
-                <PerhitunganPanel
-                  :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`"
-                  :subtitle="`${r.tanggal} · ${r.kawasan_kode} — ${r.kawasan_nama}`"
-                  mode-label="Langsung"
-                  formula="capaian = jumlah ÷ target tahun"
-                  :lines="[
-                    { label: 'Jumlah realisasi', value: fmt(r.jumlah) },
-                    { label: 'Status', value: r.status },
-                  ]"
-                  :target="r.target_nilai"
-                  :total="r.jumlah"
-                  total-label="Jumlah"
-                  basis-note="Capaian dihitung terhadap target tahun berjalan. Angka resmi hanya status disetujui."
-                />
-              </td>
+          </thead>
+          <tbody class="divide-y divide-table-line">
+            <tr v-if="loading">
+              <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
             </tr>
-          </template>
-        </tbody>
-      </v-table>
+            <tr v-else-if="!filtered.length">
+              <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
+            </tr>
+            <template v-for="r in paginated" :key="r.id">
+              <tr class="cursor-pointer hover:bg-primary/5" @click="toggleExpand(r.id)">
+                <td class="px-3 py-2.5 text-foreground">
+                  <ChevronRight
+                    class="me-1 inline size-4 align-middle transition-transform"
+                    :class="expandedId === r.id ? 'rotate-90' : ''"
+                    aria-hidden="true"
+                  />
+                  {{ r.tanggal }}
+                </td>
+                <td class="px-3 py-2.5 font-medium text-foreground">{{ r.jenis_kode || '-' }}</td>
+                <td class="px-3 py-2.5 text-foreground">{{ r.jenis_nama }}</td>
+                <td class="px-3 py-2.5">
+                  <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                    {{ r.kawasan_kode }} — {{ r.kawasan_nama }}
+                  </span>
+                </td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.jumlah) }}</td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.target_nilai) }}</td>
+                <td class="px-3 py-2.5 text-end">
+                  <span
+                    class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                    :class="capaianChip(r.capaian)"
+                  >
+                    {{ r.capaian }}%
+                  </span>
+                </td>
+                <td class="px-3 py-2.5">
+                  <span
+                    class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                    :class="statusChip(r.status)"
+                  >
+                    {{ r.status }}
+                  </span>
+                </td>
+                <td v-if="isUser" class="px-3 py-2.5">
+                  <div class="flex items-center gap-0.5">
+                    <button
+                      v-if="r.status === 'draft'"
+                      type="button"
+                      class="rounded-md p-1.5 text-muted-foreground-1 hover:bg-layer-hover focus:outline-hidden"
+                      aria-label="Edit"
+                      @click.stop="openEdit(r)"
+                    >
+                      <Pencil class="shrink-0 size-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      v-if="r.status === 'draft'"
+                      type="button"
+                      class="rounded-md p-1.5 text-primary hover:bg-layer-hover focus:outline-hidden"
+                      aria-label="Ajukan"
+                      @click.stop="confirmAjukan(r)"
+                    >
+                      <Send class="shrink-0 size-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      v-if="r.status === 'draft'"
+                      type="button"
+                      class="rounded-md p-1.5 text-red-600 hover:bg-layer-hover focus:outline-hidden dark:text-red-400"
+                      aria-label="Hapus"
+                      @click.stop="confirmDelete(r)"
+                    >
+                      <Trash2 class="shrink-0 size-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="expandedId === r.id">
+                <td :colspan="colCount" class="p-0">
+                  <PerhitunganPanel
+                    :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`"
+                    :subtitle="`${r.tanggal} · ${r.kawasan_kode} — ${r.kawasan_nama}`"
+                    mode-label="Langsung"
+                    formula="capaian = jumlah ÷ target tahun"
+                    :lines="[
+                      { label: 'Jumlah realisasi', value: fmt(r.jumlah) },
+                      { label: 'Status', value: r.status },
+                    ]"
+                    :target="r.target_nilai"
+                    :total="r.jumlah"
+                    total-label="Jumlah"
+                    basis-note="Capaian dihitung terhadap target tahun berjalan. Angka resmi hanya status disetujui."
+                  />
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
 
-      <div v-else-if="mode === 'list'" class="pa-3">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+      <!-- Mode list -->
+      <div v-else-if="mode === 'list'" class="p-3">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
         <RecordCard
           v-for="r in paginated"
           v-else
@@ -81,91 +175,223 @@
           :subtitle="r.tanggal"
           :fields="[
             { label: 'Kawasan', value: `${r.kawasan_kode} — ${r.kawasan_nama}` },
-            { label: 'Jumlah', value: fmt(r.jumlah), class: 'text-right' },
-            { label: 'Target', value: fmt(r.target_nilai), class: 'text-right' },
-            { label: 'Capaian', value: r.capaian + '%', class: r.capaian >= 100 ? 'text-success' : r.capaian >= 75 ? 'text-warning' : 'text-error' },
+            { label: 'Jumlah', value: fmt(r.jumlah), class: 'text-end' },
+            { label: 'Target', value: fmt(r.target_nilai), class: 'text-end' },
+            { label: 'Capaian', value: r.capaian + '%', class: `text-end font-medium ${capaianText(r.capaian)}` },
           ]"
         >
           <template #badge>
-            <v-chip :color="statusColor(r.status)" size="small">{{ r.status }}</v-chip>
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="statusChip(r.status)">
+              {{ r.status }}
+            </span>
           </template>
           <template v-if="isUser && r.status === 'draft'" #actions>
-            <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEdit(r)">Edit</v-btn>
-            <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-send" @click="confirmAjukan(r)">Ajukan</v-btn>
-            <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(r)">Hapus</v-btn>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover focus:outline-hidden"
+              @click="openEdit(r)"
+            >
+              <Pencil class="shrink-0 size-3.5" aria-hidden="true" /> Edit
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover focus:outline-hidden"
+              @click="confirmAjukan(r)"
+            >
+              <Send class="shrink-0 size-3.5" aria-hidden="true" /> Ajukan
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-layer-hover focus:outline-hidden dark:text-red-400"
+              @click="confirmDelete(r)"
+            >
+              <Trash2 class="shrink-0 size-3.5" aria-hidden="true" /> Hapus
+            </button>
           </template>
         </RecordCard>
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="r in paginated" :key="r.id" :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`" :subtitle="r.tanggal">
-            <template #append>
-              <span class="text-body-2 text-medium-emphasis mr-2">{{ fmt(r.jumlah) }}</span>
-              <v-chip :color="statusColor(r.status)" size="x-small" class="mr-1">{{ r.status }}</v-chip>
-              <v-menu v-if="isUser && r.status === 'draft'" location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
-                  <v-list-item prepend-icon="mdi-send" title="Ajukan" @click="confirmAjukan(r)" />
-                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
-                </v-list>
-              </v-menu>
-            </template>
-          </v-list-item>
-        </v-list>
+      <!-- Mode compact -->
+      <div v-else class="p-2">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
+        <ul v-else class="divide-y divide-table-line">
+          <li v-for="r in paginated" :key="r.id" class="flex items-center gap-2 py-2">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-foreground">{{ r.jenis_kode || '-' }} — {{ r.jenis_nama }}</span>
+              <span class="block truncate text-xs text-muted-foreground-1">{{ r.tanggal }}</span>
+            </span>
+            <span class="shrink-0 text-sm text-muted-foreground-1">{{ fmt(r.jumlah) }}</span>
+            <span class="shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="statusChip(r.status)">
+              {{ r.status }}
+            </span>
+            <AppMenu
+              v-if="isUser && r.status === 'draft'"
+              :items="[
+                { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
+                { label: 'Ajukan', icon: Send, onClick: () => confirmAjukan(r) },
+                { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
+              ]"
+            />
+          </li>
+        </ul>
       </div>
-      <v-divider v-if="total" />
-      <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
-        <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
+
+      <hr v-if="total" class="border-card-divider" />
+      <div v-if="total" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground-1">
           <span>Menampilkan {{ from }}–{{ to }} dari {{ total }} data</span>
-          <v-select v-model="perPage" :items="[5, 10, 25, 50]" density="compact" variant="outlined" hide-details style="max-width: 90px" />
+          <div class="w-[90px]">
+            <AppSelect v-model="perPage" :items="[5, 10, 25, 50]" :search="false" />
+          </div>
           <span>per halaman</span>
         </div>
-        <v-pagination v-if="pageCount > 1" v-model="currentPage" :length="pageCount" :total-visible="5" density="compact" />
+        <AppPagination v-model="currentPage" :length="pageCount" :total-visible="5" />
       </div>
-    </v-card>
+    </div>
 
-    <AppDialog v-model="dialog" :title="editing ? 'Edit Realisasi' : 'Tambah Realisasi'" :max-width="520" :icon="editing ? 'mdi-pencil' : 'mdi-cash-plus'">
-      <v-select v-model="form.jenis_retribusi_id" :items="jenisOpts" item-title="label" item-value="value" label="Jenis Retribusi *" variant="outlined" density="compact" :error-messages="err.jenis" class="mb-2" @update:model-value="onJenisChange" />
-      <div v-if="targetInfo !== null" class="text-caption text-medium-emphasis mb-2">Target {{ targetYear }}: <b>{{ fmt(targetInfo) }}</b> — Capaian: <b :class="previewCapaian >= 100 ? 'text-success' : previewCapaian >= 75 ? 'text-warning' : 'text-error'">{{ previewCapaian }}%</b></div>
-      <v-text-field v-model="form.tanggal" label="Tanggal *" type="date" variant="outlined" density="compact" :error-messages="err.tanggal" class="mb-2" @update:model-value="onTanggalChange" />
-      <v-text-field :model-value="jumlahDisplay" label="Jumlah *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.jumlah" class="mb-2" @input="onJumlahInput" />
-      <v-text-field v-model="form.catatan" label="Catatan" variant="outlined" density="compact" hide-details class="mb-2" />
+    <!-- Dialog tambah/edit -->
+    <AppDialog
+      v-model="dialog"
+      :title="editing ? 'Edit Realisasi' : 'Tambah Realisasi'"
+      :max-width="520"
+      :icon="editing ? Pencil : CircleDollarSign"
+    >
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Jenis Retribusi *</label>
+        <AppSelect
+          v-model="form.jenis_retribusi_id"
+          :items="jenisOpts"
+          placeholder="Pilih jenis"
+          in-modal
+          @update:model-value="onJenisChange"
+        />
+        <p v-if="err.jenis" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.jenis }}</p>
+      </div>
+
+      <div v-if="targetInfo !== null" class="mb-2 text-xs text-muted-foreground-1">
+        Target {{ targetYear }}: <b class="text-foreground">{{ fmt(targetInfo) }}</b> — Capaian:
+        <b :class="previewCapaian >= 100 ? 'text-emerald-600 dark:text-emerald-400' : previewCapaian >= 75 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'">
+          {{ previewCapaian }}%
+        </b>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Tanggal *</label>
+        <input
+          v-model="form.tanggal"
+          type="date"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+          @change="onTanggalChange"
+        />
+        <p v-if="err.tanggal" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.tanggal }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Jumlah *</label>
+        <RupiahField v-model="form.jumlah" />
+        <p v-if="err.jumlah" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.jumlah }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Catatan</label>
+        <input
+          v-model="form.catatan"
+          type="text"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+      </div>
+
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
-        <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="dialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="saving"
+          @click="save"
+        >
+          <LoaderCircle v-if="saving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Simpan
+        </button>
       </template>
     </AppDialog>
 
-    <AppDialog v-model="delDialog" title="Hapus realisasi?" :max-width="420" icon="mdi-delete">
+    <!-- Dialog hapus -->
+    <AppDialog v-model="delDialog" title="Hapus realisasi?" :max-width="420" :icon="Trash2">
       Yakin hapus realisasi <b>{{ delTarget?.jenis_nama }}</b> tanggal {{ delTarget?.tanggal }}?
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
-        <v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="delDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white
+                 hover:bg-red-700 focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="deleting"
+          @click="doDelete"
+        >
+          <LoaderCircle v-if="deleting" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Hapus
+        </button>
       </template>
     </AppDialog>
 
-    <AppDialog v-model="ajukanDialog" title="Ajukan realisasi?" :max-width="420" icon="mdi-send">
+    <!-- Dialog ajukan -->
+    <AppDialog v-model="ajukanDialog" title="Ajukan realisasi?" :max-width="420" :icon="Send">
       Realisasi akan diajukan untuk verifikasi. Tidak bisa diedit lagi setelah diajukan.
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="ajukanDialog = false">Batal</v-btn>
-        <v-btn color="primary" :loading="ajukanLoading" @click="doAjukan">Ajukan</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="ajukanDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="ajukanLoading"
+          @click="doAjukan"
+        >
+          <LoaderCircle v-if="ajukanLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Ajukan
+        </button>
       </template>
     </AppDialog>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  Banknote,
+  ChevronRight,
+  CircleDollarSign,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  Search,
+  Send,
+  Trash2,
+} from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode } = useViewMode('pad')
@@ -227,8 +453,7 @@ const editing = ref<Row | null>(null)
 const saving = ref(false)
 const form = reactive<{ jenis_retribusi_id: number | null; tanggal: string; jumlah: number; catatan: string }>({ jenis_retribusi_id: null, tanggal: new Date().toISOString().slice(0, 10), jumlah: 0, catatan: '' })
 const err = reactive({ jenis: '', tanggal: '', jumlah: '' })
-const { formatRupiah: fmt, useRupiahInput } = useCurrency()
-const { display: jumlahDisplay, onInput: onJumlahInput } = useRupiahInput(toRef(form, 'jumlah'))
+const { formatRupiah: fmt } = useCurrency()
 const targetInfo = ref<number | null>(null)
 const targetYear = computed(() => form.tanggal ? Number(form.tanggal.slice(0, 4)) : new Date().getFullYear())
 const previewCapaian = computed(() => {
@@ -237,12 +462,23 @@ const previewCapaian = computed(() => {
   return t > 0 ? Math.round((j / t) * 10000) / 100 : 0
 })
 
-function statusColor(s: string) {
-  if (s === 'disetujui') return 'success'
-  if (s === 'diajukan') return 'warning'
-  if (s === 'ditolak') return 'error'
-  return 'grey'
+function statusChip(s: string) {
+  if (s === 'disetujui') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  if (s === 'diajukan') return 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+  if (s === 'ditolak') return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+  return 'bg-surface text-surface-foreground'
 }
+function capaianChip(v: number) {
+  if (v >= 100) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  if (v >= 75) return 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+  return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+}
+function capaianText(v: number) {
+  if (v >= 100) return 'text-emerald-600 dark:text-emerald-400'
+  if (v >= 75) return 'text-amber-600 dark:text-amber-400'
+  return 'text-red-600 dark:text-red-400'
+}
+
 function toast(msg: string, color: 'success' | 'error' | 'warning' = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
 const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' | 'warning' })
 const delDialog = ref(false)
@@ -363,19 +599,3 @@ async function doAjukan() {
 
 onMounted(async () => { await loadKawasan(); await loadJenis(); await load() })
 </script>
-
-<style scoped>
-.expand-row {
-  cursor: pointer;
-}
-.expand-row:hover {
-  background: rgba(var(--v-theme-primary), 0.06);
-}
-.expand-chevron {
-  transition: transform 0.15s ease;
-  vertical-align: middle;
-}
-.expand-chevron--open {
-  transform: rotate(90deg);
-}
-</style>

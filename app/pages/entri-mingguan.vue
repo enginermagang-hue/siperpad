@@ -1,272 +1,485 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
-      <div class="d-flex align-center">
-        <v-icon size="36" color="primary" class="mr-3">mdi-table-large</v-icon>
-        <h1 class="text-h4 font-weight-medium">Entri Mingguan</h1>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <Table2 class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">Entri Mingguan</h1>
       </div>
-      <div class="d-flex align-center ga-3">
-        <v-chip v-if="meta?.locked" color="warning" prepend-icon="mdi-lock">Periode Terkunci</v-chip>
-        <v-btn v-if="isUser" color="primary" prepend-icon="mdi-plus" :disabled="!kawasanId || !!meta?.locked" @click="openInput">Input Entri</v-btn>
+      <div class="flex items-center gap-3">
+        <span
+          v-if="meta?.locked"
+          class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium
+                 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300"
+        >
+          <Lock class="shrink-0 size-3.5" aria-hidden="true" />
+          Periode Terkunci
+        </span>
+        <button
+          v-if="isUser"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="!kawasanId || !!meta?.locked"
+          @click="openInput"
+        >
+          <Plus class="shrink-0 size-4" aria-hidden="true" />
+          Input Entri
+        </button>
       </div>
     </div>
 
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text>
-        <div class="d-flex flex-wrap ga-3">
-          <v-select v-model="kawasanId" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" density="compact" variant="outlined" hide-details style="max-width: 260px" @update:model-value="load" />
-          <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Bulan" density="compact" variant="outlined" hide-details style="max-width: 150px" @update:model-value="load" />
-          <v-select v-model="tahun" :items="tahunOpts" density="compact" variant="outlined" hide-details style="max-width: 110px" @update:model-value="load" />
+    <!-- Filter -->
+    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+      <div class="flex flex-wrap gap-3">
+        <div class="w-full max-w-[260px]">
+          <AppSelect v-model="kawasanId" :items="kawasanOpts" placeholder="Kawasan *" @update:model-value="load" />
         </div>
-        <div class="text-caption text-medium-emphasis mt-3">
-          Minggu I: tgl 1–7 · II: 8–14 · III: 15–21 · IV: 22–akhir bulan. Tekan <b>Input Entri</b> lalu pilih jenis penerimaan untuk mengisi nilai minggu aktif.
-          Total & realisasi kumulatif dihitung otomatis dari data <b>disetujui</b>.
+        <div class="w-full max-w-[150px]">
+          <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
         </div>
-      </v-card-text>
-    </v-card>
+        <div class="w-full max-w-[110px]">
+          <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
+        </div>
+      </div>
+      <div class="mt-3 text-xs text-muted-foreground-1">
+        Minggu I: tgl 1–7 · II: 8–14 · III: 15–21 · IV: 22–akhir bulan. Tekan
+        <b class="text-foreground">Input Entri</b> lalu pilih jenis penerimaan untuk mengisi nilai minggu aktif.
+        Total &amp; realisasi kumulatif dihitung otomatis dari data <b class="text-foreground">disetujui</b>.
+      </div>
+    </div>
 
-    <div class="d-flex align-center ga-2 mb-4 flex-wrap">
-      <v-tabs v-model="tabMinggu" color="primary" class="flex-grow-1">
-        <v-tab v-for="w in mingguTabs" :key="w.value" :value="w.value">
-          {{ w.label }}
-          <span class="text-caption text-medium-emphasis ml-1">({{ w.range }})</span>
-        </v-tab>
-      </v-tabs>
+    <!-- Tab minggu + toggle mode -->
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <div class="flex-1 border-b border-line-2">
+        <nav class="-mb-px flex flex-wrap gap-x-1" aria-label="Pilih minggu">
+          <button
+            v-for="w in mingguTabs"
+            :key="w.value"
+            type="button"
+            class="whitespace-nowrap border-b-2 px-3 py-2 text-sm focus:outline-hidden focus:bg-layer-focus"
+            :class="tabMinggu === w.value
+              ? 'border-primary text-primary font-medium'
+              : 'border-transparent text-muted-foreground-1 hover:text-foreground hover:border-line-4'"
+            :aria-current="tabMinggu === w.value ? 'page' : undefined"
+            @click="tabMinggu = w.value"
+          >
+            {{ w.label }}
+            <span class="ms-1 text-xs text-muted-foreground-1">({{ w.range }})</span>
+          </button>
+        </nav>
+      </div>
       <ViewModeToggle v-model="mode" />
     </div>
 
-    <v-card flat elevation="0">
-      <v-table v-if="mode === 'table'" density="default">
-        <thead>
-          <tr>
-            <th>Kode</th>
-            <th>Jenis Penerimaan</th>
-            <th class="text-right">Target</th>
-            <th class="text-right">s/d Bulan Lalu</th>
-            <th class="text-right">Nilai {{ labelMingguAktif }}</th>
-            <th class="text-right">Total Bulanan</th>
-            <th style="width:120px">Status</th>
-            <th v-if="isUser">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading"><td :colspan="colCount" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!rows.length"><td :colspan="colCount" class="text-center py-6 text-medium-emphasis">Tidak ada pos penerimaan</td></tr>
-          <template v-for="r in rows" :key="r.jenis_id">
-            <tr class="expand-row" @click="toggleExpand(r.jenis_id)">
-              <td class="font-weight-medium">
-                <v-icon size="small" class="expand-chevron mr-1" :class="{ 'expand-chevron--open': expandedId === r.jenis_id }">mdi-chevron-right</v-icon>
-                {{ r.kode || '-' }}
-              </td>
-              <td>
-                {{ r.nama }}
-                <v-chip v-if="r.tarif" size="x-small" variant="tonal" class="ml-1">Tarif {{ fmt(r.tarif) }}</v-chip>
-              </td>
-              <td class="text-right">{{ fmt(r.target) }}</td>
-              <td class="text-right text-medium-emphasis">{{ fmt(r.sBelum) }}</td>
-              <td class="text-right font-weight-medium">
-                {{ fmt(cellOf(r).nilai) }}
-                <div v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null" class="text-caption text-medium-emphasis">
-                  {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
-                </div>
-              </td>
-              <td class="text-right font-weight-medium">{{ fmt(rowTotal(r)) }}</td>
-              <td>
-                <template v-if="cellOf(r).status">
-                  <template v-if="isCellLocked(r)">
-                    <v-tooltip location="top" text="Terkunci — sudah diajukan, tidak bisa diubah" :open-delay="200">
-                      <template #activator="{ props }">
-                        <v-chip v-bind="props" size="small" :color="statusColor(cellOf(r).status)" variant="tonal" prepend-icon="mdi-lock">{{ cellOf(r).status }}</v-chip>
-                      </template>
-                    </v-tooltip>
-                  </template>
-                  <v-chip v-else size="small" :color="statusColor(cellOf(r).status)" variant="tonal">{{ cellOf(r).status }}</v-chip>
-                </template>
-                <span v-else class="text-medium-emphasis">-</span>
-              </td>
-              <td v-if="isUser">
-                <v-menu v-if="cellOf(r).status === 'draft'" location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" :disabled="!!meta?.locked" @click.stop />
-                  </template>
-                  <v-list density="compact" min-width="160">
-                    <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
-                    <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
-                  </v-list>
-                </v-menu>
-              </td>
+    <div class="rounded-lg border border-card-line bg-card">
+      <!-- Mode tabel -->
+      <div v-if="mode === 'table'" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-table-line text-sm">
+          <thead>
+            <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+              <th class="px-3 py-2.5 text-start font-medium">Kode</th>
+              <th class="px-3 py-2.5 text-start font-medium">Jenis Penerimaan</th>
+              <th class="px-3 py-2.5 text-end font-medium">Target</th>
+              <th class="px-3 py-2.5 text-end font-medium">s/d Bulan Lalu</th>
+              <th class="px-3 py-2.5 text-end font-medium">Nilai {{ labelMingguAktif }}</th>
+              <th class="px-3 py-2.5 text-end font-medium">Total Bulanan</th>
+              <th class="w-[120px] px-3 py-2.5 text-start font-medium">Status</th>
+              <th v-if="isUser" class="px-3 py-2.5 text-start font-medium">Aksi</th>
             </tr>
-            <tr v-if="expandedId === r.jenis_id">
-              <td :colspan="colCount" class="pa-0">
-                <PerhitunganPanel
-                  :title="`${r.kode || '-'} — ${r.nama}`"
-                  :subtitle="`${kawasanLabel} · ${labelBulan} ${tahun}`"
-                  :mode-label="modeLabelOf(r)"
-                  :formula="formulaOf(r)"
-                  :lines="panelLines(r)"
-                  :target="r.target"
-                  :total="rowTotal(r)"
-                  total-label="Total Bulanan"
-                  basis-note="Grid memakai basis draft + diajukan + disetujui (kecuali ditolak). Angka resmi rekap/ekspor hanya status disetujui."
-                />
-              </td>
+          </thead>
+          <tbody class="divide-y divide-table-line">
+            <tr v-if="loading">
+              <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
             </tr>
-          </template>
-        </tbody>
-        <tfoot v-if="rows.length">
-          <tr class="font-weight-bold">
-            <td colspan="2">TOTAL</td>
-            <td class="text-right">{{ fmt(sumTarget) }}</td>
-            <td class="text-right">{{ fmt(sumSBebelum) }}</td>
-            <td class="text-right">{{ fmt(sumMingguAktif) }}</td>
-            <td class="text-right">{{ fmt(sumTotal) }}</td>
-            <td></td>
-            <td v-if="isUser"></td>
-          </tr>
-        </tfoot>
-      </v-table>
+            <tr v-else-if="!rows.length">
+              <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Tidak ada pos penerimaan</td>
+            </tr>
+            <template v-for="r in rows" v-else :key="r.jenis_id">
+              <tr class="cursor-pointer hover:bg-primary/5" @click="toggleExpand(r.jenis_id)">
+                <td class="px-3 py-2.5 font-medium text-foreground">
+                  <ChevronRight
+                    class="me-1 inline size-4 align-middle transition-transform"
+                    :class="expandedId === r.jenis_id ? 'rotate-90' : ''"
+                    aria-hidden="true"
+                  />
+                  {{ r.kode || '-' }}
+                </td>
+                <td class="px-3 py-2.5 text-foreground">
+                  {{ r.nama }}
+                  <span
+                    v-if="r.tarif"
+                    class="ms-1 inline-flex items-center rounded-full bg-surface px-1.5 py-0.5 text-[11px] text-surface-foreground"
+                  >
+                    Tarif {{ fmt(r.tarif) }}
+                  </span>
+                </td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.target) }}</td>
+                <td class="px-3 py-2.5 text-end text-muted-foreground-1">{{ fmt(r.sBelum) }}</td>
+                <td class="px-3 py-2.5 text-end font-medium text-foreground">
+                  {{ fmt(cellOf(r).nilai) }}
+                  <div
+                    v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null"
+                    class="text-xs text-muted-foreground-1"
+                  >
+                    {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
+                  </div>
+                </td>
+                <td class="px-3 py-2.5 text-end font-medium text-foreground">{{ fmt(rowTotal(r)) }}</td>
+                <td class="px-3 py-2.5">
+                  <template v-if="cellOf(r).status">
+                    <span
+                      v-if="isCellLocked(r)"
+                      class="group relative inline-flex"
+                      title="Terkunci — sudah diajukan, tidak bisa diubah"
+                    >
+                      <span
+                        class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                        :class="statusChip(cellOf(r).status)"
+                      >
+                        <Lock class="shrink-0 size-3" aria-hidden="true" />
+                        {{ cellOf(r).status }}
+                      </span>
+                    </span>
+                    <span
+                      v-else
+                      class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                      :class="statusChip(cellOf(r).status)"
+                    >
+                      {{ cellOf(r).status }}
+                    </span>
+                  </template>
+                  <span v-else class="text-muted-foreground-1">-</span>
+                </td>
+                <td v-if="isUser" class="px-3 py-2.5">
+                  <AppMenu
+                    v-if="cellOf(r).status === 'draft'"
+                    :disabled="!!meta?.locked"
+                    :items="[
+                      { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
+                      { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
+                    ]"
+                  />
+                </td>
+              </tr>
+              <tr v-if="expandedId === r.jenis_id">
+                <td :colspan="colCount" class="p-0">
+                  <PerhitunganPanel
+                    :title="`${r.kode || '-'} — ${r.nama}`"
+                    :subtitle="`${kawasanLabel} · ${labelBulan} ${tahun}`"
+                    :mode-label="modeLabelOf(r)"
+                    :formula="formulaOf(r)"
+                    :lines="panelLines(r)"
+                    :target="r.target"
+                    :total="rowTotal(r)"
+                    total-label="Total Bulanan"
+                    basis-note="Grid memakai basis draft + diajukan + disetujui (kecuali ditolak). Angka resmi rekap/ekspor hanya status disetujui."
+                  />
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot v-if="rows.length">
+            <tr class="border-t-2 border-line-3 font-bold text-foreground">
+              <td colspan="2" class="px-3 py-2.5">TOTAL</td>
+              <td class="px-3 py-2.5 text-end">{{ fmt(sumTarget) }}</td>
+              <td class="px-3 py-2.5 text-end">{{ fmt(sumSBebelum) }}</td>
+              <td class="px-3 py-2.5 text-end">{{ fmt(sumMingguAktif) }}</td>
+              <td class="px-3 py-2.5 text-end">{{ fmt(sumTotal) }}</td>
+              <td></td>
+              <td v-if="isUser"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-      <div v-else-if="mode === 'list'" class="pa-3">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!rows.length" class="text-center py-6 text-medium-emphasis">Tidak ada pos penerimaan</div>
+      <!-- Mode list -->
+      <div v-else-if="mode === 'list'" class="p-3">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!rows.length" class="py-6 text-center text-muted-foreground-1">Tidak ada pos penerimaan</div>
         <template v-else>
           <RecordCard
             v-for="r in rows"
             :key="r.jenis_id"
             :title="`${r.kode || '-'} — ${r.nama}`"
             :fields="[
-              { label: 'Target', value: fmt(r.target), class: 'text-right' },
-              { label: 's/d Bulan Lalu', value: fmt(r.sBelum), class: 'text-right' },
-              { label: `Nilai ${labelMingguAktif}`, value: fmt(cellOf(r).nilai), class: 'text-right font-weight-medium' },
-              { label: 'Total Bulanan', value: fmt(rowTotal(r)), class: 'text-right font-weight-medium' },
+              { label: 'Target', value: fmt(r.target), class: 'text-end' },
+              { label: 's/d Bulan Lalu', value: fmt(r.sBelum), class: 'text-end' },
+              { label: `Nilai ${labelMingguAktif}`, value: fmt(cellOf(r).nilai), class: 'text-end font-medium' },
+              { label: 'Total Bulanan', value: fmt(rowTotal(r)), class: 'text-end font-medium' },
             ]"
           >
             <template #badge>
-              <v-chip v-if="cellOf(r).status" size="small" :color="statusColor(cellOf(r).status)" variant="tonal" :prepend-icon="isCellLocked(r) ? 'mdi-lock' : undefined">{{ cellOf(r).status }}</v-chip>
-              <span v-else class="text-medium-emphasis text-caption">-</span>
+              <span
+                v-if="cellOf(r).status"
+                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="statusChip(cellOf(r).status)"
+              >
+                <Lock v-if="isCellLocked(r)" class="shrink-0 size-3" aria-hidden="true" />
+                {{ cellOf(r).status }}
+              </span>
+              <span v-else class="text-xs text-muted-foreground-1">-</span>
             </template>
-            <div v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null" class="text-caption text-medium-emphasis mt-1">
+            <div
+              v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null"
+              class="mt-1 text-xs text-muted-foreground-1"
+            >
               {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
             </div>
             <template v-if="isUser && cellOf(r).status === 'draft'" #actions>
-              <v-btn size="small" variant="text" prepend-icon="mdi-pencil" :disabled="!!meta?.locked" @click="openEdit(r)">Edit</v-btn>
-              <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" :disabled="!!meta?.locked" @click="confirmDelete(r)">Hapus</v-btn>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover
+                       focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+                :disabled="!!meta?.locked"
+                @click="openEdit(r)"
+              >
+                <Pencil class="shrink-0 size-3.5" aria-hidden="true" /> Edit
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-layer-hover
+                       focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none dark:text-red-400"
+                :disabled="!!meta?.locked"
+                @click="confirmDelete(r)"
+              >
+                <Trash2 class="shrink-0 size-3.5" aria-hidden="true" /> Hapus
+              </button>
             </template>
           </RecordCard>
         </template>
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!rows.length" class="text-center py-6 text-medium-emphasis">Tidak ada pos penerimaan</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="r in rows" :key="r.jenis_id" :title="`${r.kode || '-'} — ${r.nama}`">
-            <template #append>
-              <span class="text-body-2 font-weight-medium mr-2">{{ fmt(cellOf(r).nilai) }}</span>
-              <v-chip v-if="cellOf(r).status" size="x-small" :color="statusColor(cellOf(r).status)" variant="tonal" class="mr-1" :prepend-icon="isCellLocked(r) ? 'mdi-lock' : undefined">{{ cellOf(r).status }}</v-chip>
-              <v-menu v-if="isUser && cellOf(r).status === 'draft'" location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" :disabled="!!meta?.locked" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
-                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
-                </v-list>
-              </v-menu>
-            </template>
-          </v-list-item>
-        </v-list>
+      <!-- Mode compact -->
+      <div v-else class="p-2">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!rows.length" class="py-6 text-center text-muted-foreground-1">Tidak ada pos penerimaan</div>
+        <ul v-else class="divide-y divide-table-line">
+          <li v-for="r in rows" :key="r.jenis_id" class="flex items-center gap-2 py-2">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
+            </span>
+            <span class="shrink-0 text-sm font-medium text-foreground">{{ fmt(cellOf(r).nilai) }}</span>
+            <span
+              v-if="cellOf(r).status"
+              class="shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+              :class="statusChip(cellOf(r).status)"
+            >
+              <Lock v-if="isCellLocked(r)" class="shrink-0 size-3" aria-hidden="true" />
+              {{ cellOf(r).status }}
+            </span>
+            <AppMenu
+              v-if="isUser && cellOf(r).status === 'draft'"
+              :disabled="!!meta?.locked"
+              :items="[
+                { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
+                { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
+              ]"
+            />
+          </li>
+        </ul>
       </div>
 
-      <v-divider />
-      <v-card-text class="d-flex flex-wrap justify-space-between align-center ga-3">
-        <div class="text-body-2 text-medium-emphasis">
-          Total {{ labelMingguAktif }}: <b>{{ fmt(sumMingguAktif) }}</b> · Total Bulanan: <b>{{ fmt(sumTotal) }}</b>
+      <hr class="border-card-divider" />
+      <div class="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div class="text-sm text-muted-foreground-1">
+          Total {{ labelMingguAktif }}: <b class="text-foreground">{{ fmt(sumMingguAktif) }}</b> ·
+          Total Bulanan: <b class="text-foreground">{{ fmt(sumTotal) }}</b>
         </div>
-        <div class="d-flex ga-2">
-          <v-btn v-if="isUser && !meta?.locked" color="secondary" variant="tonal" prepend-icon="mdi-send-clock" :disabled="!hasDraftMinggu(tabMinggu)" :loading="ajukanMingguLoading" @click="ajukanMingguIni">Ajukan Minggu Ini</v-btn>
-          <v-btn v-if="isUser && !meta?.locked" color="primary" variant="tonal" prepend-icon="mdi-send" :disabled="!hasDraft" :loading="ajukanLoading" @click="ajukanSemua">Ajukan Semua</v-btn>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-if="isUser && !meta?.locked"
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-secondary-line bg-secondary/5 px-3 py-2
+                   text-sm font-medium text-secondary hover:bg-secondary/10 focus:outline-hidden
+                   disabled:opacity-50 disabled:pointer-events-none"
+            :disabled="!hasDraftMinggu(tabMinggu) || ajukanMingguLoading"
+            @click="ajukanMingguIni"
+          >
+            <LoaderCircle v-if="ajukanMingguLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+            <Send v-else class="shrink-0 size-4" aria-hidden="true" />
+            Ajukan Minggu Ini
+          </button>
+          <button
+            v-if="isUser && !meta?.locked"
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium
+                   text-primary hover:bg-primary/20 focus:outline-hidden
+                   disabled:opacity-50 disabled:pointer-events-none"
+            :disabled="!hasDraft || ajukanLoading"
+            @click="ajukanSemua"
+          >
+            <LoaderCircle v-if="ajukanLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+            <Send v-else class="shrink-0 size-4" aria-hidden="true" />
+            Ajukan Semua
+          </button>
         </div>
-      </v-card-text>
-    </v-card>
-
-    <AppDialog v-model="dialog" :title="`${editing ? 'Edit Entri' : 'Tambah Entri'} — ${labelMingguAktif}`" :max-width="560" :icon="editing ? 'mdi-pencil' : 'mdi-plus'">
-      <div class="text-caption text-medium-emphasis mb-3">
-        {{ kawasanLabel }} · {{ meta?.bulanLabel || bulanOpts.find((b) => b.value === bulan)?.label }} {{ tahun }} · {{ labelMingguAktif }}
       </div>
-      <v-autocomplete
-        v-model="form.jenis_retribusi_id"
-        :items="jenisOpts"
-        item-title="label"
-        item-value="value"
-        label="Jenis Penerimaan *"
-        variant="outlined"
-        density="compact"
-        :disabled="!!editing"
-        :error-messages="err.jenis"
-        class="mb-2"
-        @update:model-value="onJenisChange"
-      />
-      <v-text-field
-        v-if="selectedMode === 'kuantitas'"
-        v-model.number="form.kuantitas"
-        :label="`Jumlah unit${selectedSatuan ? ` (${selectedSatuan})` : ''} *`"
-        type="number"
-        variant="outlined"
-        density="compact"
-        :error-messages="err.nilai"
-        class="mb-2"
-      />
-      <v-text-field
-        v-else
-        :model-value="nilaiDisplay"
-        :label="`Nilai ${labelMingguAktif} *`"
-        variant="outlined"
-        density="compact"
-        prefix="Rp"
-        inputmode="numeric"
-        :error-messages="err.nilai"
-        class="mb-2"
-        @input="onNilaiInput"
-      />
-      <v-alert v-if="selectedMode === 'kuantitas' && selectedRow" type="info" variant="tonal" density="compact" class="mb-2">
-        <div class="text-body-2">
+    </div>
+
+    <!-- Dialog input/edit -->
+    <AppDialog
+      v-model="dialog"
+      :title="`${editing ? 'Edit Entri' : 'Tambah Entri'} — ${labelMingguAktif}`"
+      :max-width="560"
+      :icon="editing ? Pencil : Plus"
+    >
+      <div class="mb-3 text-xs text-muted-foreground-1">
+        {{ kawasanLabel }} · {{ meta?.bulanLabel || bulanOpts.find((b) => b.value === bulan)?.label }} {{ tahun }} ·
+        {{ labelMingguAktif }}
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Jenis Penerimaan *</label>
+        <AppSelect
+          v-model="form.jenis_retribusi_id"
+          :items="jenisOpts"
+          placeholder="Pilih jenis penerimaan"
+          :disabled="!!editing"
+          in-modal
+          @update:model-value="onJenisChange"
+        />
+        <p v-if="err.jenis" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.jenis }}</p>
+      </div>
+
+      <div v-if="selectedMode === 'kuantitas'" class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">
+          Jumlah unit{{ selectedSatuan ? ` (${selectedSatuan})` : '' }} *
+        </label>
+        <input
+          v-model.number="form.kuantitas"
+          type="number"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+        <p v-if="err.nilai" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.nilai }}</p>
+      </div>
+
+      <div v-else class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Nilai {{ labelMingguAktif }} *</label>
+        <div class="relative">
+          <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2.5 text-xs text-muted-foreground-1">Rp</span>
+          <input
+            :value="nilaiDisplay"
+            type="text"
+            inputmode="numeric"
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-9 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+            @input="onNilaiInput"
+          />
+        </div>
+        <p v-if="err.nilai" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.nilai }}</p>
+      </div>
+
+      <div
+        v-if="selectedMode === 'kuantitas' && selectedRow"
+        class="mb-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm
+               text-blue-800 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-200"
+      >
+        <Info class="mt-0.5 shrink-0 size-4" aria-hidden="true" />
+        <span>
           Perhitungan: <b>{{ (Number(form.kuantitas) || 0).toLocaleString('id-ID') }}</b>
           <span v-if="selectedRow.tarif"> × {{ fmt(selectedRow.tarif) }}</span>
-          <span v-else class="text-error"> — tarif belum diisi</span>
+          <span v-else class="text-red-600 dark:text-red-400"> — tarif belum diisi</span>
           = <b>{{ fmt(previewTotal) }}</b>
-        </div>
-      </v-alert>
-      <v-alert v-if="selectedMode === 'kuantitas' && selectedRow && !selectedRow.tarif" type="warning" variant="tonal" density="compact" class="mb-2">
-        Tarif belum diisi untuk jenis ini. Lengkapi dulu di <b>Master → Jenis Retribusi</b> sebelum menyimpan.
-      </v-alert>
-      <v-text-field v-model="form.catatan" label="Catatan" variant="outlined" density="compact" hide-details class="mb-2" />
-      <v-alert v-if="selectedRow" type="info" variant="tonal" density="compact" class="mt-2">
-        <div class="text-body-2">Target: <b>{{ fmt(selectedRow.target) }}</b></div>
-        <div class="text-body-2">s/d Bulan Lalu: <b>{{ fmt(selectedRow.sBelum) }}</b></div>
-        <div class="text-body-2">Total Bulanan (sebelum perubahan): <b>{{ fmt(rowTotal(selectedRow)) }}</b></div>
-      </v-alert>
+        </span>
+      </div>
+
+      <div
+        v-if="selectedMode === 'kuantitas' && selectedRow && !selectedRow.tarif"
+        class="mb-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm
+               text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+      >
+        <TriangleAlert class="mt-0.5 shrink-0 size-4" aria-hidden="true" />
+        <span>
+          Tarif belum diisi untuk jenis ini. Lengkapi dulu di
+          <b>Master → Jenis Retribusi</b> sebelum menyimpan.
+        </span>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Catatan</label>
+        <input
+          v-model="form.catatan"
+          type="text"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+      </div>
+
+      <div
+        v-if="selectedRow"
+        class="mt-2 flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm
+               text-blue-800 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-200"
+      >
+        <span>Target: <b>{{ fmt(selectedRow.target) }}</b></span>
+        <span>s/d Bulan Lalu: <b>{{ fmt(selectedRow.sBelum) }}</b></span>
+        <span>Total Bulanan (sebelum perubahan): <b>{{ fmt(rowTotal(selectedRow)) }}</b></span>
+      </div>
+
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
-        <v-btn color="primary" :loading="saving" @click="saveEntri">Simpan</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="dialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="saving"
+          @click="saveEntri"
+        >
+          <LoaderCircle v-if="saving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Simpan
+        </button>
       </template>
     </AppDialog>
 
-    <AppDialog v-model="delDialog" title="Hapus entri?" :max-width="420" icon="mdi-delete">
+    <!-- Dialog hapus -->
+    <AppDialog v-model="delDialog" title="Hapus entri?" :max-width="420" :icon="Trash2">
       Yakin hapus entri <b>{{ delTarget?.nama }}</b> untuk <b>{{ labelMingguAktif }}</b>?
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
-        <v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="delDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white
+                 hover:bg-red-700 focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="deleting"
+          @click="doDelete"
+        >
+          <LoaderCircle v-if="deleting" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Hapus
+        </button>
       </template>
     </AppDialog>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  ChevronRight,
+  Info,
+  LoaderCircle,
+  Lock,
+  Pencil,
+  Plus,
+  Send,
+  Table2,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-vue-next'
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode } = useViewMode('entri-mingguan')
@@ -326,11 +539,11 @@ const jenisOpts = computed(() => jenisList.value
 
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
 
-function statusColor(s: string | null) {
-  if (s === 'disetujui') return 'success'
-  if (s === 'diajukan') return 'warning'
-  if (s === 'ditolak') return 'error'
-  return 'grey'
+function statusChip(s: string | null) {
+  if (s === 'disetujui') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  if (s === 'diajukan') return 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+  if (s === 'ditolak') return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+  return 'bg-surface text-surface-foreground'
 }
 
 // Ambil sel minggu yang sedang aktif dari sebuah baris.
@@ -567,19 +780,3 @@ async function ajukanMingguIni() {
 
 onMounted(async () => { await loadKawasan(); await loadJenis(); await load() })
 </script>
-
-<style scoped>
-.expand-row {
-  cursor: pointer;
-}
-.expand-row:hover {
-  background: rgba(var(--v-theme-primary), 0.06);
-}
-.expand-chevron {
-  transition: transform 0.15s ease;
-  vertical-align: middle;
-}
-.expand-chevron--open {
-  transform: rotate(90deg);
-}
-</style>

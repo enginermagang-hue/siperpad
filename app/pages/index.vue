@@ -1,108 +1,218 @@
 <template>
   <div>
     <div class="mb-4">
-      <h1 class="font-weight-bold" style="font-size: 22px; letter-spacing: 0.02em" :style="{ color: isDark ? '#f1f5f9' : '#0f172a' }">DASHBOARD UTAMA</h1>
-      <div class="text-body-2" :style="{ color: isDark ? '#94a3b8' : '#475569' }">Rekapitulasi PAD Kawasan Wisata Kampung Seni Flobamorata & Pantai Lasiana</div>
-      <v-divider class="mt-3" />
+      <h1 class="font-bold text-[22px] tracking-wide text-foreground">DASHBOARD UTAMA</h1>
+      <div class="text-sm text-muted-foreground-2">
+        Rekapitulasi PAD Kawasan Wisata Kampung Seni Flobamorata &amp; Pantai Lasiana
+      </div>
+      <hr class="mt-3 border-line-2" />
     </div>
 
-    <v-card flat class="mb-4 pa-3 d-flex align-center flex-wrap ga-3" style="border-radius: 10px">
-      <v-btn v-if="isUser" color="primary" prepend-icon="mdi-plus" to="/entri-mingguan">Tambah Data Realisasi</v-btn>
-      <div class="d-flex ga-2 flex-wrap align-center" :class="isUser ? 'ml-auto' : 'flex-grow-1'">
-        <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="min-width: 170px" placeholder="Semua" :class="filterGrow" @update:model-value="loadRekap" />
-        <v-select v-model="tahun" :items="tahunOpts" density="compact" variant="outlined" hide-details style="min-width: 110px" label="Tahun" :class="filterGrow" @update:model-value="loadRekap" />
-        <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Pilih Bulan/Minggu" density="compact" variant="outlined" hide-details style="min-width: 175px" :class="filterGrow" @update:model-value="loadRekap" />
-        <v-select v-model="scope" :items="scopeOpts" item-title="label" item-value="value" density="compact" variant="outlined" hide-details style="min-width: 125px" :class="filterGrow" @update:model-value="loadRekap" />
-        <v-text-field v-model="pencarian" density="compact" variant="outlined" hide-details placeholder="Pencarian" style="min-width: 160px" prepend-inner-icon="mdi-magnify" clearable :class="filterGrow" />
+    <!-- Filter bar -->
+    <div
+      class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-card-line bg-card p-3"
+    >
+      <NuxtLink
+        v-if="isUser"
+        to="/entri-mingguan"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+               text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
+      >
+        <Plus class="shrink-0 size-4" aria-hidden="true" />
+        Tambah Data Realisasi
+      </NuxtLink>
+
+      <div class="flex flex-wrap items-center gap-2" :class="isUser ? 'ms-auto' : 'flex-1'">
+        <div class="min-w-[170px]" :class="filterGrow">
+          <AppSelect
+            v-model="filterKawasan"
+            :items="kawasanOpts"
+            placeholder="Kawasan: Semua"
+            clearable
+            @update:model-value="loadRekap"
+          />
+        </div>
+        <div class="min-w-[110px]" :class="filterGrow">
+          <AppSelect v-model="tahun" :items="tahunOpts" @update:model-value="loadRekap" />
+        </div>
+        <div class="min-w-[175px]" :class="filterGrow">
+          <AppSelect
+            v-model="bulan"
+            :items="bulanOpts"
+            placeholder="Pilih Bulan/Minggu"
+            @update:model-value="loadRekap"
+          />
+        </div>
+        <div class="min-w-[125px]" :class="filterGrow">
+          <AppSelect v-model="scope" :items="scopeOpts" @update:model-value="loadRekap" />
+        </div>
+        <div class="relative min-w-[160px]" :class="filterGrow">
+          <Search
+            class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+            aria-hidden="true"
+          />
+          <input
+            v-model="pencarian"
+            type="text"
+            placeholder="Pencarian"
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+          />
+        </div>
       </div>
-    </v-card>
+    </div>
 
     <!-- Anomali target -->
-    <v-alert v-if="anomali.length" type="warning" variant="tonal" class="mb-4" prominent>
-      <div class="font-weight-bold mb-1">Peringatan Anomali Target ({{ anomali.length }}) — perlu konfirmasi Bendahara Penerimaan</div>
-      <div v-for="a in anomali" :key="a.jenis_id" class="text-body-2">
-        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak {{ fmt(a.jumlah_anak) }}
+    <div
+      v-if="anomali.length"
+      role="alert"
+      class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4
+             dark:border-amber-900 dark:bg-amber-950/60"
+    >
+      <div class="mb-1 flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200">
+        <TriangleAlert class="shrink-0 size-4" aria-hidden="true" />
+        Peringatan Anomali Target ({{ anomali.length }}) — perlu konfirmasi Bendahara Penerimaan
+      </div>
+      <div
+        v-for="a in anomali"
+        :key="a.jenis_id"
+        class="text-sm text-amber-900/90 dark:text-amber-200/90"
+      >
+        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak
+        {{ fmt(a.jumlah_anak) }}
         <b>(selisih {{ fmt(a.selisih) }})</b>
       </div>
-    </v-alert>
+    </div>
 
     <!-- KPI -->
-    <v-row v-if="totals" class="mb-2">
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center">
-          <div class="text-caption text-medium-emphasis">Target Penerimaan {{ tahun }}</div>
-          <div class="text-h6 font-weight-bold">{{ fmt(totals.totalTarget) }}</div>
-        </v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center">
-          <div class="text-caption text-medium-emphasis">Realisasi s/d {{ bulanLabel }}</div>
-          <div class="text-h6 font-weight-bold text-primary">{{ fmt(kumulatif?.kumulatif ?? 0) }}</div>
-        </v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center">
-          <div class="text-caption text-medium-emphasis">% Capai</div>
-          <div class="text-h6 font-weight-bold" :class="capaianKumulatif == null ? 'text-medium-emphasis' : capaianKumulatif >= 100 ? 'text-success' : capaianKumulatif >= 75 ? 'text-warning' : 'text-error'">{{ capaianKumulatif == null ? '-' : `${capaianKumulatif}%` }}</div>
-        </v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center">
-          <div class="text-caption text-medium-emphasis">Realisasi {{ bulanLabel }} vs {{ banding?.a?.label ?? '-' }}</div>
-          <div class="text-h6 font-weight-bold" :class="(banding?.total?.selisih ?? 0) >= 0 ? 'text-success' : 'text-error'">
-            {{ fmt(banding?.total?.selisih ?? 0) }}
-            <span class="text-caption">({{ banding?.total?.persen == null ? '-' : `${banding?.total?.persen}%` }})</span>
+    <div v-if="totals" class="mb-4 grid grid-cols-12 gap-4">
+      <div class="col-span-12 sm:col-span-6 md:col-span-3">
+        <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+          <div class="text-xs text-muted-foreground-1">Target Penerimaan {{ tahun }}</div>
+          <div class="text-lg font-bold text-foreground">{{ fmt(totals.totalTarget) }}</div>
+        </div>
+      </div>
+      <div class="col-span-12 sm:col-span-6 md:col-span-3">
+        <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+          <div class="text-xs text-muted-foreground-1">Realisasi s/d {{ bulanLabel }}</div>
+          <div class="text-lg font-bold text-primary">{{ fmt(kumulatif?.kumulatif ?? 0) }}</div>
+        </div>
+      </div>
+      <div class="col-span-12 sm:col-span-6 md:col-span-3">
+        <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+          <div class="text-xs text-muted-foreground-1">% Capai</div>
+          <div class="text-lg font-bold" :class="capaianClass">
+            {{ capaianKumulatif == null ? '-' : `${capaianKumulatif}%` }}
           </div>
-        </v-card>
-      </v-col>
-    </v-row>
+        </div>
+      </div>
+      <div class="col-span-12 sm:col-span-6 md:col-span-3">
+        <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+          <div class="text-xs text-muted-foreground-1">
+            Realisasi {{ bulanLabel }} vs {{ banding?.a?.label ?? '-' }}
+          </div>
+          <div
+            class="text-lg font-bold"
+            :class="(banding?.total?.selisih ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
+          >
+            {{ fmt(banding?.total?.selisih ?? 0) }}
+            <span class="text-xs">
+              ({{ banding?.total?.persen == null ? '-' : `${banding?.total?.persen}%` }})
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <v-row>
-      <v-col cols="12" md="7">
-        <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="d-flex align-center ga-2 flex-wrap">
-            <v-icon>mdi-chart-line</v-icon> Realisasi vs Target — {{ scopeLabel }}
-            <v-spacer />
-            <v-btn variant="tonal" size="small" prepend-icon="mdi-image-outline" :disabled="loadingRekap || !timeseries.length" @click="chartRef?.exportPng()">Ekspor PNG</v-btn>
-          </v-card-title>
-          <v-card-text>
-            <div v-if="loadingRekap" class="text-center py-8 text-medium-emphasis">Memuat grafik...</div>
+    <div class="grid grid-cols-12 gap-4">
+      <div class="col-span-12 md:col-span-7">
+        <div class="mb-4 rounded-lg border border-card-line bg-card">
+          <div class="flex flex-wrap items-center gap-2 border-b border-card-divider px-4 py-3">
+            <ChartLine class="shrink-0 size-4 text-muted-foreground-1" aria-hidden="true" />
+            <span class="font-medium text-foreground">Realisasi vs Target — {{ scopeLabel }}</span>
+            <button
+              type="button"
+              class="ms-auto inline-flex items-center gap-1.5 rounded-lg border border-layer-line px-2.5 py-1.5
+                     text-xs font-medium text-primary hover:bg-layer-hover
+                     focus:outline-hidden focus:bg-layer-focus
+                     disabled:opacity-50 disabled:pointer-events-none"
+              :disabled="loadingRekap || !timeseries.length"
+              @click="chartRef?.exportPng()"
+            >
+              <Image class="shrink-0 size-3.5" aria-hidden="true" />
+              Ekspor PNG
+            </button>
+          </div>
+          <div class="p-4">
+            <div v-if="loadingRekap" class="py-8 text-center text-muted-foreground-1">Memuat grafik...</div>
             <SiperpadChart v-else ref="chartRef" :series="chartSeries" :categories="chartCategories" :height="300" />
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="5">
-        <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-calendar-week</v-icon> Tren Mingguan {{ bulanLabel }}</v-card-title>
-          <v-card-text>
-            <SiperpadChart :series="mingguanSeries" :categories="['Minggu I', 'Minggu II', 'Minggu III', 'Minggu IV']" :height="300" type="bar" />
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+          </div>
+        </div>
+      </div>
 
-    <v-row>
-      <v-col cols="12" md="7">
-        <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="d-flex align-center ga-2 flex-wrap">
-            <v-icon>mdi-trophy</v-icon> Top Kontributor PAD — {{ bulanLabel }} {{ tahun }}
-            <v-spacer />
-            <ViewModeToggle v-model="mode" />
-          </v-card-title>
-          <v-card-text>
-            <div v-if="!topKontributor.length" class="text-medium-emphasis py-4 text-center">Belum ada realisasi disetujui pada periode ini</div>
-            <v-table v-else-if="mode === 'table'" density="default">
-              <thead><tr><th style="width:40px">#</th><th>Pos Penerimaan</th><th>Kawasan</th><th class="text-right">Nilai</th><th class="text-right">Kontribusi</th></tr></thead>
-              <tbody>
-                <tr v-for="(t, i) in topKontributor" :key="t.jenis_id">
-                  <td>{{ i + 1 }}</td>
-                  <td>{{ t.kode }} — {{ t.nama }}</td>
-                  <td><v-chip size="small" variant="tonal">{{ t.kawasan_kode }}</v-chip></td>
-                  <td class="text-right">{{ fmt(t.nilai) }}</td>
-                  <td class="text-right"><v-chip size="small" color="primary" variant="tonal">{{ t.persen }}%</v-chip></td>
-                </tr>
-              </tbody>
-            </v-table>
+      <div class="col-span-12 md:col-span-5">
+        <div class="mb-4 rounded-lg border border-card-line bg-card">
+          <div class="flex items-center gap-2 border-b border-card-divider px-4 py-3">
+            <CalendarDays class="shrink-0 size-4 text-muted-foreground-1" aria-hidden="true" />
+            <span class="font-medium text-foreground">Tren Mingguan {{ bulanLabel }}</span>
+          </div>
+          <div class="p-4">
+            <SiperpadChart
+              :series="mingguanSeries"
+              :categories="['Minggu I', 'Minggu II', 'Minggu III', 'Minggu IV']"
+              :height="300"
+              type="bar"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-12 gap-4">
+      <div class="col-span-12 md:col-span-7">
+        <div class="mb-4 rounded-lg border border-card-line bg-card">
+          <div class="flex flex-wrap items-center gap-2 border-b border-card-divider px-4 py-3">
+            <Trophy class="shrink-0 size-4 text-muted-foreground-1" aria-hidden="true" />
+            <span class="font-medium text-foreground">
+              Top Kontributor PAD — {{ bulanLabel }} {{ tahun }}
+            </span>
+            <div class="ms-auto"><ViewModeToggle v-model="mode" /></div>
+          </div>
+          <div class="p-4">
+            <div v-if="!topKontributor.length" class="py-4 text-center text-muted-foreground-1">
+              Belum ada realisasi disetujui pada periode ini
+            </div>
+
+            <div v-else-if="mode === 'table'" class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-table-line text-sm">
+                <thead>
+                  <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+                    <th class="w-10 px-2 py-2 text-start font-medium">#</th>
+                    <th class="px-2 py-2 text-start font-medium">Pos Penerimaan</th>
+                    <th class="px-2 py-2 text-start font-medium">Kawasan</th>
+                    <th class="px-2 py-2 text-end font-medium">Nilai</th>
+                    <th class="px-2 py-2 text-end font-medium">Kontribusi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-table-line">
+                  <tr v-for="(t, i) in topKontributor" :key="t.jenis_id">
+                    <td class="px-2 py-2 text-muted-foreground-1">{{ i + 1 }}</td>
+                    <td class="px-2 py-2 text-foreground">{{ t.kode }} — {{ t.nama }}</td>
+                    <td class="px-2 py-2">
+                      <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                        {{ t.kawasan_kode }}
+                      </span>
+                    </td>
+                    <td class="px-2 py-2 text-end text-foreground">{{ fmt(t.nilai) }}</td>
+                    <td class="px-2 py-2 text-end">
+                      <span class="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {{ t.persen }}%
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             <div v-else-if="mode === 'list'">
               <RecordCard
@@ -111,74 +221,118 @@
                 :title="`${i + 1}. ${t.kode} — ${t.nama}`"
                 :subtitle="t.kawasan_kode"
                 :fields="[
-                  { label: 'Nilai', value: fmt(t.nilai), class: 'text-right font-weight-medium' },
-                  { label: 'Kontribusi', value: t.persen + '%', class: 'text-right' },
+                  { label: 'Nilai', value: fmt(t.nilai), class: 'text-end font-medium' },
+                  { label: 'Kontribusi', value: t.persen + '%', class: 'text-end' },
                 ]"
               />
             </div>
 
-            <v-list v-else density="compact" lines="one">
-              <v-list-item v-for="(t, i) in topKontributor" :key="t.jenis_id" :title="`${i + 1}. ${t.kode} — ${t.nama}`" :subtitle="t.kawasan_kode">
-                <template #append>
-                  <span class="text-body-2 font-weight-medium mr-2">{{ fmt(t.nilai) }}</span>
-                  <v-chip size="x-small" color="primary" variant="tonal">{{ t.persen }}%</v-chip>
-                </template>
-              </v-list-item>
-            </v-list>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="5">
-        <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="d-flex align-center ga-2"><v-icon>mdi-chart-donut</v-icon> Komposisi Kontributor</v-card-title>
-          <v-card-text>
-            <SiperpadChart v-if="topKontributor.length" :series="topKontributor.map((t) => t.nilai)" :categories="topKontributor.map((t) => t.nama)" :height="300" type="donut" />
-            <div v-else class="text-medium-emphasis py-4 text-center">Tidak ada data</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+            <ul v-else class="divide-y divide-table-line">
+              <li
+                v-for="(t, i) in topKontributor"
+                :key="t.jenis_id"
+                class="flex items-center gap-2 py-2"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm text-foreground">{{ i + 1 }}. {{ t.kode }} — {{ t.nama }}</span>
+                  <span class="block truncate text-xs text-muted-foreground-1">{{ t.kawasan_kode }}</span>
+                </span>
+                <span class="shrink-0 text-sm font-medium text-foreground">{{ fmt(t.nilai) }}</span>
+                <span class="shrink-0 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                  {{ t.persen }}%
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-    <v-row>
-      <v-col cols="12" md="4">
-        <v-card flat elevation="0" class="pa-6 text-center">
-          <v-icon size="40" color="primary" class="mb-2">mdi-database</v-icon>
-          <div class="text-h6">Database</div>
-          <v-chip :color="dbHealthy ? 'success' : 'error'" size="small" class="mt-1">{{ dbStatus }}</v-chip>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-card flat elevation="0" class="pa-6 text-center">
-          <v-icon size="40" color="primary" class="mb-2">mdi-cloud-sync</v-icon>
-          <div class="text-h6">Versi Aplikasi</div>
-          <div class="text-body-1 font-weight-medium">0.1.0</div>
-          <div class="text-caption text-medium-emphasis">Nuxt 4 + Vuetify 3</div>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-card flat elevation="0" class="pa-6 text-center">
-          <v-icon size="40" color="primary" class="mb-2">mdi-folder-link</v-icon>
-          <div class="text-h6">Folder Sinkronisasi</div>
-          <div class="text-caption text-medium-emphasis">Dropbox /siperpad</div>
-        </v-card>
-      </v-col>
-    </v-row>
+      <div class="col-span-12 md:col-span-5">
+        <div class="mb-4 rounded-lg border border-card-line bg-card">
+          <div class="flex items-center gap-2 border-b border-card-divider px-4 py-3">
+            <ChartPie class="shrink-0 size-4 text-muted-foreground-1" aria-hidden="true" />
+            <span class="font-medium text-foreground">Komposisi Kontributor</span>
+          </div>
+          <div class="p-4">
+            <SiperpadChart
+              v-if="topKontributor.length"
+              :series="topKontributor.map((t) => t.nilai)"
+              :categories="topKontributor.map((t) => t.nama)"
+              :height="300"
+              type="donut"
+            />
+            <div v-else class="py-4 text-center text-muted-foreground-1">Tidak ada data</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-12 gap-4">
+      <div class="col-span-12 md:col-span-4">
+        <div class="rounded-lg border border-card-line bg-card p-6 text-center">
+          <Database class="mx-auto mb-2 size-10 text-primary" aria-hidden="true" />
+          <div class="text-base font-medium text-foreground">Database</div>
+          <span
+            class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="dbHealthy
+              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+              : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'"
+          >
+            {{ dbStatus }}
+          </span>
+        </div>
+      </div>
+      <div class="col-span-12 md:col-span-4">
+        <div class="rounded-lg border border-card-line bg-card p-6 text-center">
+          <RefreshCw class="mx-auto mb-2 size-10 text-primary" aria-hidden="true" />
+          <div class="text-base font-medium text-foreground">Versi Aplikasi</div>
+          <div class="text-base font-medium text-foreground">0.1.0</div>
+          <div class="text-xs text-muted-foreground-1">Nuxt 4 + Preline UI</div>
+        </div>
+      </div>
+      <div class="col-span-12 md:col-span-4">
+        <div class="rounded-lg border border-card-line bg-card p-6 text-center">
+          <FolderSync class="mx-auto mb-2 size-10 text-primary" aria-hidden="true" />
+          <div class="text-base font-medium text-foreground">Folder Sinkronisasi</div>
+          <div class="text-xs text-muted-foreground-1">Dropbox /siperpad</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  CalendarDays,
+  ChartLine,
+  ChartPie,
+  Database,
+  FolderSync,
+  Image,
+  Plus,
+  RefreshCw,
+  Search,
+  TriangleAlert,
+  Trophy,
+} from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode } = useViewMode('dashboard-top')
 
 const session = useUserSession()
-const isUser = computed(() => session.user.value?.role === 'user')
-const filterGrow = computed(() => (isUser.value ? '' : 'flex-grow-1'))
+const isUser = computed(() => String(session.user.value?.role || '') === 'user')
+const filterGrow = computed(() => (isUser.value ? '' : 'flex-1'))
 const dbHealth = await useFetch('/api/health')
 const dbHealthy = dbHealth.data.value?.status === 'ok'
-const dbStatus = dbHealth.pending.value ? 'Memeriksa...' : dbHealthy ? 'Terhubung' : dbHealth.error.value ? 'Gagal' : 'Tidak diketahui'
+const dbStatus = dbHealth.pending.value
+  ? 'Memeriksa...'
+  : dbHealthy
+    ? 'Terhubung'
+    : dbHealth.error.value
+      ? 'Gagal'
+      : 'Tidak diketahui'
 
-const { isDark } = useTheme()
 const kawasan = ref<{ id: number; kode: string; nama: string }[]>([])
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
 const tahunState = useState<number>('tahun', () => new Date().getFullYear())
@@ -215,6 +369,13 @@ const capaianKumulatif = computed<number | null>(() => {
   const t = totals.value?.totalTarget ?? 0
   if (!t) return null
   return Math.round(((kumulatif.value?.kumulatif ?? 0) / t) * 10000) / 100
+})
+
+const capaianClass = computed(() => {
+  if (capaianKumulatif.value == null) return 'text-muted-foreground-1'
+  if (capaianKumulatif.value >= 100) return 'text-emerald-600 dark:text-emerald-400'
+  if (capaianKumulatif.value >= 75) return 'text-amber-600 dark:text-amber-400'
+  return 'text-red-600 dark:text-red-400'
 })
 
 const chartCategories = computed(() => timeseries.value.map((p) => p.label))

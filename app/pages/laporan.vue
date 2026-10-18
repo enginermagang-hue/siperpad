@@ -1,158 +1,322 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
-      <div class="d-flex align-center">
-        <v-icon size="36" color="primary" class="mr-3">mdi-chart-bar</v-icon>
-        <h1 class="text-h4 font-weight-medium">Laporan Rekap PAD</h1>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <ChartColumn class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">Laporan Rekap PAD</h1>
       </div>
-      <div v-if="isAdminOrKepala" class="d-flex ga-2">
-        <v-btn :loading="exporting === 'csv'" variant="tonal" prepend-icon="mdi-file-delimited" @click="doExport('csv')">CSV</v-btn>
-        <v-btn :loading="exporting === 'xlsx'" variant="tonal" color="success" prepend-icon="mdi-microsoft-excel" @click="doExport('xlsx')">XLSX</v-btn>
-        <v-btn :loading="exporting === 'pdf'" color="primary" prepend-icon="mdi-file-pdf-box" @click="doExport('pdf')">PDF</v-btn>
+      <div v-if="isAdminOrKepala" class="flex gap-2">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-layer-line px-3 py-2 text-sm font-medium
+                 text-primary hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="exporting === 'csv'"
+          @click="doExport('csv')"
+        >
+          <LoaderCircle v-if="exporting === 'csv'" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          <FileSpreadsheet v-else class="shrink-0 size-4" aria-hidden="true" />
+          CSV
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 px-3 py-2 text-sm font-medium
+                 text-emerald-700 hover:bg-emerald-50 focus:outline-hidden
+                 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/50
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="exporting === 'xlsx'"
+          @click="doExport('xlsx')"
+        >
+          <LoaderCircle v-if="exporting === 'xlsx'" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          <FileSpreadsheet v-else class="shrink-0 size-4" aria-hidden="true" />
+          XLSX
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="exporting === 'pdf'"
+          @click="doExport('pdf')"
+        >
+          <LoaderCircle v-if="exporting === 'pdf'" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          <FileText v-else class="shrink-0 size-4" aria-hidden="true" />
+          PDF
+        </button>
       </div>
     </div>
 
-    <v-tabs v-model="tab" class="mb-4" color="primary">
-      <v-tab value="rekap">Rekap</v-tab>
-      <v-tab value="banding">Perbandingan Periode</v-tab>
-    </v-tabs>
+    <!-- Tab -->
+    <div class="mb-4 border-b border-line-2">
+      <nav class="-mb-px flex gap-x-1" aria-label="Tab laporan">
+        <button
+          v-for="t in tabs"
+          :key="t.value"
+          type="button"
+          class="whitespace-nowrap border-b-2 px-3 py-2 text-sm focus:outline-hidden focus:bg-layer-focus"
+          :class="tab === t.value
+            ? 'border-primary text-primary font-medium'
+            : 'border-transparent text-muted-foreground-1 hover:text-foreground hover:border-line-4'"
+          :aria-current="tab === t.value ? 'page' : undefined"
+          @click="tab = t.value"
+        >
+          {{ t.label }}
+        </button>
+      </nav>
+    </div>
 
+    <!-- Tab Rekap -->
     <div v-show="tab === 'rekap'">
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text class="pb-0">
-        <div class="d-flex flex-wrap ga-3 mb-2">
-          <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 240px" placeholder="Semua kawasan" @update:model-value="load" />
-          <v-select v-model="tahun" :items="tahunOpts" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 120px" @update:model-value="load" />
-          <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Bulan" density="compact" variant="outlined" hide-details style="max-width: 160px" @update:model-value="load" />
-          <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode / nama..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 300px" />
+      <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+        <div class="flex flex-wrap gap-3">
+          <div class="w-full max-w-[240px]">
+            <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
+          </div>
+          <div class="w-full max-w-[120px]">
+            <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
+          </div>
+          <div class="w-full max-w-[160px]">
+            <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
+          </div>
+          <div class="relative w-full max-w-[300px]">
+            <Search
+              class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+              aria-hidden="true"
+            />
+            <input
+              v-model="q"
+              type="text"
+              placeholder="Cari kode / nama..."
+              class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                     focus:border-primary-focus focus:ring-primary-focus"
+            />
+          </div>
         </div>
-      </v-card-text>
-    </v-card>
-
-    <v-row v-if="totals" class="mb-4">
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Total Target</div><div class="text-h6 font-weight-bold">{{ fmt(totals.totalTarget) }}</div></v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Total Realisasi</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(totals.totalRealisasi) }}</div></v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Capaian</div><div class="text-h6 font-weight-bold" :class="totals.capaian >= 100 ? 'text-success' : totals.capaian >= 75 ? 'text-warning' : 'text-error'">{{ totals.capaian }}%</div></v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih</div><div class="text-h6 font-weight-bold" :class="totals.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(totals.selisih) }}</div></v-card>
-      </v-col>
-    </v-row>
-
-    <v-card flat elevation="0">
-      <div class="d-flex justify-end px-4 pt-3">
-        <ViewModeToggle v-model="modeRekap" />
-      </div>
-      <v-table v-if="modeRekap === 'table'" density="default">
-        <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">Target</th><th class="text-right">Realisasi</th><th class="text-right">Capaian</th><th class="text-right">Selisih</th></tr></thead>
-        <tbody>
-          <tr v-if="loading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="7" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
-          <tr v-for="r in paginated" :key="r.id">
-            <td class="font-weight-medium">{{ r.kode || '-' }}</td>
-            <td>{{ r.nama }}</td>
-            <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
-            <td class="text-right">{{ fmt(r.target) }}</td>
-            <td class="text-right">{{ fmt(r.realisasi) }}</td>
-            <td class="text-right"><v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="small">{{ r.capaian }}%</v-chip></td>
-            <td class="text-right" :class="r.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(r.selisih) }}</td>
-          </tr>
-        </tbody>
-      </v-table>
-
-      <div v-else-if="modeRekap === 'list'" class="pa-3">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
-        <RecordCard
-          v-for="r in paginated"
-          v-else
-          :key="r.id"
-          :title="`${r.kode || '-'} — ${r.nama}`"
-          :subtitle="`${r.kawasan_kode} — ${r.kawasan_nama}`"
-          :fields="[
-            { label: 'Target', value: fmt(r.target), class: 'text-right' },
-            { label: 'Realisasi', value: fmt(r.realisasi), class: 'text-right' },
-            { label: 'Capaian', value: r.capaian + '%', class: r.capaian >= 100 ? 'text-success' : r.capaian >= 75 ? 'text-warning' : 'text-error' },
-            { label: 'Selisih', value: fmt(r.selisih), class: r.selisih >= 0 ? 'text-success' : 'text-error' },
-          ]"
-        />
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="r in paginated" :key="r.id" :title="`${r.kode || '-'} — ${r.nama}`" :subtitle="r.kawasan_kode">
-            <template #append>
-              <span class="text-body-2 font-weight-medium mr-2">{{ fmt(r.realisasi) }}</span>
-              <v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="x-small">{{ r.capaian }}%</v-chip>
-            </template>
-          </v-list-item>
-        </v-list>
-      </div>
-      <v-divider v-if="total" />
-      <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
-        <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
-          <span>Menampilkan {{ from }}–{{ to }} dari {{ total }} data</span>
-          <v-select v-model="perPage" :items="[5, 10, 25, 50]" density="compact" variant="outlined" hide-details style="max-width: 90px" />
-          <span>per halaman</span>
+      <div v-if="totals" class="mb-4 grid grid-cols-12 gap-4">
+        <div class="col-span-12 sm:col-span-6 md:col-span-3">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">Total Target</div>
+            <div class="text-lg font-bold text-foreground">{{ fmt(totals.totalTarget) }}</div>
+          </div>
         </div>
-        <v-pagination v-if="pageCount > 1" v-model="currentPage" :length="pageCount" :total-visible="5" density="compact" />
+        <div class="col-span-12 sm:col-span-6 md:col-span-3">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">Total Realisasi</div>
+            <div class="text-lg font-bold text-primary">{{ fmt(totals.totalRealisasi) }}</div>
+          </div>
+        </div>
+        <div class="col-span-12 sm:col-span-6 md:col-span-3">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">Capaian</div>
+            <div class="text-lg font-bold" :class="capaianText(totals.capaian)">{{ totals.capaian }}%</div>
+          </div>
+        </div>
+        <div class="col-span-12 sm:col-span-6 md:col-span-3">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">Selisih</div>
+            <div
+              class="text-lg font-bold"
+              :class="totals.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
+            >
+              {{ fmt(totals.selisih) }}
+            </div>
+          </div>
+        </div>
       </div>
-    </v-card>
+
+      <div class="rounded-lg border border-card-line bg-card">
+        <div class="flex justify-end px-4 pt-3">
+          <ViewModeToggle v-model="modeRekap" />
+        </div>
+
+        <div v-if="modeRekap === 'table'" class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-table-line text-sm">
+            <thead>
+              <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+                <th class="px-3 py-2.5 text-start font-medium">Kode</th>
+                <th class="px-3 py-2.5 text-start font-medium">Jenis Retribusi</th>
+                <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
+                <th class="px-3 py-2.5 text-end font-medium">Target</th>
+                <th class="px-3 py-2.5 text-end font-medium">Realisasi</th>
+                <th class="px-3 py-2.5 text-end font-medium">Capaian</th>
+                <th class="px-3 py-2.5 text-end font-medium">Selisih</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-table-line">
+              <tr v-if="loading">
+                <td colspan="7" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+              </tr>
+              <tr v-else-if="!filtered.length">
+                <td colspan="7" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
+              </tr>
+              <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover">
+                <td class="px-3 py-2.5 font-medium text-foreground">{{ r.kode || '-' }}</td>
+                <td class="px-3 py-2.5 text-foreground">{{ r.nama }}</td>
+                <td class="px-3 py-2.5">
+                  <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                    {{ r.kawasan_kode }} — {{ r.kawasan_nama }}
+                  </span>
+                </td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.target) }}</td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.realisasi) }}</td>
+                <td class="px-3 py-2.5 text-end">
+                  <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="capaianChip(r.capaian)">
+                    {{ r.capaian }}%
+                  </span>
+                </td>
+                <td class="px-3 py-2.5 text-end" :class="r.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'">
+                  {{ fmt(r.selisih) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="modeRekap === 'list'" class="p-3">
+          <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+          <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
+          <RecordCard
+            v-for="r in paginated"
+            v-else
+            :key="r.id"
+            :title="`${r.kode || '-'} — ${r.nama}`"
+            :subtitle="`${r.kawasan_kode} — ${r.kawasan_nama}`"
+            :fields="[
+              { label: 'Target', value: fmt(r.target), class: 'text-end' },
+              { label: 'Realisasi', value: fmt(r.realisasi), class: 'text-end' },
+              { label: 'Capaian', value: r.capaian + '%', class: `text-end font-medium ${capaianText(r.capaian)}` },
+              { label: 'Selisih', value: fmt(r.selisih), class: `text-end ${r.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}` },
+            ]"
+          />
+        </div>
+
+        <div v-else class="p-2">
+          <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+          <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
+          <ul v-else class="divide-y divide-table-line">
+            <li v-for="r in paginated" :key="r.id" class="flex items-center gap-2 py-2">
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
+                <span class="block truncate text-xs text-muted-foreground-1">{{ r.kawasan_kode }}</span>
+              </span>
+              <span class="shrink-0 text-sm font-medium text-foreground">{{ fmt(r.realisasi) }}</span>
+              <span class="shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="capaianChip(r.capaian)">
+                {{ r.capaian }}%
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <hr v-if="total" class="border-card-divider" />
+        <div v-if="total" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground-1">
+            <span>Menampilkan {{ from }}–{{ to }} dari {{ total }} data</span>
+            <div class="w-[90px]"><AppSelect v-model="perPage" :items="[5, 10, 25, 50]" :search="false" /></div>
+            <span>per halaman</span>
+          </div>
+          <AppPagination v-model="currentPage" :length="pageCount" :total-visible="5" />
+        </div>
+      </div>
     </div>
 
+    <!-- Tab Perbandingan -->
     <div v-show="tab === 'banding'">
-      <v-card flat elevation="0" class="mb-4">
-        <v-card-text>
-          <div class="d-flex flex-wrap ga-3 align-center">
-            <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 220px" placeholder="Semua kawasan" @update:model-value="loadBanding" />
-            <v-select v-model="bandTahun" :items="tahunOpts" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 110px" @update:model-value="loadBanding" />
-            <v-select v-model="bandBulanA" :items="bulanOpts" item-title="label" item-value="value" label="Periode A" density="compact" variant="outlined" hide-details style="max-width: 150px" @update:model-value="loadBanding" />
-            <v-icon>mdi-arrow-right</v-icon>
-            <v-select v-model="bandBulanB" :items="bulanOpts" item-title="label" item-value="value" label="Periode B" density="compact" variant="outlined" hide-details style="max-width: 150px" @update:model-value="loadBanding" />
+      <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="w-full max-w-[220px]">
+            <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="loadBanding" />
           </div>
-          <div class="text-caption text-medium-emphasis mt-2">
-            Contoh referensi: bandingkan bulan penuh (mis. Agustus) dengan periode berjalan (mis. 1–21 September) memakai rentang bebas.
+          <div class="w-full max-w-[110px]">
+            <AppSelect v-model="bandTahun" :items="tahunOpts" :search="false" @update:model-value="loadBanding" />
           </div>
-        </v-card-text>
-      </v-card>
+          <div class="w-full max-w-[150px]">
+            <AppSelect v-model="bandBulanA" :items="bulanOpts" placeholder="Periode A" @update:model-value="loadBanding" />
+          </div>
+          <ArrowRight class="shrink-0 size-4 text-muted-foreground-1" aria-hidden="true" />
+          <div class="w-full max-w-[150px]">
+            <AppSelect v-model="bandBulanB" :items="bulanOpts" placeholder="Periode B" @update:model-value="loadBanding" />
+          </div>
+        </div>
+        <div class="mt-2 text-xs text-muted-foreground-1">
+          Contoh referensi: bandingkan bulan penuh (mis. Agustus) dengan periode berjalan (mis. 1–21 September) memakai rentang bebas.
+        </div>
+      </div>
 
-      <v-row v-if="banding" class="mb-2">
-        <v-col cols="12" sm="4"><v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.a.label }}</div><div class="text-h6 font-weight-bold">{{ fmt(banding.total.a) }}</div></v-card></v-col>
-        <v-col cols="12" sm="4"><v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">{{ banding.b.label }}</div><div class="text-h6 font-weight-bold text-primary">{{ fmt(banding.total.b) }}</div></v-card></v-col>
-        <v-col cols="12" sm="4"><v-card flat elevation="0" class="pa-4 text-center"><div class="text-caption text-medium-emphasis">Selisih (B − A)</div><div class="text-h6 font-weight-bold" :class="banding.total.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(banding.total.selisih) }} ({{ banding.total.persen }}%)</div></v-card></v-col>
-      </v-row>
+      <div v-if="banding" class="mb-2 grid grid-cols-12 gap-4">
+        <div class="col-span-12 sm:col-span-4">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">{{ banding.a.label }}</div>
+            <div class="text-lg font-bold text-foreground">{{ fmt(banding.total.a) }}</div>
+          </div>
+        </div>
+        <div class="col-span-12 sm:col-span-4">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">{{ banding.b.label }}</div>
+            <div class="text-lg font-bold text-primary">{{ fmt(banding.total.b) }}</div>
+          </div>
+        </div>
+        <div class="col-span-12 sm:col-span-4">
+          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
+            <div class="text-xs text-muted-foreground-1">Selisih (B − A)</div>
+            <div
+              class="text-lg font-bold"
+              :class="banding.total.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
+            >
+              {{ fmt(banding.total.selisih) }} ({{ banding.total.persen }}%)
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <v-card flat elevation="0">
-        <div class="d-flex justify-end px-4 pt-3">
+      <div class="rounded-lg border border-card-line bg-card">
+        <div class="flex justify-end px-4 pt-3">
           <ViewModeToggle v-model="modeBanding" />
         </div>
-        <v-table v-if="modeBanding === 'table'" density="default">
-          <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th class="text-right">{{ banding?.a.label || 'A' }}</th><th class="text-right">{{ banding?.b.label || 'B' }}</th><th class="text-right">Selisih</th><th class="text-right">%</th></tr></thead>
-          <tbody>
-            <tr v-if="bandLoading"><td colspan="7" class="text-center py-6">Memuat...</td></tr>
-            <tr v-else-if="!bandingFiltered.length"><td colspan="7" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
-            <tr v-for="r in bandingFiltered" :key="r.jenis_id">
-              <td class="font-weight-medium">{{ r.kode || '-' }}</td>
-              <td>{{ r.nama }}</td>
-              <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }}</v-chip></td>
-              <td class="text-right">{{ fmt(r.a) }}</td>
-              <td class="text-right">{{ fmt(r.b) }}</td>
-              <td class="text-right" :class="r.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(r.selisih) }}</td>
-              <td class="text-right">{{ r.persen }}%</td>
-            </tr>
-          </tbody>
-        </v-table>
 
-        <div v-else-if="modeBanding === 'list'" class="pa-3">
-          <div v-if="bandLoading" class="text-center py-6">Memuat...</div>
-          <div v-else-if="!bandingFiltered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+        <div v-if="modeBanding === 'table'" class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-table-line text-sm">
+            <thead>
+              <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+                <th class="px-3 py-2.5 text-start font-medium">Kode</th>
+                <th class="px-3 py-2.5 text-start font-medium">Jenis Retribusi</th>
+                <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
+                <th class="px-3 py-2.5 text-end font-medium">{{ banding?.a.label || 'A' }}</th>
+                <th class="px-3 py-2.5 text-end font-medium">{{ banding?.b.label || 'B' }}</th>
+                <th class="px-3 py-2.5 text-end font-medium">Selisih</th>
+                <th class="px-3 py-2.5 text-end font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-table-line">
+              <tr v-if="bandLoading">
+                <td colspan="7" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+              </tr>
+              <tr v-else-if="!bandingFiltered.length">
+                <td colspan="7" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
+              </tr>
+              <tr v-for="r in bandingFiltered" v-else :key="r.jenis_id" class="hover:bg-layer-hover">
+                <td class="px-3 py-2.5 font-medium text-foreground">{{ r.kode || '-' }}</td>
+                <td class="px-3 py-2.5 text-foreground">{{ r.nama }}</td>
+                <td class="px-3 py-2.5">
+                  <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                    {{ r.kawasan_kode }}
+                  </span>
+                </td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.a) }}</td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.b) }}</td>
+                <td class="px-3 py-2.5 text-end" :class="r.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'">
+                  {{ fmt(r.selisih) }}
+                </td>
+                <td class="px-3 py-2.5 text-end text-foreground">{{ r.persen }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="modeBanding === 'list'" class="p-3">
+          <div v-if="bandLoading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+          <div v-else-if="!bandingFiltered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
           <RecordCard
             v-for="r in bandingFiltered"
             v-else
@@ -160,34 +324,52 @@
             :title="`${r.kode || '-'} — ${r.nama}`"
             :subtitle="r.kawasan_kode"
             :fields="[
-              { label: banding?.a.label || 'A', value: fmt(r.a), class: 'text-right' },
-              { label: banding?.b.label || 'B', value: fmt(r.b), class: 'text-right' },
-              { label: 'Selisih', value: fmt(r.selisih), class: r.selisih >= 0 ? 'text-success' : 'text-error' },
+              { label: banding?.a.label || 'A', value: fmt(r.a), class: 'text-end' },
+              { label: banding?.b.label || 'B', value: fmt(r.b), class: 'text-end' },
+              { label: 'Selisih', value: fmt(r.selisih), class: `text-end ${r.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}` },
               { label: '%', value: r.persen + '%' },
             ]"
           />
         </div>
 
-        <div v-else class="pa-2">
-          <div v-if="bandLoading" class="text-center py-6">Memuat...</div>
-          <div v-else-if="!bandingFiltered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
-          <v-list v-else density="compact" lines="one">
-            <v-list-item v-for="r in bandingFiltered" :key="r.jenis_id" :title="`${r.kode || '-'} — ${r.nama}`" :subtitle="r.kawasan_kode">
-              <template #append>
-                <span class="text-body-2 font-weight-medium mr-2" :class="r.selisih >= 0 ? 'text-success' : 'text-error'">{{ fmt(r.selisih) }}</span>
-                <v-chip size="x-small" variant="tonal">{{ r.persen }}%</v-chip>
-              </template>
-            </v-list-item>
-          </v-list>
+        <div v-else class="p-2">
+          <div v-if="bandLoading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+          <div v-else-if="!bandingFiltered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
+          <ul v-else class="divide-y divide-table-line">
+            <li v-for="r in bandingFiltered" :key="r.jenis_id" class="flex items-center gap-2 py-2">
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
+                <span class="block truncate text-xs text-muted-foreground-1">{{ r.kawasan_kode }}</span>
+              </span>
+              <span
+                class="shrink-0 text-sm font-medium"
+                :class="r.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
+              >
+                {{ fmt(r.selisih) }}
+              </span>
+              <span class="shrink-0 inline-flex items-center rounded-full bg-surface px-1.5 py-0.5 text-[11px] text-surface-foreground">
+                {{ r.persen }}%
+              </span>
+            </li>
+          </ul>
         </div>
-      </v-card>
+      </div>
     </div>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  ArrowRight,
+  ChartColumn,
+  FileSpreadsheet,
+  FileText,
+  LoaderCircle,
+  Search,
+} from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeRekap } = useViewMode('laporan-rekap')
@@ -216,6 +398,10 @@ const perJenis = ref<RekapRow[]>([])
 const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number; selisih: number } | null>(null)
 const exporting = ref('')
 
+const tabs = [
+  { value: 'rekap', label: 'Rekap' },
+  { value: 'banding', label: 'Perbandingan Periode' },
+]
 // Tab perbandingan
 const tab = ref('rekap')
 type BandRow = { jenis_id: number; kode: string; nama: string; level: number; kawasan_kode: string; kawasan_nama: string; a: number; b: number; selisih: number; persen: number }
@@ -254,6 +440,17 @@ watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' })
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
 const { formatRupiah: fmt } = useCurrency()
+
+function capaianChip(v: number) {
+  if (v >= 100) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  if (v >= 75) return 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+  return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+}
+function capaianText(v: number) {
+  if (v >= 100) return 'text-emerald-600 dark:text-emerald-400'
+  if (v >= 75) return 'text-amber-600 dark:text-amber-400'
+  return 'text-red-600 dark:text-red-400'
+}
 
 async function loadKawasan() {
   try {
