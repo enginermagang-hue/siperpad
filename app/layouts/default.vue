@@ -16,8 +16,11 @@
       ]"
     >
       <!-- Branding -->
+      <!-- Tinggi 72px harus sama dengan <header> (h-[72px]) agar garis pemisah
+           sidebar dan navbar sejajar. Border bawah menggantikan <hr> supaya
+           ikut terhitung dalam box-sizing: border-box. -->
       <div
-        class="flex items-center min-h-[72px]"
+        class="flex items-center min-h-[72px] border-b border-white/20"
         :class="isRail ? 'gap-2.5 px-3 md:justify-center md:px-0' : 'gap-2.5 px-3'"
       >
         <img src="/ntt.png" width="44" height="44" alt="Logo NTT" class="shrink-0 rounded-md" />
@@ -28,7 +31,6 @@
           <div class="text-[10px] text-white/70 whitespace-nowrap">PAD Lasiana &amp; Kampung Seni</div>
         </div>
       </div>
-      <hr class="border-white/20" />
 
       <!--
         Container scroll sidebar (OverlayScrollbars, lihat mountScrollbar di
@@ -263,7 +265,7 @@
       :class="collapsed ? 'md:ps-[72px]' : 'md:ps-[272px]'"
     >
       <header
-        class="sticky top-0 z-20 flex items-center gap-2 h-16 px-4 bg-navbar border-b border-navbar-line"
+        class="sticky top-0 z-20 flex items-center gap-2 h-[72px] px-4 bg-navbar border-b border-navbar-line"
       >
         <!-- Mobile: buka/tutup drawer (overlay) -->
         <button
@@ -434,7 +436,7 @@
         </div>
       </header>
 
-      <main class="min-h-[calc(100vh-4rem)]">
+      <main class="min-h-[calc(100vh-4.5rem)]">
         <div class="p-6">
           <slot />
         </div>
