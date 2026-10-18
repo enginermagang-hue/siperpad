@@ -1,21 +1,21 @@
 <template>
   <div class="p-4 bg-primary/5">
-    <div class="flex items-center flex-wrap gap-2 mb-2">
+    <div v-if="showHeader" class="flex items-center flex-wrap gap-2 mb-2">
       <Calculator class="shrink-0 size-4 text-primary" aria-hidden="true" />
       <span class="font-medium text-sm text-foreground">Langkah Perhitungan</span>
       <span v-if="title" class="text-sm text-muted-foreground-1">· {{ title }}</span>
+    </div>
+    <div v-if="subtitle" class="text-xs text-muted-foreground-1 mb-2">{{ subtitle }}</div>
+
+    <div v-if="modeLabel || formula" class="mb-3 flex flex-wrap items-center gap-2">
       <span
         v-if="modeLabel"
-        class="ms-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
+        class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
                bg-primary/10 text-primary"
       >
         {{ modeLabel }}
       </span>
-    </div>
-    <div v-if="subtitle" class="text-xs text-muted-foreground-1 mb-2">{{ subtitle }}</div>
-
-    <div v-if="formula" class="mb-3">
-      <code class="font-mono text-xs bg-primary/10 rounded px-1.5 py-0.5 text-foreground">{{ formula }}</code>
+      <code v-if="formula" class="font-mono text-xs bg-primary/10 rounded px-1.5 py-0.5 text-foreground">{{ formula }}</code>
     </div>
 
     <div v-if="lines && lines.length" class="flex flex-col gap-1 mb-1">
@@ -60,6 +60,8 @@ import { Calculator } from 'lucide-vue-next'
 type CalcLine = { op?: string; label: string; value: string; note?: string }
 
 const props = withDefaults(defineProps<{
+  /** Sembunyikan header internal (ikon + judul) bila card sudah punya header sendiri. */
+  showHeader?: boolean
   title?: string
   subtitle?: string
   modeLabel?: string
@@ -69,7 +71,7 @@ const props = withDefaults(defineProps<{
   total: number
   totalLabel?: string
   basisNote?: string
-}>(), { totalLabel: 'Total' })
+}>(), { showHeader: true, totalLabel: 'Total' })
 
 const { formatRupiah: fmt } = useCurrency()
 

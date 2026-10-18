@@ -97,7 +97,7 @@
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
               :class="isActive('/pad') ? 'bg-primary/90 text-white' : ''"
             >
-              Riwayat Transaksi
+              Entri Harian
             </NuxtLink>
           </div>
         </div>

@@ -17,26 +17,70 @@
       </button>
     </div>
 
-    <!-- Filter -->
-    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-      <div class="flex flex-wrap gap-3">
-        <div class="w-full max-w-[200px]">
-          <AppSelect
-            v-model="filterKawasan"
-            :items="kawasanOpts"
-            :disabled="!!scopedKawasanId"
-            placeholder="Kawasan: Semua"
-            clearable
-            @update:model-value="load"
-          />
-        </div>
-        <div class="w-full max-w-[260px]">
-          <AppSelect v-model="filterJenis" :items="jenisFilterOpts" placeholder="Semua jenis" clearable @update:model-value="load" />
-        </div>
-        <div class="w-full max-w-[160px]">
-          <AppSelect v-model="filterStatus" :items="statusOpts" placeholder="Semua status" clearable @update:model-value="load" />
-        </div>
-        <div class="relative w-full max-w-[260px]">
+    <div class="rounded-lg border border-card-line bg-card">
+      <!-- Toolbar: filter (dropdown), search, toggle view — satu baris -->
+      <div class="flex flex-wrap items-center gap-2 px-4 pt-3">
+        <AppMenu
+          placement="bottom-start"
+          auto-close="inside"
+          root-class="[--auto-close:inside]"
+          aria-label="Filter"
+          menu-class="min-w-[300px]"
+          toggle-class="gap-1.5 px-2.5 py-1.5 border border-layer-line rounded-lg text-sm"
+        >
+          <template #toggle>
+            <SlidersHorizontal class="shrink-0 size-4" aria-hidden="true" />
+            <span>Filter</span>
+            <span
+              v-if="activeFilterCount"
+              class="inline-flex items-center justify-center min-w-4 h-4 px-1
+                     rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none"
+            >
+              {{ activeFilterCount }}
+            </span>
+            <ChevronDown class="shrink-0 size-3.5 text-muted-foreground-1" aria-hidden="true" />
+          </template>
+
+          <template #content>
+            <div class="flex flex-col gap-2 p-1">
+              <AppSelect
+                v-model="filterKawasan"
+                :items="kawasanOpts"
+                :disabled="!!scopedKawasanId"
+                placeholder="Kawasan: Semua"
+                clearable
+                @update:model-value="load"
+              />
+              <AppSelect
+                v-model="filterJenis"
+                :items="jenisFilterOpts"
+                placeholder="Semua jenis"
+                clearable
+                @update:model-value="load"
+              />
+              <AppSelect
+                v-model="filterStatus"
+                :items="statusOpts"
+                placeholder="Semua status"
+                clearable
+                @update:model-value="load"
+              />
+              <button
+                type="button"
+                class="mt-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm
+                       text-muted-foreground-1 hover:bg-layer-hover focus:outline-hidden
+                       disabled:opacity-50 disabled:pointer-events-none"
+                :disabled="!activeFilterCount"
+                @click="resetFilters"
+              >
+                <RotateCcw class="shrink-0 size-3.5" aria-hidden="true" />
+                Reset filter
+              </button>
+            </div>
+          </template>
+        </AppMenu>
+
+        <div class="relative order-last w-full sm:order-none sm:w-auto sm:max-w-[260px] sm:flex-1">
           <Search
             class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
             aria-hidden="true"
@@ -49,12 +93,8 @@
                    focus:border-primary-focus focus:ring-primary-focus"
           />
         </div>
-      </div>
-    </div>
 
-    <div class="rounded-lg border border-card-line bg-card">
-      <div class="flex justify-end px-4 pt-3">
-        <ViewModeToggle v-model="mode" />
+        <ViewModeToggle v-model="mode" class="ms-auto" />
       </div>
 
       <!-- Mode tabel -->
@@ -81,13 +121,8 @@
               <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
             </tr>
             <template v-for="r in paginated" :key="r.id">
-              <tr class="cursor-pointer hover:bg-primary/5" @click="toggleExpand(r.id)">
+              <tr class="hover:bg-primary/5">
                 <td class="px-3 py-2.5 text-foreground">
-                  <ChevronRight
-                    class="me-1 inline size-4 align-middle transition-transform"
-                    :class="expandedId === r.id ? 'rotate-90' : ''"
-                    aria-hidden="true"
-                  />
                   {{ r.tanggal }}
                 </td>
                 <td class="px-3 py-2.5 font-medium text-foreground">{{ r.jenis_kode || '-' }}</td>
@@ -145,24 +180,6 @@
                       <Trash2 class="shrink-0 size-4" aria-hidden="true" />
                     </button>
                   </div>
-                </td>
-              </tr>
-              <tr v-if="expandedId === r.id">
-                <td :colspan="colCount" class="p-0">
-                  <PerhitunganPanel
-                    :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`"
-                    :subtitle="`${r.tanggal} · ${r.kawasan_kode} — ${r.kawasan_nama}`"
-                    mode-label="Langsung"
-                    formula="capaian = jumlah ÷ target tahun"
-                    :lines="[
-                      { label: 'Jumlah realisasi', value: fmt(r.jumlah) },
-                      { label: 'Status', value: r.status },
-                    ]"
-                    :target="r.target_nilai"
-                    :total="r.jumlah"
-                    total-label="Jumlah"
-                    basis-note="Capaian dihitung terhadap target tahun berjalan. Angka resmi hanya status disetujui."
-                  />
                 </td>
               </tr>
             </template>
@@ -256,6 +273,23 @@
         <AppPagination v-model="currentPage" :length="pageCount" :total-visible="5" />
       </div>
     </div>
+
+    <!-- Contoh langkah perhitungan (statis, bukan per baris) -->
+    <CollapsibleCard class="mt-4" title="Langkah Perhitungan">
+      <PerhitunganPanel
+        :show-header="false"
+        mode-label="Contoh"
+        formula="capaian = jumlah ÷ target tahun"
+        :lines="[
+          { label: 'Jumlah realisasi', value: fmt(15000000) },
+          { label: 'Status', value: 'disetujui' },
+        ]"
+        :target="120000000"
+        :total="15000000"
+        total-label="Jumlah"
+        basis-note="Contoh ilustrasi (bukan data aktual): target tahun berjalan Rp 120.000.000 dengan realisasi disetujui Rp 15.000.000 menghasilkan capaian 12,5%. Angka resmi hanya status disetujui."
+      />
+    </CollapsibleCard>
 
     <!-- Dialog tambah/edit -->
     <AppDialog
@@ -405,13 +439,15 @@
 <script setup lang="ts">
 import {
   Banknote,
-  ChevronRight,
+  ChevronDown,
   CircleDollarSign,
   LoaderCircle,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   Send,
+  SlidersHorizontal,
   Trash2,
 } from 'lucide-vue-next'
 
@@ -434,10 +470,6 @@ const scopedKawasanId = computed<number | null>(() => {
 })
 const colCount = computed(() => (isUser.value ? 9 : 8))
 
-// Panel langkah perhitungan (inline expand) — keyed per transaksi.
-const expandedId = ref<number | null>(null)
-function toggleExpand(id: number) { expandedId.value = expandedId.value === id ? null : id }
-
 const kawasan = ref<Kawasan[]>([])
 const jenisList = ref<Jenis[]>([])
 const rows = ref<Row[]>([])
@@ -447,6 +479,12 @@ const filterKawasan = ref<number | null>(null)
 const filterJenis = ref<number | null>(null)
 const filterStatus = ref<string | null>(null)
 const statusOpts = ['draft', 'diajukan', 'disetujui', 'ditolak']
+
+// Jumlah filter aktif (kawasan terkunci oleh penugasan tidak dihitung).
+const activeFilterCount = computed(() =>
+  [filterJenis.value, filterStatus.value, scopedKawasanId.value ? null : filterKawasan.value]
+    .filter((v) => v !== null && v !== '').length,
+)
 
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
 const jenisFilterOpts = computed(() => {
@@ -553,6 +591,14 @@ async function load() {
   } catch (e: unknown) {
     toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat', 'error')
   } finally { loading.value = false }
+}
+
+// Reset filter ke default (kawasan tetap terkunci bila ada penugasan).
+async function resetFilters() {
+  filterKawasan.value = scopedKawasanId.value ?? null
+  filterJenis.value = null
+  filterStatus.value = null
+  await load()
 }
 
 async function fetchTarget() {

@@ -102,13 +102,8 @@
               <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Tidak ada pos penerimaan</td>
             </tr>
             <template v-for="r in rows" v-else :key="r.jenis_id">
-              <tr class="cursor-pointer hover:bg-primary/5" @click="toggleExpand(r.jenis_id)">
+              <tr class="hover:bg-primary/5">
                 <td class="px-3 py-2.5 font-medium text-foreground">
-                  <ChevronRight
-                    class="me-1 inline size-4 align-middle transition-transform"
-                    :class="expandedId === r.jenis_id ? 'rotate-90' : ''"
-                    aria-hidden="true"
-                  />
                   {{ r.kode || '-' }}
                 </td>
                 <td class="px-3 py-2.5 text-foreground">
@@ -165,21 +160,6 @@
                       { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
                       { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
                     ]"
-                  />
-                </td>
-              </tr>
-              <tr v-if="expandedId === r.jenis_id">
-                <td :colspan="colCount" class="p-0">
-                  <PerhitunganPanel
-                    :title="`${r.kode || '-'} — ${r.nama}`"
-                    :subtitle="`${kawasanLabel} · ${labelBulan} ${tahun}`"
-                    :mode-label="modeLabelOf(r)"
-                    :formula="formulaOf(r)"
-                    :lines="panelLines(r)"
-                    :target="r.target"
-                    :total="rowTotal(r)"
-                    total-label="Total Bulanan"
-                    basis-note="Grid memakai basis draft + diajukan + disetujui (kecuali ditolak). Angka resmi rekap/ekspor hanya status disetujui."
                   />
                 </td>
               </tr>
@@ -322,6 +302,26 @@
         </div>
       </div>
     </div>
+
+    <!-- Contoh langkah perhitungan (statis, bukan per baris) -->
+    <CollapsibleCard class="mt-4" title="Langkah Perhitungan">
+      <PerhitunganPanel
+        :show-header="false"
+        mode-label="Contoh"
+        formula="jumlah = round(kuantitas × tarif)"
+        :lines="[
+          { label: 's/d Bulan Lalu', value: fmt(40000000) },
+          { op: '+', label: 'Minggu I (tgl 1–7)', value: fmt(5000000) },
+          { op: '+', label: 'Minggu II (tgl 8–14)', value: fmt(6000000) },
+          { op: '+', label: 'Minggu III (tgl 15–21)', value: fmt(4500000) },
+          { op: '+', label: 'Minggu IV (tgl 22–akhir bulan)', value: fmt(5500000) },
+        ]"
+        :target="120000000"
+        :total="61000000"
+        total-label="Total Bulanan"
+        basis-note="Contoh ilustrasi (bukan data aktual): satu pos penerimaan dalam satu bulan. Total bulanan = s/d bulan lalu + seluruh minggu (Rp 61.000.000); capaian dihitung terhadap target tahun berjalan."
+      />
+    </CollapsibleCard>
 
     <!-- Dialog input/edit -->
     <AppDialog
@@ -475,7 +475,6 @@
 
 <script setup lang="ts">
 import {
-  ChevronRight,
   Info,
   LoaderCircle,
   Lock,
@@ -585,40 +584,6 @@ const sumSBebelum = computed(() => rows.value.reduce((s, r) => s + r.sBelum, 0))
 const sumMinggu = computed(() => [0, 1, 2, 3].map((i) => rows.value.reduce((s, r) => s + r.minggu[i]!.nilai, 0)))
 const sumMingguAktif = computed(() => rows.value.reduce((s, r) => s + r.minggu[tabMinggu.value - 1]!.nilai, 0))
 const sumTotal = computed(() => sumMinggu.value.reduce((s, v) => s + v, 0))
-
-// ── Panel langkah perhitungan (inline expand) ─────────────────────
-const expandedId = ref<number | null>(null)
-function toggleExpand(id: number) { expandedId.value = expandedId.value === id ? null : id }
-
-const labelBulan = computed(() => meta.value?.bulanLabel || bulanOpts.find((b) => b.value === bulan.value)?.label || '')
-
-function modeLabelOf(r: GridRow): string {
-  if (r.mode_tarif === 'kuantitas') {
-    const parts = ['Kuantitas']
-    if (r.satuan) parts.push(r.satuan)
-    if (r.tarif) parts.push(`tarif ${fmt(r.tarif)}`)
-    return parts.join(' · ')
-  }
-  return 'Langsung'
-}
-
-function formulaOf(r: GridRow): string {
-  return r.mode_tarif === 'kuantitas' ? 'jumlah = round(kuantitas × tarif)' : 'jumlah = nilai Rupiah yang diinput'
-}
-
-function panelLines(r: GridRow) {
-  const lines: { op?: string; label: string; value: string; note?: string }[] = [
-    { label: 's/d Bulan Lalu', value: fmt(r.sBelum) },
-  ]
-  mingguTabs.forEach((w, i) => {
-    const cell = r.minggu[i]!
-    const noteParts: string[] = []
-    if (cell.kuantitas != null && cell.tarif != null) noteParts.push(`${Number(cell.kuantitas).toLocaleString('id-ID')} × ${fmt(cell.tarif)}`)
-    if (cell.status) noteParts.push(cell.status)
-    lines.push({ op: '+', label: `${w.label} (tgl ${w.range})`, value: fmt(cell.nilai), note: noteParts.join(' · ') || undefined })
-  })
-  return lines
-}
 
 // ── Modal input/edit ──────────────────────────────────────────────
 const dialog = ref(false)
