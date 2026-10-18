@@ -1,19 +1,31 @@
 <template>
   <div class="min-h-screen bg-background-1 text-foreground">
     <!-- Sidebar -->
+    <!--
+      Lebar sidebar dijaga berpasangan dengan padding konten di bawah:
+      w-[272px] <-> ps-[272px] (terbuka) dan w-[72px] <-> ps-[72px] (mini rail).
+      Varian desktop memakai prefix `md:` (CSS media query), bukan JavaScript,
+      supaya SSR dan client merender markup yang sama (tanpa hydration mismatch).
+    -->
     <aside
-      class="fixed inset-y-0 start-0 z-40 w-[272px] flex flex-col bg-[#1a2332] text-slate-300
-             transition-transform duration-200 ease-out"
-      :class="mdAndUp || drawer ? 'translate-x-0' : '-translate-x-full'"
+      class="fixed inset-y-0 start-0 z-40 flex flex-col overflow-hidden bg-[#1a2332] text-slate-300
+             transition-[width,transform] duration-200 ease-out md:translate-x-0"
+      :class="[
+        drawer ? 'translate-x-0' : '-translate-x-full',
+        collapsed ? 'w-[272px] md:w-[72px]' : 'w-[272px]',
+      ]"
     >
       <!-- Branding -->
-      <div class="flex items-center gap-2.5 px-3 min-h-[72px]">
+      <div
+        class="flex items-center min-h-[72px]"
+        :class="isRail ? 'gap-2.5 px-3 md:justify-center md:px-0' : 'gap-2.5 px-3'"
+      >
         <img src="/ntt.png" width="44" height="44" alt="Logo NTT" class="shrink-0 rounded-md" />
-        <div class="leading-tight">
-          <div class="text-[11px] font-bold tracking-wide text-white">DINAS PARIWISATA DAN</div>
-          <div class="text-[11px] font-bold tracking-wide text-white">EKONOMI KREATIF</div>
-          <div class="text-[11px] font-bold tracking-wide text-white">PROVINSI NTT</div>
-          <div class="text-[10px] text-white/70">PAD Lasiana &amp; Kampung Seni</div>
+        <div v-if="!isRail" class="leading-tight">
+          <div class="text-[11px] font-bold tracking-wide text-white whitespace-nowrap">DINAS PARIWISATA DAN</div>
+          <div class="text-[11px] font-bold tracking-wide text-white whitespace-nowrap">EKONOMI KREATIF</div>
+          <div class="text-[11px] font-bold tracking-wide text-white whitespace-nowrap">PROVINSI NTT</div>
+          <div class="text-[10px] text-white/70 whitespace-nowrap">PAD Lasiana &amp; Kampung Seni</div>
         </div>
       </div>
       <hr class="border-white/20" />
@@ -23,37 +35,46 @@
         `display:flex` pada host-nya, jadi container ini sudah `flex flex-col`
         agar hasilnya tetap sesuai (item sidebar bertumpuk vertikal).
       -->
-      <div class="flex-1 flex flex-col overflow-y-auto py-2">
+      <div class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden py-2">
         <nav aria-label="Menu utama">
         <!-- Dashboard -->
         <NuxtLink
           to="/"
+          title="Dashboard"
+          aria-label="Dashboard"
           class="flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm
                  hover:bg-white/10 focus:outline-hidden"
-          :class="route.path === '/' ? 'bg-primary text-white font-medium' : ''"
+          :class="[
+            collapsed ? 'md:justify-center md:px-0' : '',
+            route.path === '/' ? 'bg-primary text-white font-medium' : '',
+          ]"
         >
           <House class="shrink-0 size-[18px]" aria-hidden="true" />
-          <span>Dashboard</span>
+          <span v-if="!isRail" class="whitespace-nowrap">Dashboard</span>
         </NuxtLink>
 
         <!-- Data PAD (admin/kepala) / Input Realisasi (user) -->
         <div class="mb-1">
           <button
             type="button"
-            class="w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
+            :title="isUser ? 'Input Realisasi' : 'Data PAD'"
+            :aria-label="isUser ? 'Input Realisasi' : 'Data PAD'"
+            class="w-[calc(100%-1rem)] flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
                    hover:bg-white/10 focus:outline-hidden"
+            :class="collapsed ? 'md:justify-center md:px-0' : ''"
             :aria-expanded="openGroups.input"
             @click="toggleGroup('input')"
           >
             <FileText class="shrink-0 size-[18px]" aria-hidden="true" />
-            <span class="flex-1">{{ isUser ? 'Input Realisasi' : 'Data PAD' }}</span>
+            <span v-if="!isRail" class="flex-1 whitespace-nowrap">{{ isUser ? 'Input Realisasi' : 'Data PAD' }}</span>
             <ChevronDown
+              v-if="!isRail"
               class="shrink-0 size-4 transition-transform"
               :class="openGroups.input ? 'rotate-180' : ''"
               aria-hidden="true"
             />
           </button>
-          <div v-show="openGroups.input" class="mt-0.5">
+          <div v-if="!isRail && openGroups.input" class="mt-0.5">
             <NuxtLink
               to="/entri-mingguan"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
@@ -77,20 +98,24 @@
         <div v-if="isAdmin || isKepala" class="mb-1">
           <button
             type="button"
-            class="w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
+            title="Verifikasi"
+            aria-label="Verifikasi"
+            class="w-[calc(100%-1rem)] flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
                    hover:bg-white/10 focus:outline-hidden"
+            :class="collapsed ? 'md:justify-center md:px-0' : ''"
             :aria-expanded="openGroups.verifikasi"
             @click="toggleGroup('verifikasi')"
           >
             <ClipboardCheck class="shrink-0 size-[18px]" aria-hidden="true" />
-            <span class="flex-1">Verifikasi</span>
+            <span v-if="!isRail" class="flex-1 whitespace-nowrap">Verifikasi</span>
             <ChevronDown
+              v-if="!isRail"
               class="shrink-0 size-4 transition-transform"
               :class="openGroups.verifikasi ? 'rotate-180' : ''"
               aria-hidden="true"
             />
           </button>
-          <div v-show="openGroups.verifikasi" class="mt-0.5">
+          <div v-if="!isRail && openGroups.verifikasi" class="mt-0.5">
             <NuxtLink
               v-for="l in verifikasiLinks"
               :key="l.to"
@@ -108,32 +133,41 @@
         <NuxtLink
           v-if="isUser"
           to="/verifikasi/batch"
+          title="Pengajuan Batch"
+          aria-label="Pengajuan Batch"
           class="flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm
                  hover:bg-white/10 focus:outline-hidden"
-          :class="route.path.startsWith('/verifikasi/batch') ? 'bg-primary text-white font-medium' : ''"
+          :class="[
+            collapsed ? 'md:justify-center md:px-0' : '',
+            route.path.startsWith('/verifikasi/batch') ? 'bg-primary text-white font-medium' : '',
+          ]"
         >
           <Send class="shrink-0 size-[18px]" aria-hidden="true" />
-          <span>Pengajuan Batch</span>
+          <span v-if="!isRail" class="whitespace-nowrap">Pengajuan Batch</span>
         </NuxtLink>
 
         <!-- Data Master (admin) -->
         <div v-if="isAdmin" class="mb-1">
           <button
             type="button"
-            class="w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
+            title="Data Master (Katalog)"
+            aria-label="Data Master (Katalog)"
+            class="w-[calc(100%-1rem)] flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
                    hover:bg-white/10 focus:outline-hidden"
+            :class="collapsed ? 'md:justify-center md:px-0' : ''"
             :aria-expanded="openGroups.master"
             @click="toggleGroup('master')"
           >
             <Folder class="shrink-0 size-[18px]" aria-hidden="true" />
-            <span class="flex-1">Data Master (Katalog)</span>
+            <span v-if="!isRail" class="flex-1 whitespace-nowrap">Data Master (Katalog)</span>
             <ChevronDown
+              v-if="!isRail"
               class="shrink-0 size-4 transition-transform"
               :class="openGroups.master ? 'rotate-180' : ''"
               aria-hidden="true"
             />
           </button>
-          <div v-show="openGroups.master" class="mt-0.5">
+          <div v-if="!isRail && openGroups.master" class="mt-0.5">
             <NuxtLink
               v-for="l in masterLinks"
               :key="l.to"
@@ -150,32 +184,41 @@
         <!-- Rekap & Laporan -->
         <NuxtLink
           to="/laporan"
+          title="Rekap & Laporan"
+          aria-label="Rekap & Laporan"
           class="flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm
                  hover:bg-white/10 focus:outline-hidden"
-          :class="route.path.startsWith('/laporan') ? 'bg-primary text-white font-medium' : ''"
+          :class="[
+            collapsed ? 'md:justify-center md:px-0' : '',
+            route.path.startsWith('/laporan') ? 'bg-primary text-white font-medium' : '',
+          ]"
         >
           <FileChartColumn class="shrink-0 size-[18px]" aria-hidden="true" />
-          <span>Rekap &amp; Laporan</span>
+          <span v-if="!isRail" class="whitespace-nowrap">Rekap &amp; Laporan</span>
         </NuxtLink>
 
         <!-- Pengaturan Sistem -->
         <div>
           <button
             type="button"
-            class="w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
+            title="Pengaturan Sistem"
+            aria-label="Pengaturan Sistem"
+            class="w-[calc(100%-1rem)] flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
                    hover:bg-white/10 focus:outline-hidden"
+            :class="collapsed ? 'md:justify-center md:px-0' : ''"
             :aria-expanded="openGroups.pengaturan"
             @click="toggleGroup('pengaturan')"
           >
             <Settings class="shrink-0 size-[18px]" aria-hidden="true" />
-            <span class="flex-1">Pengaturan Sistem</span>
+            <span v-if="!isRail" class="flex-1 whitespace-nowrap">Pengaturan Sistem</span>
             <ChevronDown
+              v-if="!isRail"
               class="shrink-0 size-4 transition-transform"
               :class="openGroups.pengaturan ? 'rotate-180' : ''"
               aria-hidden="true"
             />
           </button>
-          <div v-show="openGroups.pengaturan" class="mt-0.5">
+          <div v-if="!isRail && openGroups.pengaturan" class="mt-0.5">
             <NuxtLink
               to="/settings"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
@@ -201,24 +244,43 @@
 
     <!-- Overlay sidebar (mobile) -->
     <div
-      v-if="!mdAndUp && drawer"
+      v-if="ready && !mdAndUp && drawer"
       class="fixed inset-0 z-30 bg-neutral-900/50"
       aria-hidden="true"
       @click="drawer = false"
     />
 
     <!-- Konten -->
-    <div class="transition-[padding] duration-200" :class="mdAndUp ? 'ps-[272px]' : ''">
+    <!-- Padding kiri mengikuti lebar sidebar; memakai varian `md:` agar tidak
+         bergantung pada JavaScript saat hydration. -->
+    <div
+      class="transition-[padding] duration-200"
+      :class="collapsed ? 'md:ps-[72px]' : 'md:ps-[272px]'"
+    >
       <header
         class="sticky top-0 z-20 flex items-center gap-2 h-16 px-4 bg-navbar border-b border-navbar-line"
       >
+        <!-- Mobile: buka/tutup drawer (overlay) -->
         <button
           type="button"
-          class="p-2 rounded-lg text-foreground hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus"
+          class="md:hidden p-2 rounded-lg text-foreground hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus"
           aria-label="Buka/tutup menu"
+          :aria-expanded="drawer"
           @click="drawer = !drawer"
         >
           <Menu class="shrink-0 size-5" aria-hidden="true" />
+        </button>
+
+        <!-- Desktop: perkecil/perluas sidebar (mini rail) -->
+        <button
+          type="button"
+          class="hidden md:inline-flex p-2 rounded-lg text-foreground hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus"
+          :aria-label="collapsed ? 'Perluas menu' : 'Perkecil menu'"
+          :aria-expanded="!collapsed"
+          @click="collapsed = !collapsed"
+        >
+          <PanelLeftOpen v-if="collapsed" class="shrink-0 size-5" aria-hidden="true" />
+          <PanelLeftClose v-else class="shrink-0 size-5" aria-hidden="true" />
         </button>
 
         <div class="ms-auto flex items-center gap-1">
@@ -390,6 +452,8 @@ import {
   Lock,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Moon,
   RefreshCw,
   Send,
@@ -407,7 +471,26 @@ const { isDark, toggle: toggleDark } = useTheme()
 const session = useUserSession()
 const router = useRouter()
 
-const drawer = ref(true)
+// Mobile: drawer overlay (di bawah breakpoint md).
+const drawer = ref(false)
+
+// Desktop: mini rail (ikon saja). Disimpan di cookie agar SSR merender lebar
+// yang benar sejak HTML pertama (tanpa flash), mengikuti pola useTheme().
+const collapsed = useCookie<boolean>('siperpad-sidebar', {
+  default: () => false,
+  maxAge: 60 * 60 * 24 * 365,
+  sameSite: 'lax',
+})
+
+// `ready` hanya dipakai untuk ikon/label tombol hamburger: SSR tidak tahu
+// lebar viewport sehingga render pertama memakai asumsi desktop. Tata letak
+// sendiri memakai kelas `md:` (CSS) agar bebas hydration mismatch.
+const ready = ref(false)
+onMounted(() => {
+  ready.value = true
+})
+
+const isRail = computed(() => ready.value && mdAndUp.value && collapsed.value)
 
 // shared tahun for T.A. chip — ikut tahun ref dashboard (useState)
 const tahun = useState<number>('tahun', () => new Date().getFullYear())
@@ -420,6 +503,12 @@ const openGroups = reactive<Record<string, boolean>>({
   pengaturan: false,
 })
 function toggleGroup(key: string) {
+  // Saat mini rail, submenu tidak muat — lebarkan sidebar lalu buka grup.
+  if (isRail.value) {
+    collapsed.value = false
+    openGroups[key] = true
+    return
+  }
   openGroups[key] = !openGroups[key]
 }
 
@@ -527,6 +616,15 @@ watch(
     if (!mdAndUp.value) drawer.value = false
   },
 )
+
+// Masuk breakpoint mobile: reset drawer & rail agar sidebar tidak tertinggal
+// dalam keadaan menyempit/terbuka sebagian.
+watch(mdAndUp, (up) => {
+  if (!up) {
+    drawer.value = false
+    collapsed.value = false
+  }
+})
 
 async function handleLogout() {
   try {

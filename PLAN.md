@@ -70,7 +70,7 @@ Seed: `server/database/seed.ts`, migrasi runner `server/utils/db.ts` + endpoint 
 | Login | `app/pages/login.vue` + `server/api/auth/login.post.ts` | ✅ |
 | Logout | `server/api/auth/logout.post.ts` | ✅ |
 | Session | `server/api/auth/me.get.ts`, middleware `auth` | ✅ |
-| Layout + dark mode | `app/layouts/default.vue`, `app/composables/useDarkMode.ts` | ✅ |
+| Layout + dark mode | `app/layouts/default.vue`, `app/composables/useTheme.ts` | ✅ — sidebar dua state: `drawer` (overlay mobile) & `collapsed` (mini rail desktop, cookie `siperpad-sidebar`); tata letak via varian `md:` agar bebas hydration mismatch |
 | Navigasi | Sidebar role-aware — Dashboard; Data PAD/Input Realisasi (user); Verifikasi (admin/kepala); Pengajuan Batch (user); Data Master (admin); Rekap & Laporan; Pengaturan Sistem (Pengaturan semua, Pengguna admin) | ✅ |
 
 ### 3.3 Master Data — Selesai
