@@ -19,6 +19,93 @@
    agar toggle manual di app menang atas preferensi OS. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------------------------------------------------------------------------
+   Dark mode: palet slate, bukan neutral bawaan Preline.
+
+   Sidebar memakai biru tua hardcoded #1a2332 (luminance 1.7%). Palet neutral
+   bawaan Preline (abu murni, luminance 0.9-1.9%) membuat sidebar nyaris
+   menyatu: kontras sidebar-vs-background hanya 1.14 dan sidebar-vs-navbar 1.04
+   (praktis tak terbedakan). Palet slate (hue ~260, kebiruan) selaras dengan
+   sidebar sekaligus menaikkan kontras:
+
+     sidebar vs background-1 : 1.14 -> 1.28
+     sidebar vs navbar       : 1.04 -> 1.28
+     kanvas vs kartu (depth) : 1.18 -> 1.38
+     teks utama vs kanvas    : 12.06 -> 13.56
+
+   Semua teks tetap lolos WCAG AA (teks utama >=9.8, muted >=5.5). Blok ini
+   harus berada SETELAH @import preline/theme.css agar menang urutan cascade.
+--------------------------------------------------------------------------- */
+.dark {
+  /* Kanvas paling gelap -> sidebar (luminance 1.7%) menonjol. */
+  --background: var(--color-slate-950);
+  --background-1: var(--color-slate-950);
+  --background-2: var(--color-slate-950);
+
+  /* Permukaan terangkat: kartu, panel, list. */
+  --layer: var(--color-slate-800);
+  --layer-line: var(--color-slate-700);
+  --layer-hover: var(--color-slate-700);
+  --layer-focus: var(--color-slate-700);
+  --layer-active: var(--color-slate-700);
+
+  --card: var(--color-slate-800);
+  --card-line: var(--color-slate-700);
+  --card-divider: var(--color-slate-700);
+  --card-header: var(--color-slate-700);
+  --card-footer: var(--color-slate-700);
+  --card-inverse: var(--color-slate-900);
+
+  /* Navbar disamakan dengan kanvas agar sidebar jadi pembeda vertikal. */
+  --navbar: var(--color-slate-950);
+  --navbar-line: var(--color-slate-700);
+  --navbar-divider: var(--color-slate-700);
+  --navbar-nav-hover: var(--color-slate-800);
+  --navbar-nav-focus: var(--color-slate-800);
+  --navbar-nav-active: var(--color-slate-800);
+  --navbar-1: var(--color-slate-950);
+  --navbar-1-line: var(--color-slate-700);
+  --navbar-1-nav-hover: var(--color-slate-800);
+  --navbar-1-nav-focus: var(--color-slate-800);
+  --navbar-1-nav-active: var(--color-slate-800);
+
+  --surface: var(--color-slate-700);
+  --surface-1: var(--color-slate-600);
+  --surface-hover: var(--color-slate-600);
+  --surface-focus: var(--color-slate-600);
+  --surface-active: var(--color-slate-600);
+
+  --muted: var(--color-slate-800);
+  --muted-hover: var(--color-slate-700);
+  --muted-focus: var(--color-slate-700);
+  --muted-active: var(--color-slate-700);
+
+  /* Lapisan mengambang: di antara kanvas dan kartu. */
+  --dropdown: var(--color-slate-900);
+  --dropdown-divider: var(--color-slate-800);
+  --dropdown-item-hover: var(--color-slate-800);
+  --dropdown-item-focus: var(--color-slate-800);
+  --dropdown-item-active: var(--color-slate-800);
+
+  --select: var(--color-slate-900);
+  --select-item-hover: var(--color-slate-800);
+  --select-item-focus: var(--color-slate-800);
+  --select-item-active: var(--color-slate-800);
+
+  --popover: var(--color-slate-900);
+  --popover-line: var(--color-slate-700);
+
+  --overlay: var(--color-slate-800);
+  --overlay-divider: var(--color-slate-700);
+  --overlay-header: var(--color-slate-700);
+  --overlay-footer: var(--color-slate-700);
+
+  --table-line: var(--color-slate-700);
+
+  --scrollbar-track: var(--color-slate-700);
+  --scrollbar-thumb: var(--color-slate-500);
+}
+
 /* Preline v5 tidak lagi menyertakan default ini (dulu bawaan Tailwind v3). */
 @layer base {
   button:not(:disabled),

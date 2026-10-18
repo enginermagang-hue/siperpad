@@ -49,6 +49,10 @@ Dialog body (`AppDialog.vue`) uses the native CSS scrollbar class `.siperpad-dia
 
 Icons come from `lucide-vue-next` (imported per file). Dark mode is a `dark` class on `<html>` managed by `useTheme()` (cookie-backed, SSR-safe). Breakpoint helper is `useBreakpoint()` with `md` = 768px (Tailwind), not Vuetify's 960px.
 
+Dark mode overrides Preline's palette from `neutral` to **`slate`** in `main.css` (`.dark { … }`, placed after the `preline/theme.css` import). Reason: the sidebar is a fixed blue-navy `#1a2332` (luminance 1.7%) and Preline's default neutral greys (0.9–1.9%) made it nearly invisible against the canvas (contrast 1.04–1.14). With slate: sidebar↔canvas 1.28, canvas↔card 1.38, text 16:1. Do not revert to neutral without re-checking those ratios.
+
+`SiperpadChart.vue` cannot inherit CSS tokens (ApexCharts paints SVG), so it reads `useTheme().isDark` and passes `foreColor` / `grid.borderColor` / `tooltip.theme` explicitly.
+
 ## Layout: sidebar states
 `app/layouts/default.vue` has two independent sidebar states:
 - `drawer` (`ref`, mobile only) — slide-in overlay below `md`.

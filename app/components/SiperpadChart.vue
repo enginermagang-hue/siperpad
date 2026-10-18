@@ -39,7 +39,26 @@ onMounted(async () => {
 
 const isPie = computed(() => props.type === 'pie' || props.type === 'donut')
 
+// ApexCharts merender SVG dengan warna sendiri (tidak ikut token CSS), jadi
+// warna teks/grid harus diberikan eksplisit dan ikut berubah saat tema berganti.
+const { isDark } = useTheme()
+
+const chartTheme = computed(() =>
+  isDark.value
+    ? {
+        foreColor: '#cbd5e1', // slate-300
+        grid: '#334155',      // slate-700
+        tooltipTheme: 'dark' as const,
+      }
+    : {
+        foreColor: '#374151', // gray-700
+        grid: '#e5e7eb',      // gray-200
+        tooltipTheme: 'light' as const,
+      },
+)
+
 const chartOptions = computed(() => {
+  const t = chartTheme.value
   const base = {
     chart: {
       type: props.type === 'area' ? ('area' as const) : (props.type as 'line' | 'bar' | 'pie' | 'donut'),
@@ -47,14 +66,17 @@ const chartOptions = computed(() => {
       toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } },
       zoom: { enabled: false },
       fontFamily: 'Inter, sans-serif',
+      foreColor: t.foreColor,
     },
     stroke: { width: props.type === 'bar' ? 0 : [3, 3], curve: 'smooth' as const },
     markers: { size: props.type === 'bar' ? 0 : 4 },
     dataLabels: { enabled: false },
+    grid: { borderColor: t.grid, strokeDashArray: 4 },
     plotOptions: {
       bar: { horizontal: props.horizontal, borderRadius: 4, columnWidth: '55%' },
     },
     legend: { position: (isPie.value ? 'bottom' : 'top') as 'top' | 'bottom' },
+    tooltip: { theme: t.tooltipTheme },
     colors: props.colors || ['#1976D2', '#43A047', '#F9A825', '#E53935', '#8E24AA', '#00897B', '#6D4C41', '#546E7A'],
   }
   if (isPie.value) {
@@ -64,7 +86,11 @@ const chartOptions = computed(() => {
     ...base,
     xaxis: { categories: props.categories },
     yaxis: { labels: { formatter: (v: number) => Number(v).toLocaleString('id-ID') } },
-    tooltip: { shared: true, y: { formatter: (v: number) => Number(v).toLocaleString('id-ID') } },
+    tooltip: {
+      ...base.tooltip,
+      shared: true,
+      y: { formatter: (v: number) => Number(v).toLocaleString('id-ID') },
+    },
   }
 })
 
