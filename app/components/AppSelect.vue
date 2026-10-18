@@ -82,12 +82,16 @@ const hsConfig = computed(() =>
     toggleClasses:
       'hs-select-disabled:pointer-events-none hs-select-disabled:opacity-50 relative py-2 ps-3 pe-9 flex text-nowrap w-full cursor-pointer bg-layer border border-layer-line text-layer-foreground rounded-lg text-start text-sm hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus',
     dropdownClasses:
-      'absolute top-full mt-2 z-[100] w-full max-h-72 p-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto overflow-x-hidden siperpad-select-scroll',
+      'absolute top-full mt-2 z-[100] w-full max-h-72 pb-1 px-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto overflow-x-hidden siperpad-select-scroll',
     optionClasses:
       'hs-selected:bg-select-item-active py-2 px-3 w-full text-sm text-select-item-foreground cursor-pointer hover:bg-select-item-hover rounded-lg focus:outline-hidden focus:bg-select-item-focus',
     optionAllowEmptyOption: props.clearable,
     hasSearch: showSearch.value,
-    searchWrapperClasses: 'p-2 -m-1',
+    searchWrapperClasses: 'bg-select p-2 -mx-1 sticky top-0 z-10',
+    // Pakai token aplikasi (bukan default Preline abu-abu/biru) agar seragam
+    // dengan input lain di light & dark mode.
+    searchClasses:
+      'block w-full text-sm bg-transparent border border-layer-line rounded-lg text-foreground placeholder:text-muted-foreground-1 focus:border-primary-focus focus:ring-primary-focus py-2 px-3',
     searchPlaceholder: 'Cari…',
     ...(props.inModal ? { dropdownVerticalFixedPlacement: 'bottom' } : {}),
     extraMarkup: CHEVRON,

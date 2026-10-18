@@ -198,9 +198,11 @@ body {
    dropdown lain di sekitarnya — alasan yang sama seperti body dialog.
    Tampilan disamakan dengan os-theme-siperpad: 8px, rounded, token Preline.
 
-   CATATAN: dropdownClasses memakai `p-1` (4px) sehingga searchWrapperClasses
-   harus `-m-1` (bukan `-m-1.5`) agar wrapper pencarian tidak melebihi padding
-   dropdown dan memicu scrollbar horizontal.
+   CATATAN: dropdownClasses memakai `px-1` (4px horizontal) + `pb-1` (tanpa
+   padding atas) agar searchbar bisa `sticky top-0` menempel rata di tepi atas
+   dropdown. searchWrapperClasses memakai `-mx-1` untuk mengompensasi padding
+   horizontal tersebut; jangan kembali ke `-m-1` (margin negatif vertikal akan
+   mendorong searchbar menembus border atas dropdown).
 --------------------------------------------------------------------------- */
 .siperpad-select-scroll {
   scrollbar-width: thin;

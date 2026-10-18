@@ -7,7 +7,7 @@
       lolos dari ancestor overflow:hidden/auto tanpa memindahkan node DOM
       (memindahkan node akan bertabrakan dengan patching Vue).
   -->
-  <div ref="rootEl" class="hs-dropdown relative inline-flex" :style="cssVars">
+  <div ref="rootEl" class="hs-dropdown relative inline-flex" :class="rootClass" :style="cssVars">
     <button
       type="button"
       class="hs-dropdown-toggle inline-flex items-center justify-center gap-x-1 rounded-lg text-layer-foreground hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus disabled:opacity-50 disabled:pointer-events-none"
@@ -76,6 +76,15 @@ const props = withDefaults(
     autoClose?: 'true' | 'outside' | 'inside' | 'false'
     toggleClass?: string
     menuClass?: string
+    /**
+     * Kelas tambahan pada root .hs-dropdown. Preline 5 membaca mode tutup
+     * dari token kelas `[--auto-close:…]` saat menentukan klik-di-dalam,
+     * sedangkan `--auto-close` inline style hanya dipakai untuk mode tutup
+     * global. Untuk panel dengan kontrol interaktif (mis. filter berisi
+     * AppSelect), set `root-class="[--auto-close:inside]"` agar dropdown
+     * TIDAK tertutup saat berinteraksi dengan isinya.
+     */
+    rootClass?: string
   }>(),
   {
     items: () => [],
@@ -85,6 +94,7 @@ const props = withDefaults(
     autoClose: 'true',
     toggleClass: 'p-1.5',
     menuClass: 'min-w-44',
+    rootClass: '',
   },
 )
 
