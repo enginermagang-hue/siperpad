@@ -54,7 +54,7 @@
                  hover:bg-white/10 focus:outline-hidden"
           :class="[
             collapsed ? 'md:justify-center md:px-0' : '',
-            route.path === '/' ? 'bg-primary text-white font-medium' : '',
+            isActive('/', true) ? 'bg-primary text-white font-medium' : '',
           ]"
         >
           <House class="shrink-0 size-[18px]" aria-hidden="true" />
@@ -87,7 +87,7 @@
               to="/entri-mingguan"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="route.path.startsWith('/entri-mingguan') ? 'bg-primary/90 text-white' : ''"
+              :class="isActive('/entri-mingguan') ? 'bg-primary/90 text-white' : ''"
             >
               Entri Mingguan
             </NuxtLink>
@@ -95,7 +95,7 @@
               to="/pad"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="route.path === '/pad' ? 'bg-primary/90 text-white' : ''"
+              :class="isActive('/pad') ? 'bg-primary/90 text-white' : ''"
             >
               Riwayat Transaksi
             </NuxtLink>
@@ -130,7 +130,7 @@
               :to="l.to"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="route.path.startsWith(l.to) ? 'bg-primary/90 text-white' : ''"
+              :class="isActive(l.to, l.to === '/verifikasi') ? 'bg-primary/90 text-white' : ''"
             >
               {{ l.label }}
             </NuxtLink>
@@ -147,7 +147,7 @@
                  hover:bg-white/10 focus:outline-hidden"
           :class="[
             collapsed ? 'md:justify-center md:px-0' : '',
-            route.path.startsWith('/verifikasi/batch') ? 'bg-primary text-white font-medium' : '',
+            isActive('/verifikasi/batch') ? 'bg-primary text-white font-medium' : '',
           ]"
         >
           <Send class="shrink-0 size-[18px]" aria-hidden="true" />
@@ -182,7 +182,7 @@
               :to="l.to"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="route.path.startsWith(l.to) ? 'bg-primary/90 text-white' : ''"
+              :class="isActive(l.to) ? 'bg-primary/90 text-white' : ''"
             >
               {{ l.label }}
             </NuxtLink>
@@ -198,7 +198,7 @@
                  hover:bg-white/10 focus:outline-hidden"
           :class="[
             collapsed ? 'md:justify-center md:px-0' : '',
-            route.path.startsWith('/laporan') ? 'bg-primary text-white font-medium' : '',
+            isActive('/laporan') ? 'bg-primary text-white font-medium' : '',
           ]"
         >
           <FileChartColumn class="shrink-0 size-[18px]" aria-hidden="true" />
@@ -231,7 +231,7 @@
               to="/settings"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="route.path.startsWith('/settings') ? 'bg-primary/90 text-white' : ''"
+              :class="isActive('/settings') ? 'bg-primary/90 text-white' : ''"
             >
               Pengaturan
             </NuxtLink>
@@ -240,7 +240,7 @@
               to="/pengguna"
               class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
                      opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="route.path.startsWith('/pengguna') ? 'bg-primary/90 text-white' : ''"
+              :class="isActive('/pengguna') ? 'bg-primary/90 text-white' : ''"
             >
               Pengguna
             </NuxtLink>
@@ -481,6 +481,23 @@ const { isDark, toggle: toggleDark } = useTheme()
 const session = useUserSession()
 const router = useRouter()
 
+/**
+ * Apakah `href` adalah rute yang sedang aktif.
+ *
+ * `exact: true` untuk rute yang SEKALIGUS menjadi prefix rute lain — kasusnya
+ * `/verifikasi`, yang juga induk dari `/verifikasi/audit`, `/verifikasi/batch`,
+ * dst. Tanpa `exact`, item "Realisasi Diajukan" tetap menyala di semua sub-route.
+ *
+ * Pencocokan non-exact memakai segmen utuh (`href + '/'`), bukan awalan string
+ * mentah, supaya `/pad` tidak ikut menyala untuk rute seperti `/pad-history`.
+ */
+function isActive(href: string, exact = false) {
+  const p = route.path
+  if (p === href) return true
+  if (exact) return false
+  return p.startsWith(href + '/')
+}
+
 // Mobile: drawer overlay (di bawah breakpoint md).
 const drawer = ref(false)
 
@@ -643,6 +660,34 @@ watch(
     if (!mdAndUp.value) drawer.value = false
   },
 )
+
+// Auto-buka grup sidebar yang memuat rute aktif.
+// Tanpa ini, membuka /verifikasi/audit langsung (reload / klik notifikasi)
+// menampilkan grup Verifikasi tertutup sehingga item aktif tak terlihat.
+// Hanya membuka grup terkait — grup lain yang sengaja dibuka user dibiarkan.
+const GROUP_BY_PREFIX: [string, string][] = [
+  ['/entri-mingguan', 'input'],
+  ['/pad', 'input'],
+  ['/verifikasi', 'verifikasi'],
+  ['/kawasan-wisata', 'master'],
+  ['/jenis-retribusi', 'master'],
+  ['/master', 'master'],
+  ['/settings', 'pengaturan'],
+  ['/pengguna', 'pengaturan'],
+]
+
+function syncOpenGroup() {
+  const p = route.path
+  for (const [prefix, group] of GROUP_BY_PREFIX) {
+    if (p === prefix || p.startsWith(prefix + '/')) {
+      openGroups[group] = true
+      return
+    }
+  }
+}
+
+syncOpenGroup()
+watch(() => route.path, syncOpenGroup)
 
 // Masuk breakpoint mobile: reset drawer & rail agar sidebar tidak tertinggal
 // dalam keadaan menyempit/terbuka sebagian.
