@@ -46,8 +46,10 @@ const { isDark } = useTheme()
 const chartTheme = computed(() =>
   isDark.value
     ? {
-        foreColor: '#cbd5e1', // slate-300
-        grid: '#334155',      // slate-700
+        // Selaras dengan palet dark di main.css (oklch 260.4 hue, chroma 0.031):
+        // teks L 88%, grid L 36.5% (sama dengan --card-line).
+        foreColor: '#cfd6e0',
+        grid: '#353f4f',
         tooltipTheme: 'dark' as const,
       }
     : {

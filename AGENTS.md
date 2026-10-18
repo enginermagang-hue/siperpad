@@ -49,9 +49,11 @@ Dialog body (`AppDialog.vue`) uses the native CSS scrollbar class `.siperpad-dia
 
 Icons come from `lucide-vue-next` (imported per file). Dark mode is a `dark` class on `<html>` managed by `useTheme()` (cookie-backed, SSR-safe). Breakpoint helper is `useBreakpoint()` with `md` = 768px (Tailwind), not Vuetify's 960px.
 
-Dark mode overrides Preline's palette from `neutral` to **`slate`** in `main.css` (`.dark { … }`, placed after the `preline/theme.css` import). Reason: the sidebar is a fixed blue-navy `#1a2332` (luminance 1.7%) and Preline's default neutral greys (0.9–1.9%) made it nearly invisible against the canvas (contrast 1.04–1.14). With slate: sidebar↔canvas 1.28, canvas↔card 1.38, text 16:1. Do not revert to neutral without re-checking those ratios.
+Dark mode overrides Preline's palette in `main.css` (`.dark { … }`, placed after the `preline/theme.css` import) with a palette **derived from the sidebar colour**. The sidebar is a fixed blue-navy `#1a2332` = `oklch(25.5% 0.031 260.4)`. Every dark token uses the *same hue and chroma* (H=260.4, C=0.031) with only lightness varied — background L 20% `#0e1624`, card/layer L 28% `#202938`, dropdown L 24.5% `#18212f`, surface L 32.5% `#2b3444`, `*-line` L 36.5% `#353f4f`.
 
-`SiperpadChart.vue` cannot inherit CSS tokens (ApexCharts paints SVG), so it reads `useTheme().isDark` and passes `foreColor` / `grid.borderColor` / `tooltip.theme` explicitly.
+Do not switch back to `neutral` (pure grey — sidebar invisible, contrast 1.04) or stock `slate` (chroma 0.042 > sidebar's 0.031 and hue 265 ≠ 260, so the canvas looks *more* blue than the sidebar). Measured with this palette: sidebar↔canvas 1.15, canvas↔card 1.24, card↔border 1.38, text 14.4 (canvas) / 11.6 (card), muted 5.66 — all WCAG AA. Because sidebar↔canvas is only 1.15, the sidebar's right edge is reinforced with `md:border-e border-white/15` (contrast 1.84).
+
+`SiperpadChart.vue` cannot inherit CSS tokens (ApexCharts paints SVG), so it reads `useTheme().isDark` and passes `foreColor` (`#cfd6e0`) / `grid.borderColor` (`#353f4f`) / `tooltip.theme` explicitly — keep those hexes in sync with the palette above.
 
 ## Layout: sidebar states
 `app/layouts/default.vue` has two independent sidebar states:

@@ -20,90 +20,100 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ---------------------------------------------------------------------------
-   Dark mode: palet slate, bukan neutral bawaan Preline.
+   Dark mode: palet diturunkan dari warna sidebar.
 
-   Sidebar memakai biru tua hardcoded #1a2332 (luminance 1.7%). Palet neutral
-   bawaan Preline (abu murni, luminance 0.9-1.9%) membuat sidebar nyaris
-   menyatu: kontras sidebar-vs-background hanya 1.14 dan sidebar-vs-navbar 1.04
-   (praktis tak terbedakan). Palet slate (hue ~260, kebiruan) selaras dengan
-   sidebar sekaligus menaikkan kontras:
+   Sidebar memakai biru tua hardcoded #1a2332 = oklch(25.5% 0.031 260.4).
+   Palet neutral bawaan Preline (abu murni) membuat sidebar nyaris menyatu
+   (kontras 1.04-1.14). Palet slate bawaan Preline juga tidak cocok: chroma-nya
+   LEBIH JENUH dari sidebar (0.042 vs 0.031) dan hue-nya bergeser (265 vs 260),
+   sehingga kanvas terlihat lebih biru daripada sidebar-nya sendiri.
 
-     sidebar vs background-1 : 1.14 -> 1.28
-     sidebar vs navbar       : 1.04 -> 1.28
-     kanvas vs kartu (depth) : 1.18 -> 1.38
-     teks utama vs kanvas    : 12.06 -> 13.56
+   Solusi: semua token di bawah memakai hue & chroma PERSIS sidebar
+   (H=260.4, C=0.031); hanya lightness yang divariasikan. Hasilnya satu keluarga
+   warna, dan kanvas tidak lagi lebih "dalam"/lebih jenuh dari sidebar:
 
-   Semua teks tetap lolos WCAG AA (teks utama >=9.8, muted >=5.5). Blok ini
-   harus berada SETELAH @import preline/theme.css agar menang urutan cascade.
+     background   L 20.0%  (#0e1624)   -> sidebar 1.15, teks 14.9:1
+     card/layer   L 28.0%  (#202938)   -> kanvas vs kartu 1.24
+     dropdown     L 24.5%  (#18212f)   -> melayang di antara kanvas & kartu
+     surface      L 32.5%  (#2b3444)
+     *-line       L 36.5%  (#353f4f)   -> kartu vs border 1.38
+
+   Karena sidebar-vs-kanvas turun ke 1.15, batas sidebar ditegaskan dengan
+   `md:border-e border-white/15` di app/layouts/default.vue (kontras 1.84).
+
+   Semua teks tetap lolos WCAG AA: teks utama 12.06 (kartu) / 14.94 (kanvas),
+   muted 5.89 (kartu). Blok ini harus berada SETELAH @import preline/theme.css
+   agar menang urutan cascade.
 --------------------------------------------------------------------------- */
 .dark {
-  /* Kanvas paling gelap -> sidebar (luminance 1.7%) menonjol. */
-  --background: var(--color-slate-950);
-  --background-1: var(--color-slate-950);
-  --background-2: var(--color-slate-950);
+  /* Kanvas: L 20% -> lebih lega dari sebelumnya (12.9%) namun tetap lebih
+     gelap dari sidebar, dengan hue/chroma yang sama persis. */
+  --background: oklch(20% 0.031 260.4);
+  --background-1: oklch(20% 0.031 260.4);
+  --background-2: oklch(20% 0.031 260.4);
 
   /* Permukaan terangkat: kartu, panel, list. */
-  --layer: var(--color-slate-800);
-  --layer-line: var(--color-slate-700);
-  --layer-hover: var(--color-slate-700);
-  --layer-focus: var(--color-slate-700);
-  --layer-active: var(--color-slate-700);
+  --layer: oklch(28% 0.031 260.4);
+  --layer-line: oklch(36.5% 0.031 260.4);
+  --layer-hover: oklch(32.5% 0.031 260.4);
+  --layer-focus: oklch(32.5% 0.031 260.4);
+  --layer-active: oklch(32.5% 0.031 260.4);
 
-  --card: var(--color-slate-800);
-  --card-line: var(--color-slate-700);
-  --card-divider: var(--color-slate-700);
-  --card-header: var(--color-slate-700);
-  --card-footer: var(--color-slate-700);
-  --card-inverse: var(--color-slate-900);
+  --card: oklch(28% 0.031 260.4);
+  --card-line: oklch(36.5% 0.031 260.4);
+  --card-divider: oklch(36.5% 0.031 260.4);
+  --card-header: oklch(32.5% 0.031 260.4);
+  --card-footer: oklch(32.5% 0.031 260.4);
+  --card-inverse: oklch(16% 0.031 260.4);
 
-  /* Navbar disamakan dengan kanvas agar sidebar jadi pembeda vertikal. */
-  --navbar: var(--color-slate-950);
-  --navbar-line: var(--color-slate-700);
-  --navbar-divider: var(--color-slate-700);
-  --navbar-nav-hover: var(--color-slate-800);
-  --navbar-nav-focus: var(--color-slate-800);
-  --navbar-nav-active: var(--color-slate-800);
-  --navbar-1: var(--color-slate-950);
-  --navbar-1-line: var(--color-slate-700);
-  --navbar-1-nav-hover: var(--color-slate-800);
-  --navbar-1-nav-focus: var(--color-slate-800);
-  --navbar-1-nav-active: var(--color-slate-800);
+  /* Navbar disamakan dengan kanvas; batasnya garis border. */
+  --navbar: oklch(20% 0.031 260.4);
+  --navbar-line: oklch(36.5% 0.031 260.4);
+  --navbar-divider: oklch(36.5% 0.031 260.4);
+  --navbar-nav-hover: oklch(28% 0.031 260.4);
+  --navbar-nav-focus: oklch(28% 0.031 260.4);
+  --navbar-nav-active: oklch(28% 0.031 260.4);
+  --navbar-1: oklch(20% 0.031 260.4);
+  --navbar-1-line: oklch(36.5% 0.031 260.4);
+  --navbar-1-nav-hover: oklch(28% 0.031 260.4);
+  --navbar-1-nav-focus: oklch(28% 0.031 260.4);
+  --navbar-1-nav-active: oklch(28% 0.031 260.4);
 
-  --surface: var(--color-slate-700);
-  --surface-1: var(--color-slate-600);
-  --surface-hover: var(--color-slate-600);
-  --surface-focus: var(--color-slate-600);
-  --surface-active: var(--color-slate-600);
+  --surface: oklch(32.5% 0.031 260.4);
+  --surface-1: oklch(36.5% 0.031 260.4);
+  --surface-hover: oklch(36.5% 0.031 260.4);
+  --surface-focus: oklch(36.5% 0.031 260.4);
+  --surface-active: oklch(36.5% 0.031 260.4);
 
-  --muted: var(--color-slate-800);
-  --muted-hover: var(--color-slate-700);
-  --muted-focus: var(--color-slate-700);
-  --muted-active: var(--color-slate-700);
+  --muted: oklch(28% 0.031 260.4);
+  --muted-hover: oklch(32.5% 0.031 260.4);
+  --muted-focus: oklch(32.5% 0.031 260.4);
+  --muted-active: oklch(32.5% 0.031 260.4);
 
   /* Lapisan mengambang: di antara kanvas dan kartu. */
-  --dropdown: var(--color-slate-900);
-  --dropdown-divider: var(--color-slate-800);
-  --dropdown-item-hover: var(--color-slate-800);
-  --dropdown-item-focus: var(--color-slate-800);
-  --dropdown-item-active: var(--color-slate-800);
+  --dropdown: oklch(24.5% 0.031 260.4);
+  --dropdown-divider: oklch(28% 0.031 260.4);
+  --dropdown-item-hover: oklch(31.5% 0.031 260.4);
+  --dropdown-item-focus: oklch(31.5% 0.031 260.4);
+  --dropdown-item-active: oklch(31.5% 0.031 260.4);
 
-  --select: var(--color-slate-900);
-  --select-item-hover: var(--color-slate-800);
-  --select-item-focus: var(--color-slate-800);
-  --select-item-active: var(--color-slate-800);
+  --select: oklch(24.5% 0.031 260.4);
+  --select-item-hover: oklch(31.5% 0.031 260.4);
+  --select-item-focus: oklch(31.5% 0.031 260.4);
+  --select-item-active: oklch(31.5% 0.031 260.4);
 
-  --popover: var(--color-slate-900);
-  --popover-line: var(--color-slate-700);
+  --popover: oklch(24.5% 0.031 260.4);
+  --popover-line: oklch(36.5% 0.031 260.4);
 
-  --overlay: var(--color-slate-800);
-  --overlay-divider: var(--color-slate-700);
-  --overlay-header: var(--color-slate-700);
-  --overlay-footer: var(--color-slate-700);
+  --overlay: oklch(28% 0.031 260.4);
+  --overlay-divider: oklch(36.5% 0.031 260.4);
+  --overlay-header: oklch(32.5% 0.031 260.4);
+  --overlay-footer: oklch(32.5% 0.031 260.4);
 
-  --table-line: var(--color-slate-700);
+  --table-line: oklch(36.5% 0.031 260.4);
 
-  --scrollbar-track: var(--color-slate-700);
-  --scrollbar-thumb: var(--color-slate-500);
+  --scrollbar-track: oklch(36.5% 0.031 260.4);
+  --scrollbar-thumb: oklch(55% 0.031 260.4);
 }
 
 /* Preline v5 tidak lagi menyertakan default ini (dulu bawaan Tailwind v3). */

@@ -9,7 +9,8 @@
     -->
     <aside
       class="fixed inset-y-0 start-0 z-40 flex flex-col overflow-hidden bg-[#1a2332] text-slate-300
-             transition-[width,transform] duration-200 ease-out md:translate-x-0"
+             transition-[width,transform] duration-200 ease-out md:translate-x-0
+             md:border-e md:border-white/15"
       :class="[
         drawer ? 'translate-x-0' : '-translate-x-full',
         collapsed ? 'w-[272px] md:w-[72px]' : 'w-[272px]',
