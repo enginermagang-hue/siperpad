@@ -1,52 +1,130 @@
 <template>
   <div>
-    <div class="d-flex align-center mb-6">
-      <v-icon size="36" color="primary" class="mr-3">mdi-check-decagram</v-icon>
-      <h1 class="text-h4 font-weight-medium">Verifikasi</h1>
+    <div class="mb-6 flex items-center gap-3">
+      <BadgeCheck class="shrink-0 size-9 text-primary" aria-hidden="true" />
+      <h1 class="text-2xl font-medium text-foreground">Verifikasi</h1>
     </div>
 
     <VerifikasiNav />
 
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text class="pb-0">
-        <div class="d-flex flex-wrap ga-3 mb-4">
-          <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 200px" placeholder="Semua" @update:model-value="load" />
-          <v-select v-model="filterJenis" :items="jenisFilterOpts" item-title="label" item-value="value" label="Jenis" density="compact" variant="outlined" hide-details clearable style="max-width: 260px" placeholder="Semua jenis" @update:model-value="load" />
-          <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode/nama/catatan..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 260px" />
-          <v-spacer />
-          <v-btn v-if="canVerif && filtered.length" color="success" variant="tonal" prepend-icon="mdi-check-all" :loading="bulkLoading" @click="verifMassal('disetujui')">Setujui Semua ({{ filtered.length }})</v-btn>
+    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="w-full max-w-[200px]">
+          <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua" clearable @update:model-value="load" />
         </div>
-      </v-card-text>
-    </v-card>
+        <div class="w-full max-w-[260px]">
+          <AppSelect v-model="filterJenis" :items="jenisFilterOpts" placeholder="Semua jenis" clearable @update:model-value="load" />
+        </div>
+        <div class="relative w-full max-w-[260px]">
+          <Search
+            class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+            aria-hidden="true"
+          />
+          <input
+            v-model="q"
+            type="text"
+            placeholder="Cari kode/nama/catatan..."
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+          />
+        </div>
+        <button
+          v-if="canVerif && filtered.length"
+          type="button"
+          class="ms-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium
+                 text-emerald-800 hover:bg-emerald-200 focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none dark:bg-emerald-950/60 dark:text-emerald-300"
+          :disabled="bulkLoading"
+          @click="verifMassal('disetujui')"
+        >
+          <LoaderCircle v-if="bulkLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          <CheckCheck v-else class="shrink-0 size-4" aria-hidden="true" />
+          Setujui Semua ({{ filtered.length }})
+        </button>
+      </div>
+    </div>
 
-    <v-card flat elevation="0">
-      <div class="d-flex justify-end px-4 pt-3">
+    <div class="rounded-lg border border-card-line bg-card">
+      <div class="flex justify-end px-4 pt-3">
         <ViewModeToggle v-model="modeRealisasi" />
       </div>
-      <v-table v-if="modeRealisasi === 'table'" density="default">
-        <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Aksi</th></tr></thead>
-        <tbody>
-          <tr v-if="loading"><td colspan="8" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="8" class="text-center py-6 text-medium-emphasis">Tidak ada realisasi diajukan</td></tr>
-          <tr v-for="r in paginated" :key="r.id">
-            <td>{{ r.tanggal }}</td>
-            <td class="font-weight-medium">{{ r.jenis_kode || '-' }}</td>
-            <td>{{ r.jenis_nama }}</td>
-            <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
-            <td class="text-right">{{ fmt(r.jumlah) }}</td>
-            <td class="text-right">{{ fmt(r.target_nilai) }}</td>
-            <td class="text-right"><v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="small">{{ r.capaian }}%</v-chip></td>
-            <td>
-              <v-btn v-if="canVerif" size="small" color="success" variant="tonal" class="mr-1" :loading="actingId === r.id" @click="verif(r, 'disetujui')">Setujui</v-btn>
-              <v-btn v-if="canVerif" size="small" color="error" variant="tonal" :loading="actingId === r.id" @click="verif(r, 'ditolak')">Tolak</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
 
-      <div v-else-if="modeRealisasi === 'list'" class="pa-3">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Tidak ada realisasi diajukan</div>
+      <!-- Mode tabel -->
+      <div v-if="modeRealisasi === 'table'" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-table-line text-sm">
+          <thead>
+            <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+              <th class="px-3 py-2.5 text-start font-medium">Tanggal</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kode</th>
+              <th class="px-3 py-2.5 text-start font-medium">Jenis</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
+              <th class="px-3 py-2.5 text-end font-medium">Jumlah</th>
+              <th class="px-3 py-2.5 text-end font-medium">Target</th>
+              <th class="px-3 py-2.5 text-end font-medium">Capaian</th>
+              <th class="px-3 py-2.5 text-start font-medium">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-table-line">
+            <tr v-if="loading">
+              <td colspan="8" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+            </tr>
+            <tr v-else-if="!filtered.length">
+              <td colspan="8" class="py-6 text-center text-muted-foreground-1">Tidak ada realisasi diajukan</td>
+            </tr>
+            <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover">
+              <td class="px-3 py-2.5 text-foreground">{{ r.tanggal }}</td>
+              <td class="px-3 py-2.5 font-medium text-foreground">{{ r.jenis_kode || '-' }}</td>
+              <td class="px-3 py-2.5 text-foreground">{{ r.jenis_nama }}</td>
+              <td class="px-3 py-2.5">
+                <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                  {{ r.kawasan_kode }} — {{ r.kawasan_nama }}
+                </span>
+              </td>
+              <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.jumlah) }}</td>
+              <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.target_nilai) }}</td>
+              <td class="px-3 py-2.5 text-end">
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="capaianChip(r.capaian)">
+                  {{ r.capaian }}%
+                </span>
+              </td>
+              <td class="px-3 py-2.5">
+                <div class="flex flex-wrap gap-1">
+                  <button
+                    v-if="canVerif"
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium
+                           text-emerald-800 hover:bg-emerald-200 focus:outline-hidden
+                           disabled:opacity-50 disabled:pointer-events-none
+                           dark:bg-emerald-950/60 dark:text-emerald-300"
+                    :disabled="actingId === r.id"
+                    @click="verif(r, 'disetujui')"
+                  >
+                    <LoaderCircle v-if="actingId === r.id" class="shrink-0 size-3.5 animate-spin" aria-hidden="true" />
+                    Setujui
+                  </button>
+                  <button
+                    v-if="canVerif"
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-1 text-xs font-medium
+                           text-red-800 hover:bg-red-200 focus:outline-hidden
+                           disabled:opacity-50 disabled:pointer-events-none
+                           dark:bg-red-950/60 dark:text-red-300"
+                    :disabled="actingId === r.id"
+                    @click="verif(r, 'ditolak')"
+                  >
+                    Tolak
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mode list -->
+      <div v-else-if="modeRealisasi === 'list'" class="p-3">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Tidak ada realisasi diajukan</div>
         <RecordCard
           v-for="r in paginated"
           v-else
@@ -55,56 +133,78 @@
           :subtitle="r.tanggal"
           :fields="[
             { label: 'Kawasan', value: r.kawasan_kode + ' — ' + r.kawasan_nama },
-            { label: 'Jumlah', value: fmt(r.jumlah), class: 'text-right' },
-            { label: 'Target', value: fmt(r.target_nilai), class: 'text-right' },
-            { label: 'Capaian', value: r.capaian + '%', class: r.capaian >= 100 ? 'text-success' : r.capaian >= 75 ? 'text-warning' : 'text-error' },
+            { label: 'Jumlah', value: fmt(r.jumlah), class: 'text-end' },
+            { label: 'Target', value: fmt(r.target_nilai), class: 'text-end' },
+            { label: 'Capaian', value: r.capaian + '%', class: `text-end font-medium ${capaianText(r.capaian)}` },
           ]"
         >
           <template v-if="canVerif" #actions>
-            <v-btn size="small" color="success" variant="tonal" :loading="actingId === r.id" @click="verif(r, 'disetujui')">Setujui</v-btn>
-            <v-btn size="small" color="error" variant="tonal" :loading="actingId === r.id" @click="verif(r, 'ditolak')">Tolak</v-btn>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-700
+                     hover:bg-layer-hover focus:outline-hidden disabled:opacity-50 dark:text-emerald-400"
+              :disabled="actingId === r.id"
+              @click="verif(r, 'disetujui')"
+            >
+              Setujui
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600
+                     hover:bg-layer-hover focus:outline-hidden disabled:opacity-50 dark:text-red-400"
+              :disabled="actingId === r.id"
+              @click="verif(r, 'ditolak')"
+            >
+              Tolak
+            </button>
           </template>
         </RecordCard>
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Tidak ada realisasi diajukan</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="r in paginated" :key="r.id" :title="(r.jenis_kode || '-') + ' — ' + r.jenis_nama" :subtitle="r.tanggal">
-            <template #append>
-              <span class="text-body-2 font-weight-medium mr-2">{{ fmt(r.jumlah) }}</span>
-              <v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="x-small" class="mr-1">{{ r.capaian }}%</v-chip>
-              <v-menu v-if="canVerif" location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-check" title="Setujui" @click="verif(r, 'disetujui')" />
-                  <v-list-item prepend-icon="mdi-close" title="Tolak" base-color="error" @click="verif(r, 'ditolak')" />
-                </v-list>
-              </v-menu>
-            </template>
-          </v-list-item>
-        </v-list>
+      <!-- Mode compact -->
+      <div v-else class="p-2">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Tidak ada realisasi diajukan</div>
+        <ul v-else class="divide-y divide-table-line">
+          <li v-for="r in paginated" :key="r.id" class="flex items-center gap-2 py-2">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-foreground">{{ (r.jenis_kode || '-') }} — {{ r.jenis_nama }}</span>
+              <span class="block truncate text-xs text-muted-foreground-1">{{ r.tanggal }}</span>
+            </span>
+            <span class="shrink-0 text-sm font-medium text-foreground">{{ fmt(r.jumlah) }}</span>
+            <span class="shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="capaianChip(r.capaian)">
+              {{ r.capaian }}%
+            </span>
+            <AppMenu
+              v-if="canVerif"
+              :items="[
+                { label: 'Setujui', icon: Check, onClick: () => verif(r, 'disetujui') },
+                { label: 'Tolak', icon: X, variant: 'danger', onClick: () => verif(r, 'ditolak') },
+              ]"
+            />
+          </li>
+        </ul>
       </div>
-      <v-divider v-if="total" />
-      <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
-        <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
+
+      <hr v-if="total" class="border-card-divider" />
+      <div v-if="total" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground-1">
           <span>Menampilkan {{ from }}–{{ to }} dari {{ total }}</span>
-          <v-select v-model="perPage" :items="[5, 10, 25, 50]" density="compact" variant="outlined" hide-details style="max-width: 90px" />
+          <div class="w-[90px]"><AppSelect v-model="perPage" :items="[5, 10, 25, 50]" :search="false" /></div>
           <span>per halaman</span>
         </div>
-        <v-pagination v-if="pageCount > 1" v-model="currentPage" :length="pageCount" :total-visible="5" density="compact" />
+        <AppPagination v-model="currentPage" :length="pageCount" :total-visible="5" />
       </div>
-    </v-card>
+    </div>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 
 <script setup lang="ts">
+import { BadgeCheck, Check, CheckCheck, LoaderCircle, Search, X } from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeRealisasi } = useViewMode('verifikasi-realisasi')
@@ -143,6 +243,17 @@ watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 const actingId = ref<number | null>(null)
 const bulkLoading = ref(false)
 
+function capaianChip(v: number) {
+  if (v >= 100) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  if (v >= 75) return 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+  return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+}
+function capaianText(v: number) {
+  if (v >= 100) return 'text-emerald-600 dark:text-emerald-400'
+  if (v >= 75) return 'text-amber-600 dark:text-amber-400'
+  return 'text-red-600 dark:text-red-400'
+}
+
 async function load() {
   loading.value = true
   try {
@@ -177,4 +288,3 @@ async function verifMassal(aksi: string) {
 
 onMounted(async () => { await loadMaster(); await load() })
 </script>
-

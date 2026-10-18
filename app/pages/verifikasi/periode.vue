@@ -1,46 +1,98 @@
 <template>
   <div>
-    <div class="d-flex align-center mb-6">
-      <v-icon size="36" color="primary" class="mr-3">mdi-lock-outline</v-icon>
-      <h1 class="text-h4 font-weight-medium">Kunci Periode</h1>
+    <div class="mb-6 flex items-center gap-3">
+      <Lock class="shrink-0 size-9 text-primary" aria-hidden="true" />
+      <h1 class="text-2xl font-medium text-foreground">Kunci Periode</h1>
     </div>
 
     <VerifikasiNav />
 
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text>
-        <div class="d-flex flex-wrap ga-3 align-center">
-          <v-select v-model="lockKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan *" density="compact" variant="outlined" hide-details style="max-width: 240px" />
-          <v-select v-model="lockTahun" :items="[2024, 2025, 2026, 2027]" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 110px" />
-          <v-select v-model="lockBulan" :items="bulanOpts" item-title="label" item-value="value" label="Bulan" density="compact" variant="outlined" hide-details style="max-width: 150px" />
-          <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-lock" :loading="lockLoading" @click="kunciPeriode">Kunci Periode</v-btn>
+    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="w-full max-w-[240px]">
+          <AppSelect v-model="lockKawasan" :items="kawasanOpts" placeholder="Kawasan *" />
         </div>
-        <div class="text-caption text-medium-emphasis mt-2">Kunci hanya bisa dilakukan setelah semua realisasi periode terverifikasi (disetujui). Hanya admin.</div>
-      </v-card-text>
-    </v-card>
-    <v-card flat elevation="0">
-      <div class="d-flex justify-end px-4 pt-3">
+        <div class="w-full max-w-[110px]">
+          <AppSelect v-model="lockTahun" :items="[2024, 2025, 2026, 2027]" :search="false" />
+        </div>
+        <div class="w-full max-w-[150px]">
+          <AppSelect v-model="lockBulan" :items="bulanOpts" />
+        </div>
+        <button
+          v-if="isAdmin"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="lockLoading"
+          @click="kunciPeriode"
+        >
+          <LoaderCircle v-if="lockLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          <Lock v-else class="shrink-0 size-4" aria-hidden="true" />
+          Kunci Periode
+        </button>
+      </div>
+      <div class="mt-2 text-xs text-muted-foreground-1">
+        Kunci hanya bisa dilakukan setelah semua realisasi periode terverifikasi (disetujui). Hanya admin.
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-card-line bg-card">
+      <div class="flex justify-end px-4 pt-3">
         <ViewModeToggle v-model="modeKunci" />
       </div>
-      <v-table v-if="modeKunci === 'table'" density="default">
-        <thead><tr><th>Tahun</th><th>Bulan</th><th>Kawasan</th><th>Dikunci oleh</th><th>Waktu</th><th style="width:120px">Aksi</th></tr></thead>
-        <tbody>
-          <tr v-if="lockRowsLoading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!lockRows.length"><td colspan="6" class="text-center py-6 text-medium-emphasis">Belum ada periode terkunci</td></tr>
-          <tr v-for="l in lockRows" :key="l.id">
-            <td>{{ l.tahun }}</td>
-            <td>{{ bulanLabel(l.bulan) }}</td>
-            <td><v-chip size="small" variant="tonal">{{ l.kawasan_kode }} — {{ l.kawasan_nama }}</v-chip></td>
-            <td>{{ l.locked_by_nama || '-' }}</td>
-            <td class="text-caption">{{ l.locked_at }}</td>
-            <td><v-btn v-if="isAdmin" size="small" color="warning" variant="tonal" @click="bukaKunci(l)">Buka</v-btn></td>
-          </tr>
-        </tbody>
-      </v-table>
 
-      <div v-else-if="modeKunci === 'list'" class="pa-3">
-        <div v-if="lockRowsLoading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!lockRows.length" class="text-center py-6 text-medium-emphasis">Belum ada periode terkunci</div>
+      <!-- Mode tabel -->
+      <div v-if="modeKunci === 'table'" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-table-line text-sm">
+          <thead>
+            <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+              <th class="px-3 py-2.5 text-start font-medium">Tahun</th>
+              <th class="px-3 py-2.5 text-start font-medium">Bulan</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
+              <th class="px-3 py-2.5 text-start font-medium">Dikunci oleh</th>
+              <th class="px-3 py-2.5 text-start font-medium">Waktu</th>
+              <th class="w-[120px] px-3 py-2.5 text-start font-medium">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-table-line">
+            <tr v-if="lockRowsLoading">
+              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+            </tr>
+            <tr v-else-if="!lockRows.length">
+              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Belum ada periode terkunci</td>
+            </tr>
+            <tr v-for="l in lockRows" v-else :key="l.id" class="hover:bg-layer-hover">
+              <td class="px-3 py-2.5 text-foreground">{{ l.tahun }}</td>
+              <td class="px-3 py-2.5 text-foreground">{{ bulanLabel(l.bulan) }}</td>
+              <td class="px-3 py-2.5">
+                <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                  {{ l.kawasan_kode }} — {{ l.kawasan_nama }}
+                </span>
+              </td>
+              <td class="px-3 py-2.5 text-foreground">{{ l.locked_by_nama || '-' }}</td>
+              <td class="px-3 py-2.5 text-xs text-foreground">{{ l.locked_at }}</td>
+              <td class="px-3 py-2.5">
+                <button
+                  v-if="isAdmin"
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium
+                         text-amber-900 hover:bg-amber-200 focus:outline-hidden
+                         dark:bg-amber-950/60 dark:text-amber-300"
+                  @click="bukaKunci(l)"
+                >
+                  Buka
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mode list -->
+      <div v-else-if="modeKunci === 'list'" class="p-3">
+        <div v-if="lockRowsLoading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!lockRows.length" class="py-6 text-center text-muted-foreground-1">Belum ada periode terkunci</div>
         <RecordCard
           v-for="l in lockRows"
           v-else
@@ -53,29 +105,52 @@
           ]"
         >
           <template v-if="isAdmin" #actions>
-            <v-btn size="small" color="warning" variant="tonal" prepend-icon="mdi-lock-open-variant" @click="bukaKunci(l)">Buka</v-btn>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-amber-700
+                     hover:bg-layer-hover focus:outline-hidden dark:text-amber-400"
+              @click="bukaKunci(l)"
+            >
+              <LockOpen class="shrink-0 size-3.5" aria-hidden="true" /> Buka
+            </button>
           </template>
         </RecordCard>
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="lockRowsLoading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!lockRows.length" class="text-center py-6 text-medium-emphasis">Belum ada periode terkunci</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="l in lockRows" :key="l.id" :title="bulanLabel(l.bulan) + ' ' + l.tahun" :subtitle="l.kawasan_kode + ' — ' + (l.locked_by_nama || '-')">
-            <template #append>
-              <v-btn v-if="isAdmin" size="x-small" color="warning" variant="tonal" @click="bukaKunci(l)">Buka</v-btn>
-            </template>
-          </v-list-item>
-        </v-list>
+      <!-- Mode compact -->
+      <div v-else class="p-2">
+        <div v-if="lockRowsLoading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!lockRows.length" class="py-6 text-center text-muted-foreground-1">Belum ada periode terkunci</div>
+        <ul v-else class="divide-y divide-table-line">
+          <li v-for="l in lockRows" :key="l.id" class="flex items-center gap-2 py-2">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-foreground">{{ bulanLabel(l.bulan) }} {{ l.tahun }}</span>
+              <span class="block truncate text-xs text-muted-foreground-1">
+                {{ l.kawasan_kode }} — {{ l.locked_by_nama || '-' }}
+              </span>
+            </span>
+            <button
+              v-if="isAdmin"
+              type="button"
+              class="shrink-0 inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-[11px] font-medium
+                     text-amber-900 hover:bg-amber-200 focus:outline-hidden
+                     dark:bg-amber-950/60 dark:text-amber-300"
+              @click="bukaKunci(l)"
+            >
+              Buka
+            </button>
+          </li>
+        </ul>
       </div>
-    </v-card>
+    </div>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { LoaderCircle, Lock, LockOpen } from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeKunci } = useViewMode('verifikasi-kunci')
@@ -113,4 +188,3 @@ async function bukaKunci(l: LockRow) {
 
 onMounted(async () => { await loadMaster(); await loadLocks() })
 </script>
-
