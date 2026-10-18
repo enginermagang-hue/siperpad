@@ -2,11 +2,19 @@
   <div class="min-h-screen grid place-items-center bg-background-1 p-4">
     <div class="w-full max-w-[420px] rounded-xl border border-card-line bg-card p-8">
       <div class="text-center mb-6">
-        <div class="inline-flex items-center justify-center size-12 rounded-xl bg-primary text-primary-foreground mb-2">
-          <span class="text-lg font-bold tracking-tight">SP</span>
+        <img
+          src="/ntt.png"
+          width="64"
+          height="64"
+          alt="Logo Provinsi Nusa Tenggara Timur"
+          class="mx-auto mb-3 size-16 object-contain"
+        />
+        <div class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground-1">
+          Dinas Pariwisata dan Ekonomi Kreatif<br />Provinsi Nusa Tenggara Timur
         </div>
         <h1 class="text-xl font-medium text-foreground mt-2">SiPerPAD</h1>
         <p class="text-sm text-muted-foreground-1 mt-1">Sistem Perhitungan dan Rekapitulasi PAD</p>
+        <p class="text-xs text-muted-foreground-1 mt-0.5">Pantai Lasiana &amp; Kampung Seni Flobamorata</p>
       </div>
 
       <div
@@ -85,10 +93,11 @@
 
       <div class="text-center mt-6">
         <p class="text-xs text-muted-foreground-1 leading-relaxed">
-          Demo akun — password <strong class="text-foreground">123456</strong><br />
-          <strong class="text-foreground">user@mail.com</strong> (Petugas Input) ·
-          <strong class="text-foreground">admin@mail.com</strong> (Administrator) ·
-          <strong class="text-foreground">kepala@mail.com</strong> (Kepala)
+          Demo akun &mdash; password <strong class="text-foreground">123456</strong><br />
+          <strong class="text-foreground">petugas.kampungseni@mail.com</strong> (Petugas Kampung Seni)<br />
+          <strong class="text-foreground">petugas.lasiana@mail.com</strong> (Petugas Lasiana)<br />
+          <strong class="text-foreground">admin@mail.com</strong> (Administrator / Bendahara)<br />
+          <strong class="text-foreground">kepala@mail.com</strong> (Pimpinan / Kasubag Keuangan)
         </p>
       </div>
     </div>

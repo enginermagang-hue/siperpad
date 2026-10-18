@@ -42,7 +42,7 @@ type JenisNode = {
 // Ambil semua jenis + target + realisasi (disetujui) untuk tahun, lalu rollup
 // bottom-up: nilai induk = SUM anak (Model A). Nilai target langsung pada induk
 // tetap disimpan sebagai `targetInduk` untuk deteksi anomali.
-async function buildTree(opts: { kawasanId?: number; tahun: number }): Promise<{ roots: JenisNode[]; kawasan: { id: number; kode: string; nama: string; urutan: number }[] }> {
+async function buildTree(opts: { kawasanId?: number; tahun: number; sampaiBulan?: number }): Promise<{ roots: JenisNode[]; kawasan: { id: number; kode: string; nama: string; urutan: number }[] }> {
   const hasKawasan = !!opts.kawasanId
   const kawasan = await query<{ id: number; kode: string; nama: string; urutan: number }>(
     hasKawasan
@@ -67,13 +67,24 @@ async function buildTree(opts: { kawasanId?: number; tahun: number }): Promise<{
   const targetMap = new Map<number, { nilai: number; nilaiInduk: number | null }>()
   for (const r of targetRows) targetMap.set(Number(r.jenis_retribusi_id), { nilai: Number(r.nilai) || 0, nilaiInduk: r.nilai_induk == null ? null : Number(r.nilai_induk) })
 
-  const realRows = await query<{ jenis_retribusi_id: number; total: number }>(
-    `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
-     FROM realisasi r
-     WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ?
-     GROUP BY r.jenis_retribusi_id`,
-    [APPROVED_STATUS, String(opts.tahun)],
-  )
+  // Bila `sampaiBulan` diisi, realisasi dibatasi s/d akhir bulan tersebut
+  // (kumulatif) agar kolom "% Capai" sejajar dengan laporan Excel referensi
+  // (Realisasi s/d Bulan Ini = Realisasi s/d Bulan Lalu + Total Mingguan).
+  const realRows = opts.sampaiBulan
+    ? await query<{ jenis_retribusi_id: number; total: number }>(
+        `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
+         FROM realisasi r
+         WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ? AND substr(r.tanggal, 6, 2) <= ?
+         GROUP BY r.jenis_retribusi_id`,
+        [APPROVED_STATUS, String(opts.tahun), String(opts.sampaiBulan).padStart(2, '0')],
+      )
+    : await query<{ jenis_retribusi_id: number; total: number }>(
+        `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
+         FROM realisasi r
+         WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ?
+         GROUP BY r.jenis_retribusi_id`,
+        [APPROVED_STATUS, String(opts.tahun)],
+      )
   const realMap = new Map<number, number>()
   for (const r of realRows) realMap.set(Number(r.jenis_retribusi_id), Number(r.total) || 0)
 
@@ -108,7 +119,7 @@ function sortTree(nodes: JenisNode[]) {
 }
 
 // DFS emit dengan agregasi bottom-up. Nilai induk = SUM anak.
-export async function getRekapPerJenis(opts: { kawasanId?: number; tahun: number }): Promise<RekapRow[]> {
+export async function getRekapPerJenis(opts: { kawasanId?: number; tahun: number; sampaiBulan?: number }): Promise<RekapRow[]> {
   const { roots, kawasan } = await buildTree(opts)
   const kawasanById = new Map(kawasan.map((k) => [k.id, k]))
   sortTree(roots)
@@ -319,12 +330,15 @@ export async function getTopKontributor(opts: { kawasanId?: number; tahun: numbe
 }
 
 // Perbandingan dua rentang periode.
+// Nilai per baris di-rollup bottom-up (induk = SUM anak), konsisten dengan
+// rekap & ekspor — sehingga baris level 1 tidak lagi 0 saat realisasi hanya
+// tersimpan pada pos daun.
 export async function getPerbandingan(opts: {
   kawasanId?: number
   a: { from: string; to: string; label: string }
   b: { from: string; to: string; label: string }
 }): Promise<{
-  perJenis: { jenis_id: number; kode: string; nama: string; level: number; kawasan_kode: string; kawasan_nama: string; a: number; b: number; selisih: number; persen: number }[]
+  perJenis: { jenis_id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; has_child: boolean; a: number; b: number; selisih: number; persen: number }[]
   total: { a: number; b: number; selisih: number; persen: number }
 }> {
   const hasKawasan = !!opts.kawasanId
@@ -341,30 +355,106 @@ export async function getPerbandingan(opts: {
   }
   const [aMap, bMap] = await Promise.all([sumRange(opts.a.from, opts.a.to), sumRange(opts.b.from, opts.b.to)])
 
-  const jenisRows = await query<{ id: number; kode: string; nama: string; level: number; urutan: number; kawasan_kode: string; kawasan_nama: string }>(
-    `SELECT jr.id, jr.kode, jr.nama, jr.level, jr.urutan, k.kode AS kawasan_kode, k.nama AS kawasan_nama
+  const jenisRows = await query<{ id: number; kawasan_id: number; parent_id: number | null; kode: string; nama: string; level: number; urutan: number; kawasan_kode: string; kawasan_nama: string }>(
+    `SELECT jr.id, jr.kawasan_id, jr.parent_id, jr.kode, jr.nama, jr.level, jr.urutan, k.kode AS kawasan_kode, k.nama AS kawasan_nama
      FROM jenis_retribusi jr JOIN kawasan k ON k.id = jr.kawasan_id
      WHERE jr.aktif = 1 ${hasKawasan ? 'AND jr.kawasan_id = ?' : ''}
      ORDER BY k.urutan, jr.level, jr.urutan, jr.id`,
     hasKawasan ? [opts.kawasanId!] : [],
   )
-  const perJenis = jenisRows.map((j) => {
-    const a = aMap.get(Number(j.id)) || 0
-    const b = bMap.get(Number(j.id)) || 0
-    return {
-      jenis_id: Number(j.id),
+
+  // Bangun pohon lalu rollup bottom-up.
+  type Node = {
+    id: number
+    kawasan_id: number
+    parent_id: number | null
+    kode: string
+    nama: string
+    level: number
+    urutan: number
+    kawasan_kode: string
+    kawasan_nama: string
+    directA: number
+    directB: number
+    a: number
+    b: number
+    children: Node[]
+  }
+  const byId = new Map<number, Node>()
+  for (const j of jenisRows) {
+    byId.set(Number(j.id), {
+      id: Number(j.id),
+      kawasan_id: Number(j.kawasan_id),
+      parent_id: j.parent_id == null ? null : Number(j.parent_id),
       kode: String(j.kode || ''),
       nama: String(j.nama),
       level: Number(j.level),
+      urutan: Number(j.urutan),
       kawasan_kode: String(j.kawasan_kode),
       kawasan_nama: String(j.kawasan_nama),
-      a, b,
-      selisih: b - a,
-      persen: a > 0 ? Math.round(((b - a) / a) * 10000) / 100 : (b > 0 ? 100 : 0),
+      directA: aMap.get(Number(j.id)) || 0,
+      directB: bMap.get(Number(j.id)) || 0,
+      a: 0,
+      b: 0,
+      children: [],
+    })
+  }
+  const roots: Node[] = []
+  for (const n of byId.values()) {
+    if (n.parent_id != null && byId.has(n.parent_id)) byId.get(n.parent_id)!.children.push(n)
+    else roots.push(n)
+  }
+  function compute(n: Node): void {
+    if (n.children.length === 0) {
+      n.a = n.directA
+      n.b = n.directB
+      return
     }
-  })
-  const totalA = [...aMap.values()].reduce((s, v) => s + v, 0)
-  const totalB = [...bMap.values()].reduce((s, v) => s + v, 0)
+    let a = 0
+    let b = 0
+    for (const c of n.children) {
+      compute(c)
+      a += c.a
+      b += c.b
+    }
+    n.a = a
+    n.b = b
+  }
+  for (const r of roots) compute(r)
+
+  // Emit DFS sesuai urutan referensi (kawasan → level → urutan → id).
+  const kawasanOrder = new Map<number, number>()
+  for (const j of jenisRows) if (!kawasanOrder.has(Number(j.kawasan_id))) kawasanOrder.set(Number(j.kawasan_id), kawasanOrder.size)
+  roots.sort((x, y) => (kawasanOrder.get(x.kawasan_id) ?? 0) - (kawasanOrder.get(y.kawasan_id) ?? 0) || x.urutan - y.urutan || x.id - y.id)
+
+  const perJenis: {
+    jenis_id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number
+    kawasan_kode: string; kawasan_nama: string; has_child: boolean; a: number; b: number; selisih: number; persen: number
+  }[] = []
+  function emit(n: Node): void {
+    perJenis.push({
+      jenis_id: n.id,
+      kode: n.kode,
+      nama: n.nama,
+      level: n.level,
+      urutan: n.urutan,
+      kawasan_id: n.kawasan_id,
+      kawasan_kode: n.kawasan_kode,
+      kawasan_nama: n.kawasan_nama,
+      has_child: n.children.length > 0,
+      a: n.a,
+      b: n.b,
+      selisih: n.b - n.a,
+      persen: n.a > 0 ? Math.round(((n.b - n.a) / n.a) * 10000) / 100 : (n.b > 0 ? 100 : 0),
+    })
+    const sorted = [...n.children].sort((x, y) => x.urutan - y.urutan || x.id - y.id)
+    for (const c of sorted) emit(c)
+  }
+  for (const r of roots) emit(r)
+
+  // Total = jumlah akar (level 1) agar tidak double-count.
+  const totalA = roots.reduce((s, n) => s + n.a, 0)
+  const totalB = roots.reduce((s, n) => s + n.b, 0)
   return {
     perJenis,
     total: { a: totalA, b: totalB, selisih: totalB - totalA, persen: totalA > 0 ? Math.round(((totalB - totalA) / totalA) * 10000) / 100 : (totalB > 0 ? 100 : 0) },

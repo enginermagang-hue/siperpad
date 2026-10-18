@@ -4,7 +4,7 @@ import { getTargetAnomali } from '../utils/rekap'
 // Ringkasan notifikasi (aksi tertunda) untuk badge & panel di navbar.
 // Semua angka dihitung dari data existing — tidak ada tabel notifikasi baru.
 // Filter per role:
-//  - verifikasi : admin, kepala
+//  - verifikasi : admin (pimpinan read-only, tanpa aksi verifikasi)
 //  - anomali    : admin, kepala
 //  - temuan     : admin
 export default defineEventHandler(async (event) => {
@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
 
   const role = String(session.user.role)
-  const canVerify = ['admin', 'kepala'].includes(role)
+  const canVerify = role === 'admin'
   const canAnomali = ['admin', 'kepala'].includes(role)
   const canTemuan = ['admin'].includes(role)
 

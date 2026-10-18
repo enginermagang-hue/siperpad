@@ -11,13 +11,22 @@ export default defineEventHandler(async (event) => {
   if (id === Number(session.user.id)) throw createError({ statusCode: 400, message: 'Tidak bisa ubah akun sendiri via endpoint ini' })
   const ex = await query('SELECT id FROM users WHERE id = ?', [id])
   if (!ex.length) throw createError({ statusCode: 404, message: 'User tidak ditemukan' })
-  const b = await readBody(event) as { nama?: string; nip?: string; email?: string; password?: string; role?: string; aktif?: number }
+  const b = await readBody(event) as { nama?: string; nip?: string; email?: string; password?: string; role?: string; aktif?: number; kawasan_id?: number | null }
   const sets: string[] = []
   const params: unknown[] = []
   if (b.nama != null) { const v = String(b.nama).trim(); if (!v) throw createError({ statusCode: 400, message: 'Nama wajib' }); sets.push('nama = ?'); params.push(v) }
   if (b.nip !== undefined) { sets.push('nip = ?'); params.push(String(b.nip).trim()) }
   if (b.email != null) { const v = String(b.email).trim().toLowerCase(); if (!v) throw createError({ statusCode: 400, message: 'Email wajib' }); sets.push('email = ?'); params.push(v) }
   if (b.role != null) { const v = String(b.role).trim(); if (!['user','admin','kepala'].includes(v)) throw createError({ statusCode: 400, message: 'Role tidak valid' }); sets.push('role = ?'); params.push(v) }
+  if (b.kawasan_id !== undefined) {
+    const v = b.kawasan_id == null || b.kawasan_id === '' ? null : Number(b.kawasan_id)
+    if (v != null && (!Number.isFinite(v) || v <= 0)) throw createError({ statusCode: 400, message: 'kawasan_id tidak valid' })
+    if (v != null) {
+      const kw = await query('SELECT id FROM kawasan WHERE id = ?', [v])
+      if (!kw.length) throw createError({ statusCode: 400, message: 'Kawasan tidak ditemukan' })
+    }
+    sets.push('kawasan_id = ?'); params.push(v)
+  }
   if (b.aktif !== undefined) { sets.push('aktif = ?'); params.push(Number(b.aktif) ? 1 : 0) }
   if (b.password) { if (String(b.password).length < 6) throw createError({ statusCode: 400, message: 'Password minimal 6 karakter' }); sets.push('password_hash = ?'); params.push(hashPassword(String(b.password))) }
   if (!sets.length) throw createError({ statusCode: 400, message: 'Tidak ada field untuk diupdate' })

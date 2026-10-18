@@ -33,12 +33,26 @@ async function insertJenis(
     level: number
     urutan: number
     kode_rekening?: string
+    tarif?: number
+    mode_tarif?: 'langsung' | 'kuantitas'
+    satuan?: string
   }
 ): Promise<number> {
   const rows = await ctx.query<{ id: number }>(
-    `INSERT INTO jenis_retribusi (kawasan_id, parent_id, kode, nama, level, urutan, kode_rekening)
-     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    [params.kawasan_id, params.parent_id, params.kode, params.nama, params.level, params.urutan, params.kode_rekening ?? '']
+    `INSERT INTO jenis_retribusi (kawasan_id, parent_id, kode, nama, level, urutan, kode_rekening, tarif, mode_tarif, satuan)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    [
+      params.kawasan_id,
+      params.parent_id,
+      params.kode,
+      params.nama,
+      params.level,
+      params.urutan,
+      params.kode_rekening ?? '',
+      params.tarif ?? null,
+      params.mode_tarif ?? 'langsung',
+      params.satuan ?? '',
+    ]
   )
   return rows[0]!.id
 }
@@ -97,41 +111,48 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
   const now = '2026-10-03T00:00:00'
   const tahun = 2026
 
+  // Kawasan dibuat lebih dulu agar petugas dapat ditautkan ke kawasannya.
+  const kawasanAId = await insertKawasan(ctx, { kode: 'A', nama: 'Kampung Seni Flobamorata', urutan: 1 })
+  const kawasanBId = await insertKawasan(ctx, { kode: 'B', nama: 'Pantai Lasiana', urutan: 2 })
+
+  // Petugas penginput dipisah per kawasan (keputusan chat-02):
+  // - petugas.kampungseni@mail.com -> Kawasan A (Kampung Seni Flobamorata)
+  // - petugas.lasiana@mail.com     -> Kawasan B (Pantai Lasiana)
+  // admin & kepala: kawasan_id NULL = akses semua kawasan.
   const userDefs = [
-    { nama: 'Petugas Input', nip: '199001012015011001', email: 'user@mail.com', role: 'user' },
-    { nama: 'Admin Operator', nip: '198001012006041001', email: 'admin@mail.com', role: 'admin' },
-    { nama: 'Kepala Dinas', nip: '198001012005011001', email: 'kepala@mail.com', role: 'kepala' },
+    { nama: 'Petugas Kampung Seni', nip: '199001012015011001', email: 'petugas.kampungseni@mail.com', role: 'user', kawasan_id: kawasanAId },
+    { nama: 'Petugas Pantai Lasiana', nip: '199001012015011002', email: 'petugas.lasiana@mail.com', role: 'user', kawasan_id: kawasanBId },
+    { nama: 'Admin Operator', nip: '198001012006041001', email: 'admin@mail.com', role: 'admin', kawasan_id: null },
+    { nama: 'Kasubag Keuangan', nip: '198001012005011001', email: 'kepala@mail.com', role: 'kepala', kawasan_id: null },
   ] as const
 
   const userIds: number[] = []
   for (const u of userDefs) {
     const rows = await ctx.query<{ id: number }>(
-      `INSERT INTO users (nama, nip, email, password_hash, role, aktif, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?) RETURNING id`,
-      [u.nama, u.nip, u.email, hashPassword('123456'), u.role, now]
+      `INSERT INTO users (nama, nip, email, password_hash, role, kawasan_id, aktif, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?) RETURNING id`,
+      [u.nama, u.nip, u.email, hashPassword('123456'), u.role, u.kawasan_id, now]
     )
     userIds.push(rows[0]!.id)
   }
   const [userId, adminUserId] = userIds
 
-  const kawasanAId = await insertKawasan(ctx, { kode: 'A', nama: 'Kampung Seni Flobamorata', urutan: 1 })
-  const kawasanBId = await insertKawasan(ctx, { kode: 'B', nama: 'Pantai Lasiana', urutan: 2 })
-
   // ---- Kampung Seni (A) ----
+  // Tarif mengikuti Perda Prov. NTT No. 1 Tahun 2026 (lihat referensi/tarif.docx).
   const A = {
     a1: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1', nama: 'Retribusi Tempat Khusus Parkir diluar Badan Jalan', level: 1, urutan: 1, kode_rekening: '4.1.02,02.014' }),
-    a1a: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1.a', nama: 'Kendaraan Roda Dua / Motor', level: 2, urutan: 1 }),
-    a1b: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1.b', nama: 'Kendaraan Roda Empat / Mobil', level: 2, urutan: 2 }),
-    a1c: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1.c', nama: 'Kendaraan diatas Roda Empat', level: 2, urutan: 3 }),
+    a1a: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1.a', nama: 'Kendaraan Roda Dua / Motor', level: 2, urutan: 1, tarif: 3_000, mode_tarif: 'kuantitas', satuan: 'kendaraan' }),
+    a1b: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1.b', nama: 'Kendaraan Roda Empat / Mobil', level: 2, urutan: 2, tarif: 5_000, mode_tarif: 'kuantitas', satuan: 'kendaraan' }),
+    a1c: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.1.c', nama: 'Kendaraan diatas Roda Empat', level: 2, urutan: 3, tarif: 10_000, mode_tarif: 'kuantitas', satuan: 'kendaraan' }),
     a2: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2', nama: 'Retribusi Penyediaan Tempat Usaha (Pertokoan dan Tempat Kegiatan Usaha Lainnya)', level: 1, urutan: 2, kode_rekening: '4.1.02,02.012' }),
     a2food: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1', nama: 'Sewa Tempat Usaha Kampung Seni Flobamorata', level: 2, urutan: 1 }),
-    a2foodb1: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1.a', nama: 'Food Court - Nomor B1', level: 3, urutan: 1 }),
-    a2foodb2b3b4: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1.b', nama: 'Food Court - Nomor B2, B3, B4', level: 3, urutan: 2 }),
-    a2foodb5b6b7: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1.c', nama: 'Food Court - Nomor B5, B6, B7', level: 3, urutan: 3 }),
-    a2gasebo: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.2', nama: 'Gasebo', level: 2, urutan: 2 }),
+    a2foodb1: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1.a', nama: 'Food Court - Nomor B1', level: 3, urutan: 1, tarif: 19_000_000, satuan: 'tahun' }),
+    a2foodb2b3b4: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1.b', nama: 'Food Court - Nomor B2, B3, B4', level: 3, urutan: 2, tarif: 15_200_000, satuan: 'tahun' }),
+    a2foodb5b6b7: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.1.c', nama: 'Food Court - Nomor B5, B6, B7', level: 3, urutan: 3, tarif: 11_400_000, satuan: 'tahun' }),
+    a2gasebo: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.2', nama: 'Gasebo', level: 2, urutan: 2, tarif: 5_700_000, satuan: 'tahun' }),
     a2ekraf: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.3', nama: 'Rumah Ekraf (A1, A2)', level: 2, urutan: 3 }),
-    a2pelataran: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.4', nama: 'Sewa Pelataran Kampung Seni Flobamorata', level: 2, urutan: 4 }),
-    a2toilet: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.5', nama: 'Sewa Toilet Pos Jaga Kampung Seni Flobamorata', level: 2, urutan: 5 }),
+    a2pelataran: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.4', nama: 'Sewa Pelataran Kampung Seni Flobamorata', level: 2, urutan: 4, tarif: 1_900_000, satuan: 'sekali pakai' }),
+    a2toilet: await insertJenis(ctx, { kawasan_id: kawasanAId, parent_id: null, kode: 'A.2.5', nama: 'Sewa Toilet Pos Jaga Kampung Seni Flobamorata', level: 2, urutan: 5, tarif: 2_280_000, satuan: 'tahun' }),
   }
 
   await ctx.execute('UPDATE jenis_retribusi SET parent_id = ? WHERE id = ?', [A.a1, A.a1a])
@@ -149,25 +170,25 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
   // ---- Pantai Lasiana (B) ----
   const B = {
     b1: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1', nama: 'Retribusi Tempat Khusus Parkir diluar Badan Jalan', level: 1, urutan: 1, kode_rekening: '4.1.02,02.014' }),
-    b1a: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1.a', nama: 'Kendaraan Roda Dua / Motor', level: 2, urutan: 1 }),
-    b1b: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1.b', nama: 'Kendaraan Roda Empat / Mobil', level: 2, urutan: 2 }),
-    b1c: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1.c', nama: 'Kendaraan diatas Roda Empat', level: 2, urutan: 3 }),
+    b1a: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1.a', nama: 'Kendaraan Roda Dua / Motor', level: 2, urutan: 1, tarif: 3_000, mode_tarif: 'kuantitas', satuan: 'kendaraan' }),
+    b1b: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1.b', nama: 'Kendaraan Roda Empat / Mobil', level: 2, urutan: 2, tarif: 5_000, mode_tarif: 'kuantitas', satuan: 'kendaraan' }),
+    b1c: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.1.c', nama: 'Kendaraan diatas Roda Empat', level: 2, urutan: 3, tarif: 10_000, mode_tarif: 'kuantitas', satuan: 'kendaraan' }),
     b2: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2', nama: 'Retribusi Pelayanan Tempat Rekreasi, Pariwisata dan Olahraga', level: 1, urutan: 2, kode_rekening: '4.1.02,02.017' }),
     b2rekreasi: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1', nama: 'Tempat Rekreasi Pantai Lasiana', level: 2, urutan: 1 }),
     b2rekreasimasuk: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a', nama: 'Masuk Kawasan Lasiana', level: 3, urutan: 1 }),
-    b2rekreasimasukdewasa: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a.1', nama: 'Dewasa', level: 4, urutan: 1 }),
-    b2rekreasimasukanak: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a.2', nama: 'Anak', level: 4, urutan: 2 }),
-    b2rekreasimasukwna: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a.3', nama: 'Wisatawan Mancanegara', level: 4, urutan: 3 }),
+    b2rekreasimasukdewasa: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a.1', nama: 'Dewasa', level: 4, urutan: 1, tarif: 6_000, mode_tarif: 'kuantitas', satuan: 'orang' }),
+    b2rekreasimasukanak: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a.2', nama: 'Anak', level: 4, urutan: 2, tarif: 3_000, mode_tarif: 'kuantitas', satuan: 'orang' }),
+    b2rekreasimasukwna: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.a.3', nama: 'Wisatawan Mancanegara', level: 4, urutan: 3, tarif: 10_000, mode_tarif: 'kuantitas', satuan: 'orang' }),
     b2panjattebing: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.b', nama: 'Panjat Tebing', level: 3, urutan: 2 }),
     b2labirin: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.c', nama: 'Labirin', level: 3, urutan: 3 }),
-    b2mck: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.d', nama: 'Sewa MCK', level: 3, urutan: 4 }),
-    b2lopopanggung: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.e', nama: 'Sewa Lopo Panggung', level: 3, urutan: 5 }),
-    b2lopopermanen: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.f', nama: 'Sewa Lopo Permanen', level: 3, urutan: 6 }),
-    b2aula: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.2', nama: 'Sewa Aula / Gedung di Lasiana', level: 2, urutan: 2 }),
-    b2kelapa: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.3', nama: 'Sewa Pohon Kelapa di Lasiana', level: 2, urutan: 3 }),
-    b2tuak: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.4', nama: 'Sewa Pohon Tuak di Lasiana', level: 2, urutan: 4 }),
-    b2resto: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.5', nama: 'Sewa Resto', level: 2, urutan: 5 }),
-    b2kios: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.6', nama: 'Sewa Kios Lapak', level: 2, urutan: 6 }),
+    b2mck: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.d', nama: 'Sewa MCK', level: 3, urutan: 4, tarif: 500_000, satuan: 'bulan' }),
+    b2lopopanggung: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.e', nama: 'Sewa Lopo Panggung', level: 3, urutan: 5, tarif: 75_000, mode_tarif: 'kuantitas', satuan: 'kali' }),
+    b2lopopermanen: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.1.f', nama: 'Sewa Lopo Permanen', level: 3, urutan: 6, tarif: 50_000, mode_tarif: 'kuantitas', satuan: 'jam' }),
+    b2aula: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.2', nama: 'Sewa Aula / Gedung di Lasiana', level: 2, urutan: 2, tarif: 750_000, mode_tarif: 'kuantitas', satuan: 'kali' }),
+    b2kelapa: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.3', nama: 'Sewa Pohon Kelapa di Lasiana', level: 2, urutan: 3, tarif: 600_000, satuan: 'tahun' }),
+    b2tuak: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.4', nama: 'Sewa Pohon Tuak di Lasiana', level: 2, urutan: 4, tarif: 1_000_000, satuan: 'tahun' }),
+    b2resto: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.5', nama: 'Sewa Resto', level: 2, urutan: 5, tarif: 950_000, satuan: 'bulan' }),
+    b2kios: await insertJenis(ctx, { kawasan_id: kawasanBId, parent_id: null, kode: 'B.2.6', nama: 'Sewa Kios Lapak', level: 2, urutan: 6, tarif: 100_000, satuan: 'bulan' }),
   }
 
   await ctx.execute('UPDATE jenis_retribusi SET parent_id = ? WHERE id = ?', [B.b1, B.b1a])
@@ -230,18 +251,7 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
     )
   }
 
-  // ---- Tarif contoh (opsional, informasi) ----
-  const tarifs: { id: number; tarif: number }[] = [
-    { id: A.a2foodb1, tarif: 1_500_000 },
-    { id: A.a2gasebo, tarif: 300_000 },
-    { id: B.b2rekreasimasukdewasa, tarif: 5_000 },
-    { id: B.b2rekreasimasukanak, tarif: 3_000 },
-    { id: B.b2mck, tarif: 2_000 },
-    { id: B.b2lopopanggung, tarif: 500_000 },
-  ]
-  for (const tf of tarifs) {
-    await ctx.execute('UPDATE jenis_retribusi SET tarif = ? WHERE id = ?', [tf.tarif, tf.id])
-  }
+  // Tarif sudah ditetapkan langsung saat insert (mengikuti Perda No. 1/2026).
 
   // ---- Laporan Batch Agustus 2026 ----
   await insertBatch(ctx, {

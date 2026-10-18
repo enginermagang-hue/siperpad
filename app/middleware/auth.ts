@@ -9,6 +9,11 @@ export default defineNuxtRouteMiddleware((to) => {
   if (adminOnly.some((p) => to.path.startsWith(p)) && role !== 'admin') {
     return navigateTo('/')
   }
+  // Pimpinan (kepala) bersifat read-only: dashboard, laporan, pengaturan.
+  // Verifikasi hanya untuk admin (bendahara penerimaan sebagai validator).
+  if (role === 'kepala' && to.path.startsWith('/verifikasi')) {
+    return navigateTo('/')
+  }
   if (to.path.startsWith('/verifikasi')) {
     const verifAdminOnly = to.path.startsWith('/verifikasi/periode') || to.path.startsWith('/verifikasi/catatan')
     if (verifAdminOnly && role !== 'admin') {

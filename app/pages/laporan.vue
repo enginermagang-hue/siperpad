@@ -78,6 +78,9 @@
           <div class="w-full max-w-[160px]">
             <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
           </div>
+          <div class="w-full max-w-[150px]">
+            <AppSelect v-model="periode" :items="periodeOpts" :search="false" />
+          </div>
           <div class="relative w-full max-w-[300px]">
             <Search
               class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
@@ -222,7 +225,7 @@
     </div>
 
     <!-- Tab Perbandingan -->
-    <div v-show="tab === 'banding'">
+    <div v-if="tab === 'banding'">
       <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
         <div class="flex flex-wrap items-center gap-3">
           <div class="w-full max-w-[220px]">
@@ -244,7 +247,7 @@
         </div>
       </div>
 
-      <div v-if="banding" class="mb-2 grid grid-cols-12 gap-4">
+      <div v-if="banding" class="mb-4 grid grid-cols-12 gap-4">
         <div class="col-span-12 sm:col-span-4">
           <div class="rounded-lg border border-card-line bg-card p-4 text-center">
             <div class="text-xs text-muted-foreground-1">{{ banding.a.label }}</div>
@@ -265,6 +268,60 @@
               :class="banding.total.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
             >
               {{ fmt(banding.total.selisih) }} ({{ banding.total.persen }}%)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grafik perbandingan per pos penerimaan utama -->
+      <div v-if="banding" class="mb-4 rounded-lg border border-card-line bg-card">
+        <div class="flex flex-wrap items-center gap-2 border-b border-card-divider px-4 py-3">
+          <ChartColumnBig class="shrink-0 size-4 text-muted-foreground-1" aria-hidden="true" />
+          <span class="font-medium text-foreground">Grafik Perbandingan Penerimaan per Pos</span>
+          <div class="ms-auto inline-flex items-center rounded-lg border border-layer-line bg-layer p-0.5" role="group" aria-label="Mode grafik">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-md p-1.5 text-layer-foreground hover:bg-layer-hover focus:outline-hidden"
+              :class="modeBandingChart === 'chart' ? 'bg-primary/10 text-primary' : ''"
+              title="Grafik batang"
+              aria-label="Grafik batang"
+              @click="modeBandingChart = 'chart'"
+            >
+              <ChartColumnBig class="shrink-0 size-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-md p-1.5 text-layer-foreground hover:bg-layer-hover focus:outline-hidden"
+              :class="modeBandingChart === 'bars' ? 'bg-primary/10 text-primary' : ''"
+              title="Bar horizontal"
+              aria-label="Bar horizontal"
+              @click="modeBandingChart = 'bars'"
+            >
+              <Rows3 class="shrink-0 size-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        <div class="p-4">
+          <div v-if="bandLoading" class="py-8 text-center text-muted-foreground-1">Memuat grafik...</div>
+          <SiperpadChart
+            v-else-if="tab === 'banding' && modeBandingChart === 'chart' && bandingChartCategories.length"
+            :series="bandingChartSeries"
+            :categories="bandingChartCategories"
+            :height="340"
+            type="bar"
+          />
+          <div v-else-if="modeBandingChart === 'chart'" class="py-8 text-center text-muted-foreground-1">Belum ada data untuk dibandingkan</div>
+          <div v-else class="space-y-2">
+            <div v-if="!bandingChartCategories.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
+            <div v-for="(label, i) in bandingChartCategories" :key="label" class="flex items-center gap-3">
+              <span class="w-40 shrink-0 truncate text-xs text-foreground" :title="label">{{ label }}</span>
+              <div class="flex-1 space-y-1">
+                <div class="h-2.5 rounded-full bg-primary/70" :style="{ width: barWidth(bandingChartSeries[0]?.data[i] ?? 0) }" />
+                <div class="h-2.5 rounded-full bg-emerald-500/70" :style="{ width: barWidth(bandingChartSeries[1]?.data[i] ?? 0) }" />
+              </div>
+              <span class="w-44 shrink-0 text-end text-xs text-muted-foreground-1">
+                {{ fmt(bandingChartSeries[0]?.data[i] ?? 0) }} &rarr; {{ fmt(bandingChartSeries[1]?.data[i] ?? 0) }}
+              </span>
             </div>
           </div>
         </div>
@@ -297,7 +354,11 @@
               </tr>
               <tr v-for="r in bandingFiltered" v-else :key="r.jenis_id" class="hover:bg-layer-hover">
                 <td class="px-3 py-2.5 font-medium text-foreground">{{ r.kode || '-' }}</td>
-                <td class="px-3 py-2.5 text-foreground">{{ r.nama }}</td>
+                <td class="px-3 py-2.5 text-foreground">
+                  <span :style="{ paddingInlineStart: `${(r.level - 1) * 14}px` }" :class="r.has_child ? 'font-medium' : ''">
+                    {{ r.nama }}
+                  </span>
+                </td>
                 <td class="px-3 py-2.5">
                   <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
                     {{ r.kawasan_kode }}
@@ -337,7 +398,7 @@
           <div v-else-if="!bandingFiltered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
           <ul v-else class="divide-y divide-table-line">
             <li v-for="r in bandingFiltered" :key="r.jenis_id" class="flex items-center gap-2 py-2">
-              <span class="min-w-0 flex-1">
+              <span class="min-w-0 flex-1" :style="{ paddingInlineStart: `${(r.level - 1) * 14}px` }">
                 <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
                 <span class="block truncate text-xs text-muted-foreground-1">{{ r.kawasan_kode }}</span>
               </span>
@@ -364,9 +425,11 @@
 import {
   ArrowRight,
   ChartColumn,
+  ChartColumnBig,
   FileSpreadsheet,
   FileText,
   LoaderCircle,
+  Rows3,
   Search,
 } from 'lucide-vue-next'
 
@@ -397,6 +460,12 @@ const loading = ref(false)
 const perJenis = ref<RekapRow[]>([])
 const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number; selisih: number } | null>(null)
 const exporting = ref('')
+// Mode periode laporan: bulan (rekap bulan terpilih) atau tahun (12 bulan).
+const periode = ref<'bulan' | 'tahun'>('bulan')
+const periodeOpts = [
+  { label: 'Bulanan', value: 'bulan' },
+  { label: 'Tahunan', value: 'tahun' },
+]
 
 const tabs = [
   { value: 'rekap', label: 'Rekap' },
@@ -404,19 +473,31 @@ const tabs = [
 ]
 // Tab perbandingan
 const tab = ref('rekap')
-type BandRow = { jenis_id: number; kode: string; nama: string; level: number; kawasan_kode: string; kawasan_nama: string; a: number; b: number; selisih: number; persen: number }
+type BandRow = { jenis_id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; has_child: boolean; a: number; b: number; selisih: number; persen: number }
 const bandTahun = ref(new Date().getFullYear())
 const bandBulanA = ref(new Date().getMonth() === 0 ? 12 : new Date().getMonth())
 const bandBulanB = ref(new Date().getMonth() + 1)
 const banding = ref<{ a: { label: string }; b: { label: string }; total: { a: number; b: number; selisih: number; persen: number }; perJenis: BandRow[] } | null>(null)
 const bandLoading = ref(false)
+// Tampilkan hierarki penuh (indentasi) — bukan hanya level 1 — agar rincian
+// pos (mis. Food Court, Parkir) terlihat saat membandingkan periode.
 const bandingFiltered = computed(() => {
   const s = q.value.trim().toLowerCase()
   const list = banding.value?.perJenis || []
-  const onlyRoot = list.filter((r) => r.level === 1)
-  if (!s) return onlyRoot
-  return onlyRoot.filter((r) => (r.kode || '').toLowerCase().includes(s) || r.nama.toLowerCase().includes(s))
+  if (!s) return list
+  return list.filter((r) => (r.kode || '').toLowerCase().includes(s) || r.nama.toLowerCase().includes(s) || r.kawasan_nama.toLowerCase().includes(s))
 })
+
+// Grafik perbandingan: pos level 1 (induk) agar ringkas dan tidak dobel-hitung.
+const modeBandingChart = ref<'chart' | 'bars'>('chart')
+const bandingChartRows = computed(() => (banding.value?.perJenis || []).filter((r) => r.level === 1 && (r.a > 0 || r.b > 0)))
+const bandingChartCategories = computed(() => bandingChartRows.value.map((r) => r.nama))
+const bandingChartSeries = computed(() => [
+  { name: banding.value?.a.label || 'A', data: bandingChartRows.value.map((r) => r.a) },
+  { name: banding.value?.b.label || 'B', data: bandingChartRows.value.map((r) => r.b) },
+])
+const bandingChartMax = computed(() => Math.max(1, ...bandingChartRows.value.flatMap((r) => [r.a, r.b])))
+function barWidth(v: number) { return `${Math.max(2, Math.round((v / bandingChartMax.value) * 100))}%` }
 
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase()
@@ -485,7 +566,7 @@ async function loadBanding() {
 async function doExport(format: string) {
   exporting.value = format
   try {
-    const params = new URLSearchParams({ format, tahun: String(tahun.value), bulan: String(bulan.value) })
+    const params = new URLSearchParams({ format, tahun: String(tahun.value), bulan: String(bulan.value), periode: periode.value })
     if (filterKawasan.value) params.set('kawasan_id', String(filterKawasan.value))
     const res = await fetch(`/api/laporan/export?${params.toString()}`, { credentials: 'include' })
     if (!res.ok) {

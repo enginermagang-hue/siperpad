@@ -1,6 +1,6 @@
 import { query, execute } from '../../utils/db'
 import { monthStart, nextMonthStart, MINGGU_REP_DAY, pad2 } from '../../utils/periode'
-import { isPeriodeLocked } from '../../utils/lock'
+import { isPeriodeLocked, assertKawasanAllowed } from '../../utils/lock'
 
 // Ajukan realisasi draft pada (kawasan, tahun, bulan) sekaligus.
 // Bila `minggu` (1-4) dikirim, hanya minggu tersebut yang diajukan.
@@ -16,6 +16,8 @@ export default defineEventHandler(async (event) => {
   const minggu = body.minggu == null ? null : Number(body.minggu)
   if (!kawasanId || !tahun || !bulan) throw createError({ statusCode: 400, message: 'kawasan_id, tahun, bulan wajib' })
   if (minggu != null && ![1, 2, 3, 4].includes(minggu)) throw createError({ statusCode: 400, message: 'minggu harus 1-4' })
+  // Petugas hanya boleh mengajukan kawasan penugasannya.
+  assertKawasanAllowed(session.user, kawasanId)
   if (await isPeriodeLocked(tahun, bulan, kawasanId)) throw createError({ statusCode: 409, message: 'Periode sudah dikunci' })
 
   const mStart = monthStart(tahun, bulan)

@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
   const role = String(session.user.role)
-  if (!['admin', 'kepala'].includes(role)) throw createError({ statusCode: 403, message: 'Hanya admin/kepala' })
+  if (role !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin (bendahara penerimaan) yang dapat memverifikasi' })
 
   const body = await readBody(event) as { ids?: number[]; aksi?: string; catatan?: string }
   const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter((n) => n > 0) : []

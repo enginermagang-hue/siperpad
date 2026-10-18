@@ -1,6 +1,6 @@
 import { query } from '../../utils/db'
 import { APPROVED_STATUS, MINGGU_REP_DAY, monthStart, nextMonthStart, monthLabel } from '../../utils/periode'
-import { isPeriodeLocked } from '../../utils/lock'
+import { isPeriodeLocked, sessionKawasanId } from '../../utils/lock'
 
 // Grid entri mingguan: daftar leaf per kawasan dengan nilai Minggu I-IV untuk
 // bulan terpilih, realisasi s/d bulan lalu, target, dan status kunci.
@@ -11,8 +11,14 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event) as { kawasan_id?: string; tahun?: string; bulan?: string }
   const tahun = Number(q.tahun) || new Date().getFullYear()
   const bulan = Number(q.bulan) || new Date().getMonth() + 1
-  const kawasanId = Number(q.kawasan_id)
+  // Petugas dengan penugasan kawasan: kawasan_id dikunci ke penugasannya.
+  const scoped = sessionKawasanId(session.user)
+  const requested = q.kawasan_id ? Number(q.kawasan_id) : null
+  const kawasanId = scoped ?? requested
   if (!kawasanId) throw createError({ statusCode: 400, message: 'kawasan_id wajib' })
+  if (scoped != null && requested != null && requested !== scoped) {
+    throw createError({ statusCode: 403, message: 'Anda hanya dapat mengakses kawasan penugasan Anda' })
+  }
   if (bulan < 1 || bulan > 12) throw createError({ statusCode: 400, message: 'bulan tidak valid' })
 
   const mStart = monthStart(tahun, bulan)
@@ -108,6 +114,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     data: rows,
-    meta: { tahun, bulan, bulanLabel: monthLabel(bulan), kawasanId, kawasan: kawasan[0] ?? null, locked, repDays: MINGGU_REP_DAY, approvedStatus: APPROVED_STATUS },
+    meta: { tahun, bulan, bulanLabel: monthLabel(bulan), kawasanId, kawasan: kawasan[0] ?? null, locked, repDays: MINGGU_REP_DAY, approvedStatus: APPROVED_STATUS, scopedKawasanId: scoped },
   }
 })

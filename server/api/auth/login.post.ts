@@ -1,4 +1,4 @@
-import { getTursoClient } from '../../utils/db'
+﻿import { getTursoClient } from '../../utils/db'
 import { scryptSync } from 'node:crypto'
 
 function verifyPassword(password: string, stored: string): boolean {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   const client = getTursoClient()
   const rows = await client.execute(
-    'SELECT id, nama, nip, email, password_hash, role, aktif FROM users WHERE email = ?',
+    'SELECT id, nama, nip, email, password_hash, role, kawasan_id, aktif FROM users WHERE email = ?',
     [email]
   )
 
@@ -35,6 +35,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: 'Akun Anda dinonaktifkan' })
   }
 
+  const kawasanId = user.kawasan_id == null ? null : Number(user.kawasan_id)
+
   await setUserSession(event, {
     user: {
       id: Number(user.id),
@@ -42,8 +44,9 @@ export default defineEventHandler(async (event) => {
       nip: String(user.nip ?? ''),
       email: String(user.email),
       role: String(user.role),
+      kawasan_id: kawasanId,
     },
   })
 
-  return { ok: true, user: { id: Number(user.id), nama: String(user.nama), email: String(user.email), role: String(user.role) } }
+  return { ok: true, user: { id: Number(user.id), nama: String(user.nama), email: String(user.email), role: String(user.role), kawasan_id: kawasanId } }
 })

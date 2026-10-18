@@ -12,7 +12,9 @@ export default defineEventHandler(async (event) => {
   const scope = (q.scope as 'bulanan' | 'triwulan' | 'tahunan') || 'bulanan'
   if (!['bulanan', 'triwulan', 'tahunan'].includes(scope)) throw createError({ statusCode: 400, message: 'Scope harus bulanan/triwulan/tahunan' })
 
-  const perJenis = await getRekapPerJenis({ kawasanId, tahun })
+  // Rekap per jenis dihitung kumulatif s/d bulan terpilih, agar kolom
+  // "Capaian" sejajar dengan laporan Excel (Realisasi s/d Bulan Ini).
+  const perJenis = await getRekapPerJenis({ kawasanId, tahun, sampaiBulan: bulan })
   const totals = await getTotals(perJenis)
   const timeseries = await getTimeseries({ kawasanId, tahun, scope })
   const kumulatif = await getRealisasiKumulatif({ kawasanId, tahun, bulan })

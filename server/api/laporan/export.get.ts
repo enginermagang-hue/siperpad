@@ -340,8 +340,148 @@ async function buildWorkbookMingguan(opts: { kawasanId?: number; tahun: number; 
   // Auto filter on header?
   // ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: 7, column: 11 } }
 
+  // === SHEET 2: PERBANDINGAN PERIODE (bulan lalu vs bulan berjalan) ===
+  // Meniru sheet "Perbandingan Agt vs Sept" pada file Excel referensi:
+  // kolom Bulan Berjalan A vs B + selisih (Rp & %), lalu realisasi kumulatif.
+  await buildSheetPerbandingan(wb, { kawasanId: opts.kawasanId, tahun: opts.tahun, bulan: opts.bulan, kawasanList })
+
   const buf: Buffer = await wb.xlsx.writeBuffer()
   return { buf, kawasanList, dataEndRow }
+}
+
+// Bangun sheet "Perbandingan" (bulan lalu vs bulan berjalan) pada workbook.
+async function buildSheetPerbandingan(
+  wb: any,
+  opts: { kawasanId?: number; tahun: number; bulan: number; kawasanList: { id: number; kode: string; nama: string }[] },
+) {
+  const { getPerbandingan, getRealisasiKumulatif } = await import('../../utils/rekap')
+  const { monthStart, monthEnd, monthLabel } = await import('../../utils/periode')
+
+  const prevBulan = opts.bulan === 1 ? 12 : opts.bulan - 1
+  const prevTahun = opts.bulan === 1 ? opts.tahun - 1 : opts.tahun
+  const labelA = `${monthLabel(prevBulan)} ${prevTahun}`
+  const labelB = `${monthLabel(opts.bulan)} ${opts.tahun}`
+
+  const { perJenis, total } = await getPerbandingan({
+    kawasanId: opts.kawasanId,
+    a: { from: monthStart(prevTahun, prevBulan), to: monthEnd(prevTahun, prevBulan), label: labelA },
+    b: { from: monthStart(opts.tahun, opts.bulan), to: monthEnd(opts.tahun, opts.bulan), label: labelB },
+  })
+
+  // Kumulatif s/d masing-masing periode (untuk kolom "% Capai" ala referensi).
+  const kumA = await getRealisasiKumulatif({ kawasanId: opts.kawasanId, tahun: prevTahun, bulan: prevBulan })
+  const kumB = await getRealisasiKumulatif({ kawasanId: opts.kawasanId, tahun: opts.tahun, bulan: opts.bulan })
+
+  const ws = wb.addWorksheet(`Perbandingan`, {
+    properties: { tabColor: { argb: 'FF1F7A4D' } },
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true },
+  })
+
+  ws.columns = [
+    { width: 12 }, // A Kode
+    { width: 54 }, // B Jenis Penerimaan
+    { width: 16 }, // C Bulan A
+    { width: 16 }, // D Bulan B
+    { width: 16 }, // E Selisih (Rp)
+    { width: 11 }, // F Selisih (%)
+  ]
+
+  const titleFont = { name: 'Calibri', size: 12, bold: true, color: { argb: NAVY } }
+  const titles = [
+    'PERBANDINGAN REALISASI PENERIMAAN',
+    'DINAS PARIWISATA DAN EKONOMI KREATIF PROVINSI NTT',
+    'KAWASAN WISATA PANTAI LASIANA DAN KAMPUNG SENI FLOBAMORATA',
+    `${labelA}  vs  ${labelB}`,
+    '(dalam Rupiah)',
+  ]
+  titles.forEach((t, i) => {
+    const row = ws.getRow(i + 1)
+    const cell = row.getCell(1)
+    cell.value = t
+    ws.mergeCells(i + 1, 1, i + 1, 6)
+    cell.font = titleFont
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  })
+
+  const headerRow = ws.getRow(7)
+  headerRow.height = 28
+  const headers = ['Kode', 'Jenis Penerimaan', labelA, labelB, 'Selisih (Rp)', 'Selisih (%)']
+  headers.forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1)
+    cell.value = h
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: WHITE } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
+    cell.alignment = { horizontal: i === 1 ? 'left' : 'center', vertical: 'middle', wrapText: true }
+    cell.border = BORDER_ALL
+  })
+
+  const rupiahFmt = '#,##0;[Red]-#,##0'
+  let r = 8
+  for (const row of perJenis) {
+    const excelRow = ws.getRow(r)
+    excelRow.height = 15
+    const indent = Math.max(0, (row.level - 1) * 2)
+    const cells = [
+      { v: row.kode || '', num: false },
+      { v: ' '.repeat(indent) + row.nama, num: false },
+      { v: row.a, num: true },
+      { v: row.b, num: true },
+      { v: row.selisih, num: true },
+      { v: row.persen / 100, num: true },
+    ]
+    cells.forEach((c, i) => {
+      const cell = excelRow.getCell(i + 1)
+      cell.value = c.v
+      cell.font = { name: 'Calibri', size: 11, bold: row.has_child, color: { argb: row.level === 1 ? NAVY : 'FF000000' } }
+      cell.alignment = { horizontal: c.num ? 'right' : 'left', vertical: 'middle' }
+      cell.border = BORDER_ALL
+      if (c.num) cell.numFmt = i === 5 ? '0.00%' : rupiahFmt
+    })
+    r++
+  }
+
+  // Baris TOTAL
+  const totalRow = ws.getRow(r)
+  totalRow.height = 16
+  const totalCells = [
+    { v: 'TOTAL', num: false },
+    { v: '', num: false },
+    { v: total.a, num: true },
+    { v: total.b, num: true },
+    { v: total.selisih, num: true },
+    { v: total.persen / 100, num: true },
+  ]
+  totalCells.forEach((c, i) => {
+    const cell = totalRow.getCell(i + 1)
+    cell.value = c.v
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: NAVY } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: YELLOW } }
+    cell.alignment = { horizontal: c.num ? 'right' : 'left', vertical: 'middle' }
+    cell.border = BORDER_ALL
+    if (c.num) cell.numFmt = i === 5 ? '0.00%' : rupiahFmt
+  })
+  r += 2
+
+  // CATATAN perbandingan
+  const noteRows = [
+    `Realisasi kumulatif s/d ${labelA}: Rp${kumA.kumulatif.toLocaleString('id-ID')} | s/d ${labelB}: Rp${kumB.kumulatif.toLocaleString('id-ID')}.`,
+    'Selisih = Bulan B - Bulan A. Nilai negatif berarti penerimaan bulan berjalan lebih rendah dari bulan pembanding.',
+    'Angka resmi hanya realisasi berstatus DISETUJUI.',
+  ]
+  const nCell = ws.getRow(r).getCell(1)
+  nCell.value = 'CATATAN'
+  nCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: RED } }
+  r++
+  for (const note of noteRows) {
+    const cell = ws.getRow(r).getCell(1)
+    cell.value = note
+    cell.font = { name: 'Calibri', size: 10, color: { argb: GRAY } }
+    cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' }
+    ws.mergeCells(r, 1, r, 6)
+    r++
+  }
+
+  ws.views = [{ state: 'frozen', ySplit: 7 }]
 }
 
 // === LAPORAN REALISASI PENERIMAAN (PDF) ===
@@ -353,14 +493,16 @@ const PAGE_H = 612
 const MARGIN = 20
 
 // Blok tanda tangan (statis; mudah diganti bila pejabat berubah).
+// Sesuai struktur organisasi pada percakapan: pimpinan pemantau PAD adalah
+// Kasubag Keuangan (bukan Kepala Dinas), bendahara penerimaan sebagai validator.
 const PEJABAT = {
   tempatTanggal: (tgl: number, bulanLabel: string, tahun: number) => `Kupang, ${tgl} ${bulanLabel} ${tahun}`,
   kiri: {
     pembuka: 'Mengetahui',
-    jabatan: ['Kepala Dinas Pariwisata dan Ekonomi Kreatif', 'Provinsi Nusa Tenggara Timur'],
-    nama: 'Drs. Doris Alexander Rihi, M.Si',
-    pangkat: 'Pembina Utama Madya (IV/d)',
-    nip: 'NIP 197012291990031005',
+    jabatan: ['Kasubag Keuangan', 'Dinas Pariwisata dan Ekonomi Kreatif Provinsi NTT'],
+    nama: '......................................',
+    pangkat: '',
+    nip: 'NIP ......................................',
   },
   kanan: {
     pembuka: 'Bendahara Penerimaan,',
@@ -670,23 +812,169 @@ async function buildPdfRows(opts: { kawasanId?: number; tahun: number; bulan: nu
   return { rows: pdfRows, bulanLabel, tanggalAngka: lastDay, tanggalLabel }
 }
 
+// Bangun laporan tahunan: rekap per bulan (12 baris) + total, per kawasan.
+async function buildLaporanTahunan(opts: { kawasanId?: number; tahun: number; format: string }): Promise<Buffer | string> {
+  const { getRealisasiKumulatif } = await import('../../utils/rekap')
+  const { monthLabel } = await import('../../utils/periode')
+  const { query } = await import('../../utils/db')
+  const { APPROVED_STATUS } = await import('../../utils/periode')
+
+  // Ambil kawasan (semua atau satu).
+  const kawasanRows = await query<{ id: number; kode: string; nama: string }>(
+    opts.kawasanId
+      ? 'SELECT id, kode, nama FROM kawasan WHERE aktif = 1 AND id = ? ORDER BY urutan'
+      : 'SELECT id, kode, nama FROM kawasan WHERE aktif = 1 ORDER BY urutan',
+    opts.kawasanId ? [opts.kawasanId] : [],
+  )
+
+  // Realisasi per bulan per kawasan.
+  const monthly = await query<{ kawasan_id: number; bulan: string; total: number }>(
+    `SELECT jr.kawasan_id, substr(r.tanggal, 6, 2) AS bulan, COALESCE(SUM(r.jumlah), 0) AS total
+     FROM realisasi r JOIN jenis_retribusi jr ON jr.id = r.jenis_retribusi_id
+     WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ?
+     GROUP BY jr.kawasan_id, bulan`,
+    [APPROVED_STATUS, String(opts.tahun)],
+  )
+  const byKawasanBulan = new Map<string, number>()
+  for (const m of monthly) byKawasanBulan.set(`${m.kawasan_id}-${m.bulan}`, Number(m.total) || 0)
+
+  // Target tahunan per kawasan.
+  const targetRows = await query<{ kawasan_id: number; total: number }>(
+    `SELECT jr.kawasan_id, COALESCE(SUM(t.nilai), 0) AS total
+     FROM target t JOIN jenis_retribusi jr ON jr.id = t.jenis_retribusi_id
+     WHERE t.tahun = ? AND jr.aktif = 1 AND NOT EXISTS (SELECT 1 FROM jenis_retribusi c WHERE c.parent_id = jr.id)
+     GROUP BY jr.kawasan_id`,
+    [opts.tahun],
+  )
+  const targetByKawasan = new Map<number, number>()
+  for (const t of targetRows) targetByKawasan.set(Number(t.kawasan_id), Number(t.total) || 0)
+
+  const rupiahFmt = '#,##0;[Red]-#,##0'
+  const headers = ['Bulan', ...kawasanRows.map((k) => `${k.kode} - ${k.nama}`), 'TOTAL']
+  const dataRows: (string | number)[][] = []
+  const grandTotalByKawasan = new Array(kawasanRows.length).fill(0)
+  let grandTotal = 0
+
+  for (let m = 1; m <= 12; m++) {
+    const mm = String(m).padStart(2, '0')
+    const vals = kawasanRows.map((k, i) => {
+      const v = byKawasanBulan.get(`${k.id}-${mm}`) || 0
+      grandTotalByKawasan[i] += v
+      return v
+    })
+    const rowTotal = vals.reduce((s, v) => s + v, 0)
+    grandTotal += rowTotal
+    dataRows.push([monthLabel(m), ...vals, rowTotal])
+  }
+  dataRows.push(['TOTAL', ...grandTotalByKawasan, grandTotal])
+
+  // Baris target + capaian.
+  const targetVals = kawasanRows.map((k) => targetByKawasan.get(k.id) || 0)
+  const targetTotal = targetVals.reduce((s, v) => s + v, 0)
+  dataRows.push(['TARGET', ...targetVals, targetTotal])
+  const capaianVals = kawasanRows.map((k, i) => (targetVals[i]! > 0 ? grandTotalByKawasan[i] / targetVals[i]! : 0))
+  const capaianTotal = targetTotal > 0 ? grandTotal / targetTotal : 0
+  dataRows.push(['% CAPAI', ...capaianVals, capaianTotal])
+
+  if (opts.format === 'csv') {
+    const lines = [headers.join(',')]
+    for (const row of dataRows) lines.push(row.map((v) => (typeof v === 'string' ? `"${v.replace(/"/g, '""')}"` : String(v))).join(','))
+    return lines.join('\n')
+  }
+
+  // XLSX
+  const ExcelJS: any = await import('exceljs').then((m: any) => m.default || m)
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'SiperPAD'
+  wb.created = new Date()
+  const ws = wb.addWorksheet(`Tahunan ${opts.tahun}`, {
+    properties: { tabColor: { argb: NAVY } },
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true },
+  })
+
+  ws.columns = [
+    { width: 16 },
+    ...kawasanRows.map(() => ({ width: 20 })),
+    { width: 20 },
+  ]
+
+  const titles = [
+    'LAPORAN REALISASI PENERIMAAN TAHUNAN',
+    'DINAS PARIWISATA DAN EKONOMI KREATIF PROVINSI NTT',
+    'KAWASAN WISATA PANTAI LASIANA DAN KAMPUNG SENI FLOBAMORATA',
+    `TAHUN ${opts.tahun} (dalam Rupiah)`,
+  ]
+  titles.forEach((t, i) => {
+    const cell = ws.getRow(i + 1).getCell(1)
+    cell.value = t
+    ws.mergeCells(i + 1, 1, i + 1, headers.length)
+    cell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: NAVY } }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  })
+
+  const headerRow = ws.getRow(6)
+  headerRow.height = 24
+  headers.forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1)
+    cell.value = h
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: WHITE } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
+    cell.alignment = { horizontal: i === 0 ? 'left' : 'center', vertical: 'middle', wrapText: true }
+    cell.border = BORDER_ALL
+  })
+
+  let r = 7
+  for (const row of dataRows) {
+    const excelRow = ws.getRow(r)
+    excelRow.height = 15
+    const isSummary = row[0] === 'TOTAL' || row[0] === 'TARGET' || row[0] === '% CAPAI'
+    row.forEach((v, i) => {
+      const cell = excelRow.getCell(i + 1)
+      cell.value = v
+      cell.font = { name: 'Calibri', size: 11, bold: isSummary }
+      cell.alignment = { horizontal: i === 0 ? 'left' : 'right', vertical: 'middle' }
+      cell.border = BORDER_ALL
+      if (isSummary) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row[0] === '% CAPAI' ? LIGHT_BLUE : YELLOW } }
+      if (i > 0) cell.numFmt = row[0] === '% CAPAI' ? '0.00%' : rupiahFmt
+    })
+    r++
+  }
+
+  ws.views = [{ state: 'frozen', ySplit: 6 }]
+  return await wb.xlsx.writeBuffer() as Buffer
+}
+
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
   const role = String(session.user.role)
   if (!['admin', 'kepala'].includes(role)) throw createError({ statusCode: 403, message: 'Hanya admin/kepala dapat ekspor' })
 
-  const q = getQuery(event) as { kawasan_id?: string; tahun?: string; bulan?: string; format?: string }
+  const q = getQuery(event) as { kawasan_id?: string; tahun?: string; bulan?: string; format?: string; periode?: string }
   const tahun = Number(q.tahun) || new Date().getFullYear()
   let bulan = q.bulan ? Number(q.bulan) : new Date().getMonth() + 1
   if (!Number.isFinite(bulan) || bulan < 1 || bulan > 12) bulan = new Date().getMonth() + 1
   const kawasanId = q.kawasan_id ? Number(q.kawasan_id) : undefined
   const format = (q.format || 'csv').toLowerCase()
+  // periode = 'tahun' → laporan tahunan (12 bulan + total); default 'bulan'.
+  const periode = (q.periode || 'bulan').toLowerCase()
+  if (!['bulan', 'tahun'].includes(periode)) throw createError({ statusCode: 400, message: 'Periode harus bulan/tahun' })
   if (!['csv', 'xlsx', 'pdf'].includes(format)) throw createError({ statusCode: 400, message: 'Format harus csv/xlsx/pdf' })
+
+  // Laporan tahunan (rekap 12 bulan + total) — hanya XLSX/CSV.
+  if (periode === 'tahun') {
+    const buf = await buildLaporanTahunan({ kawasanId, tahun, format })
+    const kawasanSlug = kawasanId ? String(kawasanId) : 'Semua-Kawasan'
+    const ext = format === 'csv' ? 'csv' : 'xlsx'
+    const mime = format === 'csv' ? 'text/csv; charset=utf-8' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    setHeader(event, 'Content-Type', mime)
+    setHeader(event, 'Content-Disposition', `attachment; filename="laporan-tahunan-${kawasanSlug}-${tahun}.${ext}"`)
+    return buf
+  }
 
   // CSV keep flat rekap
   if (format === 'csv') {
-    const perJenis = await getRekapPerJenis({ kawasanId, tahun })
+    const perJenis = await getRekapPerJenis({ kawasanId, tahun, sampaiBulan: bulan })
     let kawasanLabel = 'Semua Kawasan'
     if (kawasanId) {
       const r = await query<{ nama: string; kode: string }>('SELECT nama, kode FROM kawasan WHERE id = ?', [kawasanId])

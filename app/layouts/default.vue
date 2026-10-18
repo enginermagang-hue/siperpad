@@ -102,8 +102,8 @@
           </div>
         </div>
 
-        <!-- Verifikasi (admin/kepala) -->
-        <div v-if="isAdmin || isKepala" class="mb-1">
+        <!-- Verifikasi (admin) — pimpinan hanya monitoring, tanpa verifikasi -->
+        <div v-if="isAdmin" class="mb-1">
           <button
             type="button"
             title="Verifikasi"
@@ -643,13 +643,12 @@ onMounted(() => loadNotif())
 
 const isAdmin = computed(() => String(session.user.value?.role || '') === 'admin')
 const isUser = computed(() => String(session.user.value?.role || '') === 'user')
-const isKepala = computed(() => String(session.user.value?.role || '') === 'kepala')
 const userName = computed(() => String(session.user.value?.nama || 'Pengguna'))
 const roleLabel = computed(() => {
   const r = String(session.user.value?.role || '')
   if (r === 'user') return 'Petugas Input'
   if (r === 'admin') return 'Administrator'
-  if (r === 'kepala') return 'Kepala'
+  if (r === 'kepala') return 'Pimpinan'
   return ''
 })
 

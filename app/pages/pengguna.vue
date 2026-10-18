@@ -46,16 +46,17 @@
               <th class="px-3 py-2.5 text-start font-medium">NIP</th>
               <th class="px-3 py-2.5 text-start font-medium">Email</th>
               <th class="px-3 py-2.5 text-start font-medium">Role</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
               <th class="px-3 py-2.5 text-start font-medium">Status</th>
               <th class="w-[140px] px-3 py-2.5 text-start font-medium">Aksi</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-table-line">
             <tr v-if="loading">
-              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+              <td colspan="7" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
             </tr>
             <tr v-else-if="!filtered.length">
-              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
+              <td colspan="7" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
             </tr>
             <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover">
               <td class="px-3 py-2.5 font-medium text-foreground">{{ r.nama }}</td>
@@ -65,6 +66,12 @@
                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="roleChip(r.role)">
                   {{ r.role }}
                 </span>
+              </td>
+              <td class="px-3 py-2.5 text-foreground">
+                <span v-if="r.kawasan_nama" class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                  {{ r.kawasan_kode }} - {{ r.kawasan_nama }}
+                </span>
+                <span v-else class="text-xs text-muted-foreground-1">Semua</span>
               </td>
               <td class="px-3 py-2.5">
                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="aktifChip(r.aktif)">
@@ -113,6 +120,7 @@
           :fields="[
             { label: 'NIP', value: r.nip || '-' },
             { label: 'Email', value: r.email },
+            { label: 'Kawasan', value: r.kawasan_nama ? `${r.kawasan_kode} - ${r.kawasan_nama}` : 'Semua kawasan' },
           ]"
         >
           <template #badge>
@@ -230,6 +238,20 @@
         <p v-if="err.role" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.role }}</p>
       </div>
 
+      <div v-if="isPetugas" class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Kawasan Penugasan</label>
+        <AppSelect
+          v-model="form.kawasan_id"
+          :items="kawasanOpts"
+          placeholder="Semua kawasan (bebas)"
+          clearable
+          in-modal
+        />
+        <p class="mt-1 text-xs text-muted-foreground-1">
+          Petugas hanya dapat menginput &amp; mengajukan realisasi pada kawasan ini. Kosongkan bila petugas boleh mengakses semua kawasan.
+        </p>
+      </div>
+
       <div class="mb-2">
         <label class="mb-1.5 block text-sm font-medium text-foreground">
           {{ editing ? 'Password baru (kosongkan jika tidak ganti)' : 'Password *' }}
@@ -306,7 +328,8 @@
 import { LoaderCircle, Pencil, Plus, Search, Trash2, UserCog, UserPen, UserPlus, UserX } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
-type Row = { id: number; nama: string; nip: string; email: string; role: string; aktif: number; created_at: string }
+type Row = { id: number; nama: string; nip: string; email: string; role: string; kawasan_id: number | null; kawasan_kode: string | null; kawasan_nama: string | null; aktif: number; created_at: string }
+type Kawasan = { id: number; kode: string; nama: string }
 
 const { mode } = useViewMode('pengguna')
 
@@ -314,10 +337,15 @@ const session = useUserSession()
 const selfId = computed(() => Number(session.user.value?.id || 0))
 
 const roleOpts = [
-  { label: 'user — Petugas Input', value: 'user' },
-  { label: 'admin — Administrator', value: 'admin' },
-  { label: 'kepala — Kepala', value: 'kepala' },
+  { label: 'user - Petugas Input', value: 'user' },
+  { label: 'admin - Administrator', value: 'admin' },
+  { label: 'kepala - Pimpinan (Kasubag Keuangan)', value: 'kepala' },
 ]
+
+// Penugasan kawasan hanya relevan untuk role Petugas Input.
+const kawasanList = ref<Kawasan[]>([])
+const kawasanOpts = computed(() => kawasanList.value.map((k) => ({ label: `${k.kode} - ${k.nama}`, value: k.id })))
+const isPetugas = computed(() => form.role === 'user')
 
 const rows = ref<Row[]>([])
 const loading = ref(false)
@@ -344,7 +372,7 @@ watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 const dialog = ref(false)
 const editing = ref<Row | null>(null)
 const saving = ref(false)
-const form = reactive({ nama: '', nip: '', email: '', role: 'user' as string, password: '', aktif: true })
+const form = reactive({ nama: '', nip: '', email: '', role: 'user' as string, kawasan_id: null as number | null, password: '', aktif: true })
 const err = reactive({ nama: '', email: '', role: '', password: '' })
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)
@@ -368,15 +396,18 @@ async function load() {
   try { const r = await $fetch<{ data: Row[] }>('/api/users'); rows.value = r.data } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat', 'error') }
   finally { loading.value = false }
 }
+async function loadKawasan() {
+  try { const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan'); kawasanList.value = r.data } catch {}
+}
 function openAdd() {
   editing.value = null
-  form.nama = ''; form.nip = ''; form.email = ''; form.role = 'user'; form.password = ''; form.aktif = true
+  form.nama = ''; form.nip = ''; form.email = ''; form.role = 'user'; form.kawasan_id = null; form.password = ''; form.aktif = true
   err.nama = ''; err.email = ''; err.role = ''; err.password = ''
   dialog.value = true
 }
 function openEdit(r: Row) {
   editing.value = r
-  form.nama = r.nama; form.nip = r.nip || ''; form.email = r.email; form.role = r.role; form.password = ''; form.aktif = !!r.aktif
+  form.nama = r.nama; form.nip = r.nip || ''; form.email = r.email; form.role = r.role; form.kawasan_id = r.kawasan_id ?? null; form.password = ''; form.aktif = !!r.aktif
   err.nama = ''; err.email = ''; err.role = ''; err.password = ''
   dialog.value = true
 }
@@ -392,7 +423,7 @@ async function save() {
   if (err.nama || err.email || err.role || err.password) return
   saving.value = true
   try {
-    const body: Record<string, unknown> = { nama: form.nama.trim(), nip: form.nip.trim(), email: form.email.trim(), role: form.role, aktif: form.aktif ? 1 : 0 }
+    const body: Record<string, unknown> = { nama: form.nama.trim(), nip: form.nip.trim(), email: form.email.trim(), role: form.role, aktif: form.aktif ? 1 : 0, kawasan_id: form.role === 'user' ? form.kawasan_id : null }
     if (form.password) body.password = form.password
     if (editing.value) {
       await $fetch(`/api/users/${editing.value.id}`, { method: 'PUT', body })
@@ -415,5 +446,5 @@ async function doDelete() {
   finally { deleting.value = false }
 }
 
-onMounted(load)
+onMounted(async () => { await loadKawasan(); await load() })
 </script>

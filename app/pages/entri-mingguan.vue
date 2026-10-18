@@ -33,7 +33,13 @@
     <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
       <div class="flex flex-wrap gap-3">
         <div class="w-full max-w-[260px]">
-          <AppSelect v-model="kawasanId" :items="kawasanOpts" placeholder="Kawasan *" @update:model-value="load" />
+          <AppSelect
+            v-model="kawasanId"
+            :items="kawasanOpts"
+            :disabled="!!scopedKawasanId"
+            placeholder="Kawasan *"
+            @update:model-value="load"
+          />
         </div>
         <div class="w-full max-w-[150px]">
           <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
@@ -491,6 +497,13 @@ type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level
 
 const session = useUserSession()
 const isUser = computed(() => String(session.user.value?.role) === 'user')
+// Penugasan kawasan petugas (null = bebas memilih kawasan).
+const scopedKawasanId = computed<number | null>(() => {
+  const v = session.user.value?.kawasan_id
+  if (v == null) return null
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? n : null
+})
 
 const kawasan = ref<Kawasan[]>([])
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
@@ -732,7 +745,16 @@ async function doDelete() {
 
 // ── Data loading ──────────────────────────────────────────────────
 async function loadKawasan() {
-  try { const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan'); kawasan.value = r.data; if (!kawasanId.value && r.data.length) kawasanId.value = r.data[0]!.id } catch {}
+  try {
+    const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan')
+    kawasan.value = r.data
+    // Petugas dengan penugasan kawasan: pilihan dikunci ke kawasan tersebut.
+    if (scopedKawasanId.value) {
+      kawasanId.value = scopedKawasanId.value
+      return
+    }
+    if (!kawasanId.value && r.data.length) kawasanId.value = r.data[0]!.id
+  } catch {}
 }
 async function loadJenis() {
   try { const r = await $fetch<{ data: Jenis[] }>('/api/jenis-retribusi'); jenisList.value = r.data } catch {}

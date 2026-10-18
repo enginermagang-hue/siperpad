@@ -25,3 +25,37 @@ export async function assertPeriodeOpen(tanggal: string, kawasanId: number): Pro
     throw createError({ statusCode: 409, message: `Periode ${bulan}/${tahun} sudah dikunci dan tidak dapat diubah` })
   }
 }
+
+// ---------------------------------------------------------------------------
+// Cakupan kawasan per pengguna (petugas penginput dipisah per kawasan).
+// users.kawasan_id NULL = akses semua kawasan (admin/kepala).
+// ---------------------------------------------------------------------------
+
+type SessionUser = { id?: number | string; role?: string; kawasan_id?: number | null } | undefined
+
+// Ambil kawasan_id penugasan dari sesi (null = semua kawasan).
+export function sessionKawasanId(user: SessionUser): number | null {
+  if (!user) return null
+  if (String(user.role || '') !== 'user') return null
+  const v = user.kawasan_id
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+// Guard: petugas dengan penugasan kawasan tidak boleh menyentuh kawasan lain.
+export function assertKawasanAllowed(user: SessionUser, kawasanId: number | null): void {
+  const scoped = sessionKawasanId(user)
+  if (scoped == null) return
+  if (kawasanId == null || Number(kawasanId) !== scoped) {
+    throw createError({ statusCode: 403, message: 'Anda hanya dapat menginput data untuk kawasan penugasan Anda' })
+  }
+}
+
+// Guard berbasis jenis retribusi (resolve kawasan dari jenis).
+export async function assertJenisAllowed(user: SessionUser, jenisId: number): Promise<void> {
+  const scoped = sessionKawasanId(user)
+  if (scoped == null) return
+  const kawasanId = await kawasanIdOfJenis(jenisId)
+  assertKawasanAllowed(user, kawasanId)
+}

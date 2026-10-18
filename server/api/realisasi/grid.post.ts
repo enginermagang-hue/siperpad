@@ -1,6 +1,6 @@
 import { query, execute } from '../../utils/db'
 import { MINGGU_REP_DAY, pad2 } from '../../utils/periode'
-import { assertPeriodeOpen, kawasanIdOfJenis } from '../../utils/lock'
+import { assertPeriodeOpen, kawasanIdOfJenis, assertKawasanAllowed } from '../../utils/lock'
 
 // Simpan satu sel grid mingguan. Upsert realisasi pada tanggal representatif
 // (hari ke-1/8/15/22) untuk (jenis, bulan, tahun). Hanya draft yang bisa diubah.
@@ -35,6 +35,12 @@ export default defineEventHandler(async (event) => {
   const hasChild = await query<{ n: number }>('SELECT COUNT(*) AS n FROM jenis_retribusi WHERE parent_id = ?', [jenisId])
   if (Number(hasChild[0]?.n) > 0) throw createError({ statusCode: 400, message: 'Tidak bisa input pada baris kategori' })
 
+  // Guard kawasan petugas DIEKSEKUSI LEBIH DAHULU (sebelum validasi tarif),
+  // agar pelanggaran kawasan mendapat 403, bukan error validasi yang menyesatkan.
+  const kawasanId = await kawasanIdOfJenis(jenisId)
+  if (kawasanId == null) throw createError({ statusCode: 404, message: 'Kawasan tidak ditemukan' })
+  assertKawasanAllowed(session.user, kawasanId)
+
   const mode = jr[0]!.mode_tarif === 'kuantitas' ? 'kuantitas' : 'langsung'
   const jenisTarif = jr[0]!.tarif == null ? null : Number(jr[0]!.tarif)
 
@@ -53,9 +59,6 @@ export default defineEventHandler(async (event) => {
     if (!Number.isFinite(jumlahInput) || jumlahInput < 0) throw createError({ statusCode: 400, message: 'Jumlah harus >= 0' })
     jumlah = Math.round(jumlahInput)
   }
-
-  const kawasanId = await kawasanIdOfJenis(jenisId)
-  if (kawasanId == null) throw createError({ statusCode: 404, message: 'Kawasan tidak ditemukan' })
 
   const tanggal = `${tahun}-${pad2(bulan)}-${pad2(MINGGU_REP_DAY[minggu as 1 | 2 | 3 | 4])}`
   await assertPeriodeOpen(tanggal, kawasanId)

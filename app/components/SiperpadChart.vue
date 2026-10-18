@@ -90,7 +90,10 @@ const chartOptions = computed(() => {
     yaxis: { labels: { formatter: (v: number) => Number(v).toLocaleString('id-ID') } },
     tooltip: {
       ...base.tooltip,
+      // ApexCharts menolak `shared: true` bila `intersect` masih true (default
+      // pada bar). Matikan intersect agar bar chart multi-series bisa render.
       shared: true,
+      intersect: false,
       y: { formatter: (v: number) => Number(v).toLocaleString('id-ID') },
     },
   }

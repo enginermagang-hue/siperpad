@@ -28,3 +28,7 @@ logs
 # Local scratch / secret-bearing files (never commit)
 _cj_admin.txt
 *.err
+
+# Local tooling config (machine-specific)
+.codebuddy/
+.mcp.json

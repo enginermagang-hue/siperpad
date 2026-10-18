@@ -6,17 +6,19 @@
 
 | Role | Akses |
 |------|-------|
-| `user` | Input realisasi (Data PAD harian & Entri Mingguan), ajukan realisasi (satuan/massal), buat & ajukan batch laporan |
-| `admin` | Kelola master (kawasan/jenis/target), kelola pengguna, verifikasi realisasi & batch, ekspor laporan, kunci/buka periode, sinkronisasi Dropbox |
-| `kepala` | Lihat laporan & dashboard, ekspor CSV/XLSX/PDF, verifikasi realisasi & batch |
+| `user` (Petugas Input) | Input realisasi (Data PAD harian & Entri Mingguan), ajukan realisasi (satuan/massal), buat & ajukan batch laporan. **Dibatasi per kawasan penugasan** (`users.kawasan_id`): petugas Lasiana tidak bisa input data Kampung Seni, dan sebaliknya. |
+| `admin` (Administrator / Bendahara Penerimaan) | Kelola master (kawasan/jenis/target), kelola pengguna & penugasan kawasan, **verifikasi realisasi & batch (satu-satunya role yang memverifikasi)**, ekspor laporan, kunci/buka periode, sinkronisasi Dropbox |
+| `kepala` (Pimpinan / Kasubag Keuangan) | **Read-only monitoring**: dashboard, laporan, ekspor CSV/XLSX/PDF. Tidak memverifikasi (pemisahan tugas) |
+
+> **Penugasan kawasan petugas:** pada menu **Pengguna**, saat role = Petugas Input, pilih **Kawasan Penugasan**. Bila dikosongkan, petugas bebas mengakses semua kawasan.
 
 ## 2. Alur Kerja
 
 ```
 Master (kawasan → jenis retribusi → target tahunan)
-  → Input realisasi (Data PAD harian, atau Entri Mingguan grid — user)
+  → Input realisasi (Data PAD harian, atau Entri Mingguan grid — user, per kawasan penugasan)
   → Ajukan (draft → diajukan; bisa massal per periode/kawasan — user)
-  → Verifikasi (admin/kepala — diajukan → disetujui/ditolak)
+  → Verifikasi (admin saja — diajukan → disetujui/ditolak)
   → Angka resmi = hanya status DISETUJUI (dashboard/laporan/ekspor)
   → Laporan rekap, perbandingan periode & ekspor (admin/kepala)
   → Kunci periode terkunci (admin) setelah semua terverifikasi

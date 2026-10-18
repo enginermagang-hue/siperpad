@@ -153,6 +153,60 @@ Migrasi `server/database/migrations/005_role_user.sql` — rebuild tabel `users`
 
 ---
 
+## 3.9 Fase 6 — Penyelarasan dengan Klarifikasi Klien (chat-01..05) — Selesai
+
+Sumber: `referensi/chat-01.png` … `chat-05.png`, `referensi/tarif.docx` (Perda No. 1/2026), `referensi/Rekap Laporan PAD … 2026.xlsx`.
+
+| # | Perubahan | File | Detail | Status |
+|---|-----------|------|--------|--------|
+| 6.1 | **Petugas input dipisah per kawasan** | migrasi `006_kawasan_user.sql`, `server/utils/lock.ts`, `realisasi/grid.{get,post}.ts`, `realisasi.post.ts`, `realisasi/[id].{put,delete}.ts`, `realisasi/[id]/ajukan.post.ts`, `realisasi/ajukan-massal.post.ts` | Kolom `users.kawasan_id` (NULL = semua kawasan). Guard `assertKawasanAllowed`/`sessionKawasanId` → petugas hanya bisa input/ajukan/hapus data pada kawasan penugasannya (403 bila melanggar). Guard dijalankan **sebelum** validasi tarif agar pesan error tepat. | ✅ |
+| 6.2 | **UI penugasan kawasan** | `users.{get,post}.ts`, `users/[id]/put.ts`, `app/pages/pengguna.vue`, `app/pages/entri-mingguan.vue`, `app/pages/pad.vue` | Select "Kawasan Penugasan" (muncul saat role = user); kolom Kawasan di tabel pengguna; dropdown kawasan di entri-mingguan & pad otomatis terkunci ke kawasan petugas. | ✅ |
+| 6.3 | **Tarif sesuai Perda No. 1/2026** | `server/database/seed.ts`, `scripts/migrate.mjs` | Semua tarif diperbaiki dari placeholder ke angka Perda: Food Court B1 19 jt, B2-B4 15,2 jt, B5-B7 11,4 jt, Gasebo 5,7 jt, Toilet 2,28 jt, Pelataran 1,9 jt, Resto 950 rb, Kios 100 rb, Parkir 3/5/10 rb, Masuk Dewasa 6 rb, Anak 3 rb, WNA 10 rb, MCK 500 rb, Lopo Panggung 75 rb, Lopo Permanen 50 rb, Aula 750 rb, Kelapa 600 rb, Tuak 1 jt. | ✅ |
+| 6.4 | **Mode kuantitas aktif** | `seed.ts`, `migrate.mjs`, `realisasi.post.ts`, `realisasi/[id].put.ts`, `app/pages/pad.vue` | `mode_tarif='kuantitas'` + `satuan` di-set untuk pos berbasis volume (Masuk Dewasa/Anak/WNA, Lopo Panggung/Permanen, Aula). Data PAD (harian) kini mendukung `kuantitas × tarif` seperti grid mingguan; modal menampilkan preview `qty × tarif = Rp`. | ✅ |
+| 6.5 | **Pimpinan read-only** | `realisasi/[id]/verifikasi.post.ts`, `realisasi/verifikasi-massal.post.ts`, `laporan/batch/[id]/verifikasi.post.ts`, `notifikasi.get.ts`, `app/middleware/auth.ts`, `app/layouts/default.vue` | Role `kepala` dicabut dari verifikasi (hanya `admin`). Sidebar Verifikasi disembunyikan; middleware memblokir `/verifikasi` untuk kepala; label role = "Pimpinan". | ✅ |
+| 6.6 | **TTD PDF = Kasubag Keuangan** | `server/api/laporan/export.get.ts` | Blok tanda tangan kiri "Mengetahui — Kasubag Keuangan Dinas Pariwisata & Ekraf Prov. NTT" (sebelumnya Kepala Dinas); kanan tetap Bendahara Penerimaan. | ✅ |
+| 6.7 | **Rekap kumulatif s/d bulan** | `server/utils/rekap.ts` (`getRekapPerJenis` + `buildTree` opsi `sampaiBulan`), `laporan/rekap.get.ts`, `laporan/export.get.ts` | Realisasi dibatasi `substr(tanggal,6,2) <= bulan` sehingga kolom **% Capai** sejajar dengan Excel (`J = D + I`, `K = J/C`). | ✅ |
+| 6.8 | **Seed petugas per kawasan** | `seed.ts`, `scripts/migrate.mjs`, `app/pages/login.vue` | Akun baru: `petugas.kampungseni@mail.com` (Kawasan A), `petugas.lasiana@mail.com` (Kawasan B), `admin@mail.com`, `kepala@mail.com` (Kasubag Keuangan). Password `123456`. | ✅ |
+
+**Verifikasi Fase 6 (diuji live):**
+- Login 3 role → `kawasan_id` ikut di sesi.
+- Petugas Lasiana input jenis Kampung Seni → **403**; input jenis Lasiana → **200** dengan `jumlah = kuantitas × tarif` (100 × 6.000 = 600.000).
+- Kepala verifikasi → **403**; petugas ajukan → 200; admin verifikasi → 200.
+- Rekap kumulatif Agustus menampilkan realisasi 600.000 (bukan setahun penuh).
+
+**Keputusan kunci Fase 6:**
+- Data PAD (harian) **tetap dipertahankan** berdampingan dengan Entri Mingguan (sesuai keputusan klien), keduanya kini mendukung mode kuantitas.
+- `users.kawasan_id` hanya berlaku untuk role `user`; admin/kepala NULL (akses semua kawasan).
+- Verifikasi sepenuhnya di `admin` (bendahara penerimaan); pimpinan murni monitoring.
+
+---
+
+## 3.10 Fase 7 — Visual & Kelengkapan Laporan (Tahap B) — Selesai
+
+| # | Fitur | File | Detail | Status |
+|---|-------|------|--------|--------|
+| 7.1 | **Rollup hierarki perbandingan** | `server/utils/rekap.ts` (`getPerbandingan`) | Bug diperbaiki: sebelumnya hanya menjumlah `jenis_id` langsung sehingga baris induk (level 1–3) selalu Rp0. Kini bottom-up (induk = SUM anak), konsisten dengan rekap & ekspor. Menambah field `has_child`, `urutan`, `kawasan_id`. Total = jumlah akar (tanpa double-count). | ✅ |
+| 7.2 | **Chart perbandingan** | `app/pages/laporan.vue`, `app/components/SiperpadChart.vue` | Tab Perbandingan kini punya grafik batang A vs B per pos level 1 + toggle grafik/bar horizontal. **Fix kritis**: ApexCharts menolak `tooltip.shared` bila `intersect` true pada bar chart → semua bar chart sebelumnya gagal render senyap; kini `intersect: false` dipaksa. Chart juga di-mount hanya saat tab aktif (`v-if`, bukan `v-show`) agar tidak berukuran 0. | ✅ |
+| 7.3 | **Hierarki penuh di tab Perbandingan** | `app/pages/laporan.vue` | Sebelumnya hanya `level === 1`; kini seluruh level tampil dengan indentasi `(level-1) × 14px`, induk ditebalkan. | ✅ |
+| 7.4 | **Export XLSX multi-sheet** | `server/api/laporan/export.get.ts` (`buildSheetPerbandingan`) | Workbook bulanan kini 2 sheet: `<Bulan> <Tahun>` + **Perbandingan** (bulan lalu vs bulan berjalan, selisih Rp & %, catatan kumulatif) — meniru sheet "Perbandingan Agt vs Sept" pada Excel referensi. | ✅ |
+| 7.5 | **Laporan tahunan** | `server/api/laporan/export.get.ts` (`buildLaporanTahunan`), `app/pages/laporan.vue` | Parameter `periode=bulan|tahun`. Mode tahun: 12 baris bulan + TOTAL + TARGET + % CAPAI per kawasan (XLSX/CSV). Selector "Bulanan/Tahunan" di toolbar laporan. | ✅ |
+| 7.6 | **Tarif parkir dilengkapi** | `server/database/seed.ts`, `scripts/migrate.mjs` | Temuan saat uji: tarif parkir (A.1.a/b/c, B.1.a/b/c) belum diisi sehingga mode kuantitas gagal. Kini 3.000 / 5.000 / 10.000 sesuai Perda, `mode_tarif='kuantitas'`, satuan `kendaraan`. | ✅ |
+| 7.7 | **Visual login** | `app/pages/login.vue` | Badge "SP" diganti logo NTT + nama instansi + subjudul kawasan (konsisten dengan sidebar). | ✅ |
+
+**Verifikasi Fase 7 (live):**
+- Bandingkan Agustus vs September (Lasiana): total A 9.900.000 → B 4.350.000; level 1 kini bernilai (Parkir 6.000.000 → 1.950.000), bukan 0.
+- XLSX bulanan berisi 2 sheet: `Agustus 2026 | Perbandingan`.
+- XLSX tahunan: 12 baris bulan + TOTAL + TARGET (512.480.000) + % CAPAI.
+- Chart bar render: 1 SVG, 4 bar, legend "September 2026 / Oktober 2026".
+- `vue-tsc --noEmit` exit 0 (tanpa error tipe).
+
+**Keputusan kunci Fase 7:**
+- Perbandingan memakai rollup bottom-up (sama seperti rekap) — satu sumber kebenaran angka.
+- Grafik perbandingan memakai level 1 (induk) agar ringkas & tidak dobel-hitung; rincian tetap ada di tabel.
+- Laporan tahunan hanya XLSX/CSV (PDF tetap format bulanan resmi bertanda tangan).
+
+---
+
 ## 4. Apa yang Belum Dibangun
 
 | Halaman / Modul | File saat ini | Kondisi | Prioritas |

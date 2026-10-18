@@ -21,7 +21,14 @@
     <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
       <div class="flex flex-wrap gap-3">
         <div class="w-full max-w-[200px]">
-          <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Kawasan: Semua" clearable @update:model-value="load" />
+          <AppSelect
+            v-model="filterKawasan"
+            :items="kawasanOpts"
+            :disabled="!!scopedKawasanId"
+            placeholder="Kawasan: Semua"
+            clearable
+            @update:model-value="load"
+          />
         </div>
         <div class="w-full max-w-[260px]">
           <AppSelect v-model="filterJenis" :items="jenisFilterOpts" placeholder="Semua jenis" clearable @update:model-value="load" />
@@ -289,9 +296,25 @@
       </div>
 
       <div class="mb-2">
-        <label class="mb-1.5 block text-sm font-medium text-foreground">Jumlah *</label>
-        <RupiahField v-model="form.jumlah" />
+        <label class="mb-1.5 block text-sm font-medium text-foreground">
+          {{ modeKuantitas ? 'Jumlah (Kuantitas) *' : 'Jumlah *' }}
+        </label>
+        <input
+          v-if="modeKuantitas"
+          v-model.number="form.kuantitas"
+          type="number"
+          min="0"
+          step="1"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+        <RupiahField v-else v-model="form.jumlah" />
         <p v-if="err.jumlah" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.jumlah }}</p>
+        <p v-if="err.kuantitas" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.kuantitas }}</p>
+        <p v-if="modeKuantitas" class="mt-1 text-xs text-muted-foreground-1">
+          {{ form.kuantitas || 0 }} {{ satuanJenis }} &times; {{ fmt(jenisTarif) }} =
+          <b class="text-foreground">{{ fmt(jumlahEfektif) }}</b>
+        </p>
       </div>
 
       <div class="mb-2">
@@ -398,10 +421,17 @@ const { mode } = useViewMode('pad')
 
 type Row = { id: number; jenis_retribusi_id: number; tanggal: string; jumlah: number; catatan: string; batch_id: number | null; status: string; created_by: number; jenis_kode: string; jenis_nama: string; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target_nilai: number; capaian: number }
 type Kawasan = { id: number; kode: string; nama: string }
-type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level: number; has_child: number }
+type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level: number; has_child: number; tarif: number | null; mode_tarif: string; satuan: string }
 
 const session = useUserSession()
 const isUser = computed(() => String(session.user.value?.role) === 'user')
+// Penugasan kawasan petugas (null = bebas memilih kawasan).
+const scopedKawasanId = computed<number | null>(() => {
+  const v = session.user.value?.kawasan_id
+  if (v == null) return null
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? n : null
+})
 const colCount = computed(() => (isUser.value ? 9 : 8))
 
 // Panel langkah perhitungan (inline expand) — keyed per transaksi.
@@ -451,14 +481,23 @@ watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 const dialog = ref(false)
 const editing = ref<Row | null>(null)
 const saving = ref(false)
-const form = reactive<{ jenis_retribusi_id: number | null; tanggal: string; jumlah: number; catatan: string }>({ jenis_retribusi_id: null, tanggal: new Date().toISOString().slice(0, 10), jumlah: 0, catatan: '' })
-const err = reactive({ jenis: '', tanggal: '', jumlah: '' })
+const form = reactive<{ jenis_retribusi_id: number | null; tanggal: string; jumlah: number; kuantitas: number; catatan: string }>({ jenis_retribusi_id: null, tanggal: new Date().toISOString().slice(0, 10), jumlah: 0, kuantitas: 0, catatan: '' })
+const err = reactive({ jenis: '', tanggal: '', jumlah: '', kuantitas: '' })
 const { formatRupiah: fmt } = useCurrency()
 const targetInfo = ref<number | null>(null)
+
+// Mode tarif jenis terpilih: 'kuantitas' (unit x tarif) atau 'langsung' (Rp).
+const selectedJenis = computed(() => jenisList.value.find((j) => j.id === form.jenis_retribusi_id) ?? null)
+const modeKuantitas = computed(() => selectedJenis.value?.mode_tarif === 'kuantitas')
+const jenisTarif = computed(() => Number(selectedJenis.value?.tarif) || 0)
+const satuanJenis = computed(() => selectedJenis.value?.satuan || 'unit')
+// Nilai Rupiah efektif: mode kuantitas dihitung otomatis dari kuantitas x tarif.
+const jumlahEfektif = computed(() => (modeKuantitas.value ? Math.round((Number(form.kuantitas) || 0) * jenisTarif.value) : Number(form.jumlah) || 0))
+
 const targetYear = computed(() => form.tanggal ? Number(form.tanggal.slice(0, 4)) : new Date().getFullYear())
 const previewCapaian = computed(() => {
   const t = targetInfo.value ?? 0
-  const j = Number(form.jumlah) || 0
+  const j = jumlahEfektif.value
   return t > 0 ? Math.round((j / t) * 10000) / 100 : 0
 })
 
@@ -492,6 +531,8 @@ async function loadKawasan() {
   try {
     const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan')
     kawasan.value = r.data
+    // Petugas dengan penugasan kawasan: filter dikunci ke kawasan tersebut.
+    if (scopedKawasanId.value) filterKawasan.value = scopedKawasanId.value
   } catch {}
 }
 async function loadJenis() {
@@ -531,8 +572,9 @@ function openAdd() {
   form.jenis_retribusi_id = filterJenis.value ?? null
   form.tanggal = new Date().toISOString().slice(0, 10)
   form.jumlah = 0
+  form.kuantitas = 0
   form.catatan = ''
-  err.jenis = ''; err.tanggal = ''; err.jumlah = ''
+  err.jenis = ''; err.tanggal = ''; err.jumlah = ''; err.kuantitas = ''
   targetInfo.value = null
   dialog.value = true
   if (form.jenis_retribusi_id) fetchTarget()
@@ -542,8 +584,11 @@ function openEdit(r: Row) {
   form.jenis_retribusi_id = r.jenis_retribusi_id
   form.tanggal = r.tanggal
   form.jumlah = r.jumlah
+  // Data lama tanpa jejak kuantitas: turunkan dari jumlah / tarif bila memungkinkan.
+  const tarif = Number(jenisList.value.find((j) => j.id === r.jenis_retribusi_id)?.tarif) || 0
+  form.kuantitas = tarif > 0 ? Math.round(r.jumlah / tarif) : 0
   form.catatan = r.catatan
-  err.jenis = ''; err.tanggal = ''; err.jumlah = ''
+  err.jenis = ''; err.tanggal = ''; err.jumlah = ''; err.kuantitas = ''
   dialog.value = true
   fetchTarget()
 }
@@ -551,14 +596,24 @@ function confirmDelete(r: Row) { delTarget.value = r; delDialog.value = true }
 function confirmAjukan(r: Row) { ajukanTarget.value = r; ajukanDialog.value = true }
 
 async function save() {
-  err.jenis = ''; err.tanggal = ''; err.jumlah = ''
+  err.jenis = ''; err.tanggal = ''; err.jumlah = ''; err.kuantitas = ''
   if (!form.jenis_retribusi_id) err.jenis = 'Jenis wajib dipilih'
   if (!form.tanggal || !/^\d{4}-\d{2}-\d{2}$/.test(form.tanggal)) err.tanggal = 'Tanggal wajib YYYY-MM-DD'
-  if (!Number.isFinite(Number(form.jumlah)) || Number(form.jumlah) < 0) err.jumlah = 'Jumlah harus >= 0'
-  if (err.jenis || err.tanggal || err.jumlah) return
+  if (modeKuantitas.value) {
+    if (!Number.isFinite(Number(form.kuantitas)) || Number(form.kuantitas) < 0) err.kuantitas = 'Kuantitas harus >= 0'
+  } else if (!Number.isFinite(Number(form.jumlah)) || Number(form.jumlah) < 0) {
+    err.jumlah = 'Jumlah harus >= 0'
+  }
+  if (err.jenis || err.tanggal || err.jumlah || err.kuantitas) return
   saving.value = true
   try {
-    const body = { jenis_retribusi_id: form.jenis_retribusi_id, tanggal: form.tanggal, jumlah: Number(form.jumlah), catatan: form.catatan.trim() }
+    const body = {
+      jenis_retribusi_id: form.jenis_retribusi_id,
+      tanggal: form.tanggal,
+      jumlah: jumlahEfektif.value,
+      kuantitas: modeKuantitas.value ? Number(form.kuantitas) : null,
+      catatan: form.catatan.trim(),
+    }
     if (editing.value) {
       await $fetch(`/api/realisasi/${editing.value.id}`, { method: 'PUT', body })
       toast('Realisasi diperbarui')
