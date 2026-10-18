@@ -154,7 +154,7 @@ import { LoaderCircle, Lock, LockOpen } from 'lucide-vue-next'
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeKunci } = useViewMode('verifikasi-kunci')
-const { isAdmin, kawasanOpts, snack, toast, bulanOpts, bulanLabel, loadMaster } = useVerifikasiMaster()
+const { isAdmin, kawasan, kawasanOpts, snack, toast, bulanOpts, bulanLabel, loadMaster } = useVerifikasiMaster()
 
 type LockRow = { id: number; tahun: number; bulan: number; kawasan_kode: string; kawasan_nama: string; locked_by_nama: string; locked_at: string }
 
@@ -186,5 +186,10 @@ async function bukaKunci(l: LockRow) {
   catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
 }
 
-onMounted(async () => { await loadMaster(); await loadLocks() })
+onMounted(async () => {
+  await loadMaster()
+  // Default ke kawasan pertama agar tombol langsung bisa dipakai.
+  if (lockKawasan.value == null) lockKawasan.value = kawasan.value[0]?.id ?? null
+  await loadLocks()
+})
 </script>

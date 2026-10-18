@@ -10,7 +10,7 @@
         leave-to-class="opacity-0 translate-y-2"
       >
         <div
-          v-if="show"
+          v-if="visible"
           role="status"
           aria-live="polite"
           class="pointer-events-auto flex items-center gap-x-2 rounded-lg px-4 py-2.5 text-sm shadow-lg border"
