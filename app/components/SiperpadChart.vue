@@ -8,7 +8,7 @@
       :series="series"
       :height="height"
     />
-    <div v-else class="text-center py-8 text-medium-emphasis">Memuat grafik...</div>
+    <div v-else class="text-center py-8 text-muted-foreground-1">Memuat grafik...</div>
   </ClientOnly>
 </template>
 

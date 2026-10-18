@@ -1,17 +1,22 @@
 <template>
-  <v-text-field
-    :model-value="display"
-    density="compact"
-    variant="outlined"
-    hide-details
-    inputmode="numeric"
-    prefix="Rp"
-    :disabled="disabled"
-    :bg-color="bgColor"
-    @input="onInput"
-    @blur="emit('blur', $event)"
-    @keyup.enter="emit('enter', $event)"
-  />
+  <div class="relative">
+    <span
+      class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2.5 text-xs text-muted-foreground-1"
+    >Rp</span>
+    <input
+      :value="display"
+      type="text"
+      inputmode="numeric"
+      class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-9 pe-3 text-sm text-layer-foreground
+             focus:border-primary-focus focus:ring-primary-focus
+             disabled:opacity-50 disabled:pointer-events-none"
+      :class="bgColor"
+      :disabled="disabled"
+      @input="onInput"
+      @blur="emit('blur', $event)"
+      @keyup.enter="emit('enter', $event)"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -22,6 +27,7 @@ const props = withDefaults(
   defineProps<{
     modelValue: number
     disabled?: boolean
+    /** Kelas latar tambahan (dulu bg-color Vuetify). */
     bgColor?: string
   }>(),
   { disabled: false, bgColor: undefined },

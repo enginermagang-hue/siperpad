@@ -1,25 +1,44 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Preline UI
+   @source mendaftarkan JS bundle Preline agar Tailwind memindai class yang
+   hanya muncul di runtime (mis. class pada toggleClasses/optionClasses).
+   Path relatif terhadap file ini: app/assets/css/ -> root proyek = ../../../.
+--------------------------------------------------------------------------- */
+@source "../../../node_modules/preline/dist/*.js";
+@import "../../../node_modules/preline/variants.css";
+
+@plugin "@tailwindcss/forms";
+
+/* Token tema Preline (bg-layer, border-layer-line, text-foreground, bg-primary,
+   .dark, dst.). Tanpa override -> primary = biru default Preline. */
+@import "../../../node_modules/preline/theme.css";
+
+/* Dark mode berbasis class .dark di <html> (bukan prefers-color-scheme),
+   agar toggle manual di app menang atas preferensi OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Preline v5 tidak lagi menyertakan default ini (dulu bawaan Tailwind v3). */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@custom-variant hover (&:hover);
+
 html,
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
 }
 
-/* ponytail: focus biru via vuetify defaults (color: primary) + CSS ini hanya untuk radio/checkbox unchecked */
-.v-selection-control--focus-visible .v-selection-control__input::before {
-  background-color: rgb(var(--v-theme-primary));
-}
-
-/* Tooltip: latar gelap + teks terang, konsisten di light & dark mode.
-   Dipaksa !important karena CSS bawaan Vuetify (.v-tooltip > .v-overlay__content)
-   di-load setelah main.css dan mengatur background/color langsung dari tema. */
-.v-tooltip > .v-overlay__content {
-  background: #1e293b !important;
-  color: #ffffff !important;
-}
-
-/* Custom scrollbar (OverlayScrollbars) — tipis, rounded, warna ikut tema Vuetify.
-   Var --os-* di-override agar otomatis menyesuaikan dark/light & hover primary.
-   Selector 2-class (.os-scrollbar.os-theme-siperpad) agar menang dari CSS bawaan
-   package (.os-scrollbar) yang di-load setelah main.css. */
+/* ---------------------------------------------------------------------------
+   Custom scrollbar (OverlayScrollbars)
+   Warna memakai token Preline, bukan lagi --v-theme-* milik Vuetify.
+   Selector 2-class agar menang dari CSS bawaan package.
+--------------------------------------------------------------------------- */
 .os-scrollbar.os-theme-siperpad {
   --os-size: 8px;
   --os-padding-perpendicular: 2px;
@@ -31,7 +50,7 @@ body {
   --os-track-bg: transparent;
   --os-track-bg-hover: transparent;
   --os-track-bg-active: transparent;
-  --os-handle-bg: rgb(var(--v-theme-surface-variant));
-  --os-handle-bg-hover: rgb(var(--v-theme-primary));
-  --os-handle-bg-active: rgb(var(--v-theme-primary));
+  --os-handle-bg: var(--scrollbar-thumb);
+  --os-handle-bg-hover: var(--primary);
+  --os-handle-bg-active: var(--primary);
 }

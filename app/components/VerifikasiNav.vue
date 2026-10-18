@@ -1,16 +1,41 @@
 <template>
-  <v-tabs v-if="canVerif" :model-value="active" class="mb-4" color="primary">
-    <v-tab to="/verifikasi" value="realisasi">Realisasi Diajukan</v-tab>
-    <v-tab to="/verifikasi/batch" value="batch">Batch Laporan</v-tab>
-    <v-tab v-if="isAdmin" to="/verifikasi/periode" value="periode">Kunci Periode</v-tab>
-    <v-tab v-if="isAdmin" to="/verifikasi/catatan" value="catatan">Catatan Temuan</v-tab>
-    <v-tab to="/verifikasi/audit" value="audit">Audit Trail</v-tab>
-  </v-tabs>
+  <div v-if="canVerif" class="mb-4 border-b border-line-2">
+    <nav class="-mb-px flex flex-wrap gap-x-1" aria-label="Navigasi verifikasi">
+      <NuxtLink
+        v-for="t in tabs"
+        :key="t.value"
+        :to="t.to"
+        class="inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm
+               focus:outline-hidden focus:bg-layer-focus"
+        :class="
+          active === t.value
+            ? 'border-primary text-primary font-medium'
+            : 'border-transparent text-muted-foreground-1 hover:text-foreground hover:border-line-4'
+        "
+        :aria-current="active === t.value ? 'page' : undefined"
+      >
+        {{ t.label }}
+      </NuxtLink>
+    </nav>
+  </div>
 </template>
 
 <script setup lang="ts">
 const route = useRoute()
 const { isAdmin, canVerif } = useVerifikasiMaster()
+
+const tabs = computed(() => {
+  const list = [
+    { to: '/verifikasi', value: 'realisasi', label: 'Realisasi Diajukan' },
+    { to: '/verifikasi/batch', value: 'batch', label: 'Batch Laporan' },
+  ]
+  if (isAdmin.value) {
+    list.push({ to: '/verifikasi/periode', value: 'periode', label: 'Kunci Periode' })
+    list.push({ to: '/verifikasi/catatan', value: 'catatan', label: 'Catatan Temuan' })
+  }
+  list.push({ to: '/verifikasi/audit', value: 'audit', label: 'Audit Trail' })
+  return list
+})
 
 const active = computed(() => {
   const p = route.path

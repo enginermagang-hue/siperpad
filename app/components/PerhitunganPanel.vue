@@ -1,49 +1,62 @@
 <template>
-  <div class="perhitungan-panel pa-4">
-    <div class="d-flex align-center flex-wrap ga-2 mb-2">
-      <v-icon size="small" color="primary">mdi-calculator</v-icon>
-      <span class="font-weight-medium text-body-2">Langkah Perhitungan</span>
-      <span v-if="title" class="text-body-2 text-medium-emphasis">· {{ title }}</span>
-      <v-chip v-if="modeLabel" size="x-small" variant="tonal" color="primary" class="ml-1">{{ modeLabel }}</v-chip>
+  <div class="p-4 bg-primary/5">
+    <div class="flex items-center flex-wrap gap-2 mb-2">
+      <Calculator class="shrink-0 size-4 text-primary" aria-hidden="true" />
+      <span class="font-medium text-sm text-foreground">Langkah Perhitungan</span>
+      <span v-if="title" class="text-sm text-muted-foreground-1">· {{ title }}</span>
+      <span
+        v-if="modeLabel"
+        class="ms-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
+               bg-primary/10 text-primary"
+      >
+        {{ modeLabel }}
+      </span>
     </div>
-    <div v-if="subtitle" class="text-caption text-medium-emphasis mb-2">{{ subtitle }}</div>
+    <div v-if="subtitle" class="text-xs text-muted-foreground-1 mb-2">{{ subtitle }}</div>
 
     <div v-if="formula" class="mb-3">
-      <code class="perhitungan-formula">{{ formula }}</code>
+      <code class="font-mono text-xs bg-primary/10 rounded px-1.5 py-0.5 text-foreground">{{ formula }}</code>
     </div>
 
-    <div v-if="lines && lines.length" class="d-flex flex-column ga-1 mb-1">
-      <div v-for="(l, i) in lines" :key="i" class="d-flex justify-space-between ga-3 text-body-2">
-        <span class="text-medium-emphasis">
-          <span v-if="l.op" class="perhitungan-op">{{ l.op }}</span>{{ l.label }}
-          <span v-if="l.note" class="d-block text-caption" style="opacity: 0.8">{{ l.note }}</span>
+    <div v-if="lines && lines.length" class="flex flex-col gap-1 mb-1">
+      <div v-for="(l, i) in lines" :key="i" class="flex justify-between gap-3 text-sm">
+        <span class="text-muted-foreground-1">
+          <span v-if="l.op" class="inline-block w-3.5 font-bold">{{ l.op }}</span>{{ l.label }}
+          <span v-if="l.note" class="block text-xs opacity-80">{{ l.note }}</span>
         </span>
-        <span class="text-right font-weight-medium flex-shrink-0">{{ l.value }}</span>
+        <span class="text-right font-medium shrink-0">{{ l.value }}</span>
       </div>
     </div>
 
-    <v-divider class="my-2" />
+    <hr class="my-2 border-line-1" />
 
-    <div class="d-flex flex-column ga-1 text-body-2">
-      <div class="d-flex justify-space-between ga-3">
-        <span class="text-medium-emphasis">Target</span>
-        <span class="text-right flex-shrink-0">{{ fmt(target) }}</span>
+    <div class="flex flex-col gap-1 text-sm">
+      <div class="flex justify-between gap-3">
+        <span class="text-muted-foreground-1">Target</span>
+        <span class="text-right shrink-0">{{ fmt(target) }}</span>
       </div>
-      <div class="d-flex justify-space-between ga-3">
-        <span class="text-medium-emphasis">{{ totalLabel }}</span>
-        <span class="text-right font-weight-medium flex-shrink-0">{{ fmt(total) }}</span>
+      <div class="flex justify-between gap-3">
+        <span class="text-muted-foreground-1">{{ totalLabel }}</span>
+        <span class="text-right font-medium shrink-0">{{ fmt(total) }}</span>
       </div>
-      <div class="d-flex justify-space-between ga-3 align-center">
-        <span class="text-medium-emphasis">Capaian = {{ fmt(total) }} ÷ {{ fmt(target) }}</span>
-        <v-chip size="small" :color="capaianColor" variant="tonal" class="flex-shrink-0">{{ capaian }}%</v-chip>
+      <div class="flex justify-between gap-3 items-center">
+        <span class="text-muted-foreground-1">Capaian = {{ fmt(total) }} ÷ {{ fmt(target) }}</span>
+        <span
+          class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+          :class="capaianBadgeClass"
+        >
+          {{ capaian }}%
+        </span>
       </div>
     </div>
 
-    <div v-if="basisNote" class="text-caption text-medium-emphasis mt-3">{{ basisNote }}</div>
+    <div v-if="basisNote" class="text-xs text-muted-foreground-1 mt-3">{{ basisNote }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Calculator } from 'lucide-vue-next'
+
 type CalcLine = { op?: string; label: string; value: string; note?: string }
 
 const props = withDefaults(defineProps<{
@@ -66,23 +79,10 @@ const capaian = computed(() => {
   if (!t) return 0
   return Math.round((Number(props.total) / t) * 10000) / 100
 })
-const capaianColor = computed(() => (capaian.value >= 100 ? 'success' : capaian.value >= 75 ? 'warning' : 'error'))
-</script>
 
-<style scoped>
-.perhitungan-panel {
-  background: rgba(var(--v-theme-primary), 0.04);
-}
-.perhitungan-formula {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-  background: rgba(var(--v-theme-primary), 0.08);
-  border-radius: 4px;
-  padding: 2px 6px;
-}
-.perhitungan-op {
-  display: inline-block;
-  width: 14px;
-  font-weight: 700;
-}
-</style>
+const capaianBadgeClass = computed(() => {
+  if (capaian.value >= 100) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  if (capaian.value >= 75) return 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+  return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+})
+</script>

@@ -1,21 +1,21 @@
 <template>
-  <v-card flat border class="mb-2">
-    <v-card-text class="py-3">
+  <div class="rounded-lg border border-card-line bg-card mb-2">
+    <div class="p-3">
       <!-- Header: judul + aksi/chip status -->
-      <div class="d-flex align-start justify-space-between ga-2 mb-2">
+      <div class="flex items-start justify-between gap-2 mb-2">
         <div class="min-w-0">
-          <div v-if="title" class="font-weight-medium text-truncate">{{ title }}</div>
-          <div v-if="subtitle" class="text-caption text-medium-emphasis text-truncate">{{ subtitle }}</div>
+          <div v-if="title" class="font-medium text-foreground truncate">{{ title }}</div>
+          <div v-if="subtitle" class="text-xs text-muted-foreground-1 truncate">{{ subtitle }}</div>
         </div>
-        <div class="flex-shrink-0 d-flex align-center ga-1">
+        <div class="shrink-0 flex items-center gap-1">
           <slot name="badge" />
         </div>
       </div>
 
       <!-- Baris label-nilai -->
-      <div v-if="fields.length" class="d-flex flex-column ga-1">
-        <div v-for="(f, i) in fields" :key="i" class="d-flex justify-space-between ga-3 text-body-2">
-          <span class="text-medium-emphasis flex-shrink-0">{{ f.label }}</span>
+      <div v-if="fields && fields.length" class="flex flex-col gap-1">
+        <div v-for="(f, i) in fields" :key="i" class="flex justify-between gap-3 text-sm">
+          <span class="text-muted-foreground-1 shrink-0">{{ f.label }}</span>
           <span class="text-right" :class="f.class" :style="f.style">{{ f.value }}</span>
         </div>
       </div>
@@ -24,11 +24,11 @@
       <slot />
 
       <!-- Aksi -->
-      <div v-if="$slots.actions" class="d-flex justify-end ga-1 mt-2">
+      <div v-if="$slots.actions" class="flex justify-end gap-1 mt-2">
         <slot name="actions" />
       </div>
-    </v-card-text>
-  </v-card>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">

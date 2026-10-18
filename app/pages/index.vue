@@ -178,7 +178,7 @@ const dbHealth = await useFetch('/api/health')
 const dbHealthy = dbHealth.data.value?.status === 'ok'
 const dbStatus = dbHealth.pending.value ? 'Memeriksa...' : dbHealthy ? 'Terhubung' : dbHealth.error.value ? 'Gagal' : 'Tidak diketahui'
 
-const { isDark } = useDarkMode()
+const { isDark } = useTheme()
 const kawasan = ref<{ id: number; kode: string; nama: string }[]>([])
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
 const tahunState = useState<number>('tahun', () => new Date().getFullYear())

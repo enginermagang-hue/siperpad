@@ -1,6 +1,6 @@
 // Custom scrollbar (OverlayScrollbars) — client-only.
 // CSS bawaan package wajib di-import; warna di-override lewat var --os-* di main.css
-// agar otomatis mengikuti tema Vuetify (dark/light).
+// agar otomatis mengikuti tema Preline (dark/light).
 import 'overlayscrollbars/overlayscrollbars.css'
 import { OverlayScrollbars } from 'overlayscrollbars'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-vue'
@@ -15,7 +15,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   // 1) scroll dokumen utama (body)
   OverlayScrollbars(document.body, scrollbarOptions)
 
-  // 2) auto-apply ke area scroll internal Vuetify (dialog/menu/list/tabel)
+  // 2) auto-apply ke area scroll internal (dialog/menu/list/tabel)
   //    hanya elemen yang benar-benar meluap yang diinisialisasi.
   const stopAuto = startAutoScrollbars()
   window.addEventListener('beforeunload', () => stopAuto())

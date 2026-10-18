@@ -1,6 +1,6 @@
 // Konfigurasi scrollbar bersama (OverlayScrollbars).
 // Dipakai plugin (scroll dokumen), layout (scroll sidebar), dan auto-apply
-// (area scroll internal Vuetify: dialog/menu/list/tabel).
+// (area scroll internal: dialog/menu/list/tabel).
 // Warna --os-* didefinisikan di app/assets/css/main.css (tema kustom os-theme-siperpad).
 import { OverlayScrollbars } from 'overlayscrollbars'
 import type { PartialOptions } from 'overlayscrollbars'
@@ -23,6 +23,14 @@ export const scrollbarOptions: PartialOptions = {
 //   karena html sendiri adalah host OS, sehingga semua elemen akan ter-skip.
 const SKIP_SELF_SELECTOR = 'html, body, .os-scrollbar'
 
+// Elemen struktur (nav, table, tr, td, thead, tbody, ul, ol, form, fieldset, dll)
+// TIDAK boleh menjadi host OS: stylesheet OverlayScrollbars memaksa
+// `[data-overlayscrollbars~=host] { display: flex }`, yang merusak layout
+// elemen-elemen ini (mis. <nav> jadi horizontal, <tr> jadi flex).
+// OverlayScrollbars hanya aman untuk container blok generik.
+const UNSAFE_HOST_SELECTOR =
+  'nav, table, thead, tbody, tfoot, tr, td, th, ul, ol, dl, form, fieldset, select, option'
+
 /**
  * Inisialisasi OverlayScrollbars ke sebuah elemen scroll.
  * Mengembalikan instance bila berhasil, atau null bila elemen tidak layak.
@@ -34,6 +42,9 @@ export function initScrollbarOn(el: HTMLElement): OverlayScrollbars | null {
     return null
   }
   if (el.matches(SKIP_SELF_SELECTOR)) return null
+  // jangan jadikan host untuk elemen struktur (display:flex akan merusak layout)
+  if (el.matches(UNSAFE_HOST_SELECTOR)) return null
+  if (el.tagName === 'MAIN' || el.tagName === 'ASIDE') return null
   // skip bila berada di dalam viewport OS INTERNAL (bukan html/documentElement,
   // yang juga punya atribut viewport saat OS mengelola scroll dokumen).
   if (hasInternalOSAncestor(el)) return null
@@ -90,7 +101,7 @@ export function applyScrollbarsToScrollableElements(root: ParentNode = document)
 
 /**
  * Mulai pemantauan otomatis: terapkan sekarang, lalu tiap kali DOM berubah
- * (Vuetify menambahkan dialog/menu ke body) dan saat ukuran berubah.
+ * (dialog/menu ditambahkan ke body) dan saat ukuran berubah.
  * Mengembalikan fungsi cleanup.
  */
 export function startAutoScrollbars(): () => void {

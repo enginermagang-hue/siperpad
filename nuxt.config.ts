@@ -1,5 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -8,16 +8,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   // Inter via @nuxt/fonts
-  modules: [
-    '@nuxt/fonts',
-    'nuxt-auth-utils',
-    (_options, nuxt) => {
-      nuxt.hooks.hook('vite:extendConfig', (config) => {
-        // @ts-expect-error vite-plugin-vuetify types
-        config.plugins.push(vuetify({ autoImport: true }))
-      })
-    },
-  ],
+  modules: ['@nuxt/fonts', 'nuxt-auth-utils'],
 
   fonts: {
     families: [{ name: 'Inter', provider: 'google' }],
@@ -42,10 +33,6 @@ export default defineNuxtConfig({
     },
   },
 
-  build: {
-    transpile: ['vuetify'],
-  },
-
   nitro: {
     externals: {
       external: ['xlsx', 'pdfkit'],
@@ -53,14 +40,9 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    plugins: [tailwindcss()],
     ssr: {
       external: ['xlsx', 'pdfkit'],
-      noExternal: ['vuetify'],
-    },
-    vue: {
-      template: {
-        transformAssetUrls,
-      },
     },
   },
 

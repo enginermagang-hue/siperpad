@@ -1,65 +1,103 @@
 <template>
-  <v-app>
-    <v-main>
-      <v-container fluid class="fill-height d-flex align-center justify-center" style="background: #F5F5F5">
-        <v-card flat elevation="0" class="pa-8" style="width: 100%; max-width: 420px">
-          <div class="text-center mb-6">
-            <v-icon size="48" color="primary">mdi-alpha</v-icon>
-            <h1 class="text-h5 font-weight-medium mt-2">SiPerPAD</h1>
-            <p class="text-body-2 text-medium-emphasis mt-1">Sistem Perhitungan dan Rekapitulasi PAD</p>
-          </div>
+  <div class="min-h-screen grid place-items-center bg-background-1 p-4">
+    <div class="w-full max-w-[420px] rounded-xl border border-card-line bg-card p-8">
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center size-12 rounded-xl bg-primary text-primary-foreground mb-2">
+          <span class="text-lg font-bold tracking-tight">SP</span>
+        </div>
+        <h1 class="text-xl font-medium text-foreground mt-2">SiPerPAD</h1>
+        <p class="text-sm text-muted-foreground-1 mt-1">Sistem Perhitungan dan Rekapitulasi PAD</p>
+      </div>
 
-          <v-alert v-if="error" type="error" density="compact" class="mb-4">{{ error }}</v-alert>
+      <div
+        v-if="error"
+        role="alert"
+        class="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm
+               text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-200"
+      >
+        <CircleAlert class="shrink-0 size-4 mt-0.5" aria-hidden="true" />
+        <span>{{ error }}</span>
+      </div>
 
-          <v-form @submit.prevent="handleLogin">
-            <v-text-field
+      <form novalidate @submit.prevent="handleLogin">
+        <div class="mb-3">
+          <label for="login-email" class="block mb-1.5 text-sm font-medium text-foreground">Email</label>
+          <div class="relative">
+            <Mail
+              class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+              aria-hidden="true"
+            />
+            <input
+              id="login-email"
               v-model="email"
-              label="Email"
               type="email"
-              prepend-inner-icon="mdi-email-outline"
-              variant="outlined"
-              density="comfortable"
-              :disabled="loading"
               autocomplete="email"
-              class="mb-2"
-            />
-            <v-text-field
-              v-model="password"
-              label="Password"
-              :type="showPassword ? 'text' : 'password'"
-              prepend-inner-icon="mdi-lock-outline"
-              :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-              @click:append-inner="showPassword = !showPassword"
-              variant="outlined"
-              density="comfortable"
               :disabled="loading"
-              autocomplete="current-password"
-              class="mb-4"
+              class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-9 pe-3 text-sm text-layer-foreground
+                     focus:border-primary-focus focus:ring-primary-focus
+                     disabled:opacity-50 disabled:pointer-events-none"
             />
-            <v-btn
-              type="submit"
-              color="primary"
-              block
-              size="large"
-              :loading="loading"
-            >
-              Masuk
-            </v-btn>
-          </v-form>
-
-          <div class="text-center mt-6">
-            <p class="text-caption text-medium-emphasis">
-              Demo akun — password <strong>123456</strong><br>
-              <strong>user@mail.com</strong> (Petugas Input) · <strong>admin@mail.com</strong> (Administrator) · <strong>kepala@mail.com</strong> (Kepala)
-            </p>
           </div>
-        </v-card>
-      </v-container>
-    </v-main>
-  </v-app>
+        </div>
+
+        <div class="mb-4">
+          <label for="login-password" class="block mb-1.5 text-sm font-medium text-foreground">Password</label>
+          <div class="relative">
+            <Lock
+              class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+              aria-hidden="true"
+            />
+            <input
+              id="login-password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="current-password"
+              :disabled="loading"
+              class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-9 pe-10 text-sm text-layer-foreground
+                     focus:border-primary-focus focus:ring-primary-focus
+                     disabled:opacity-50 disabled:pointer-events-none"
+            />
+            <button
+              type="button"
+              class="absolute end-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground-1
+                     hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus"
+              :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+              :aria-pressed="showPassword"
+              @click="showPassword = !showPassword"
+            >
+              <component :is="showPassword ? EyeOff : Eye" class="shrink-0 size-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm
+                 font-medium text-primary-foreground hover:bg-primary-hover
+                 focus:outline-hidden focus:bg-primary-focus
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="loading"
+        >
+          <LoaderCircle v-if="loading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          {{ loading ? 'Memproses…' : 'Masuk' }}
+        </button>
+      </form>
+
+      <div class="text-center mt-6">
+        <p class="text-xs text-muted-foreground-1 leading-relaxed">
+          Demo akun — password <strong class="text-foreground">123456</strong><br />
+          <strong class="text-foreground">user@mail.com</strong> (Petugas Input) ·
+          <strong class="text-foreground">admin@mail.com</strong> (Administrator) ·
+          <strong class="text-foreground">kepala@mail.com</strong> (Kepala)
+        </p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { CircleAlert, Eye, EyeOff, LoaderCircle, Lock, Mail } from 'lucide-vue-next'
+
 definePageMeta({ layout: false })
 
 const router = useRouter()
@@ -74,7 +112,7 @@ watch(
   () => session.loggedIn.value,
   (loggedIn) => {
     if (loggedIn) router.push('/')
-  }
+  },
 )
 
 async function handleLogin() {
