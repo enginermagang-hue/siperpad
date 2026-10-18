@@ -1,4 +1,5 @@
 import { execute, query } from '../../../../utils/db'
+import { assertKawasanAllowed } from '../../../../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -6,8 +7,10 @@ export default defineEventHandler(async (event) => {
   if (String(session.user.role) !== 'user') throw createError({ statusCode: 403, message: 'Hanya petugas input' })
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
-  const rows = await query<{ status: string }>('SELECT status FROM laporan_batch WHERE id = ?', [id])
+  const rows = await query<{ status: string; kawasan_id: number }>('SELECT status, kawasan_id FROM laporan_batch WHERE id = ?', [id])
   if (!rows.length) throw createError({ statusCode: 404, message: 'Batch tidak ditemukan' })
+  // Petugas hanya boleh mengajukan batch kawasan penugasannya.
+  assertKawasanAllowed(session.user, Number(rows[0]!.kawasan_id))
   if (rows[0]!.status !== 'draft') throw createError({ statusCode: 409, message: 'Hanya draft yang bisa diajukan' })
   await execute("UPDATE laporan_batch SET status = 'diajukan', diajukan_oleh = ?, diajukan_at = datetime('now') WHERE id = ?", [Number(session.user.id), id])
   try { await execute('INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, before, after) VALUES (?, ?, ?, ?, ?, ?)', [Number(session.user.id), 'BATCH_AJUKAN', 'laporan_batch', String(id), 'draft', 'diajukan']) } catch {}

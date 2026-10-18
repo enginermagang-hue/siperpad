@@ -1,39 +1,41 @@
 <template>
   <div>
-    <div class="mb-6 flex items-center gap-3">
-      <FilePlus class="shrink-0 size-9 text-primary" aria-hidden="true" />
-      <h1 class="text-2xl font-medium text-foreground">{{ isUser ? 'Pengajuan Batch' : 'Batch Laporan' }}</h1>
-    </div>
-
-    <VerifikasiNav />
-
-    <div class="mb-3 flex justify-end">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <FilePlus class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">{{ isUser ? 'Pengajuan Batch' : 'Batch Laporan' }}</h1>
+      </div>
       <button
         v-if="isUser"
         type="button"
         class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
                text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
-        @click="batchDialog = true"
+        @click="openBatchDialog"
       >
         <Plus class="shrink-0 size-4" aria-hidden="true" />
         Buat Batch
       </button>
     </div>
 
-    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-      <div class="flex flex-wrap gap-3">
+    <VerifikasiNav />
+
+    <div class="rounded-lg border border-card-line bg-card">
+      <!-- Toolbar: filter + toggle view — satu baris di dalam card -->
+      <div class="flex flex-wrap items-center gap-3 p-4">
         <div class="w-full max-w-[200px]">
-          <AppSelect v-model="batchFilterKawasan" :items="kawasanOpts" placeholder="Semua" clearable @update:model-value="loadBatches" />
+          <AppSelect
+            v-model="batchFilterKawasan"
+            :items="kawasanOptsScoped"
+            :disabled="!!scopedKawasanId"
+            placeholder="Semua"
+            clearable
+            @update:model-value="loadBatches"
+          />
         </div>
         <div class="w-full max-w-[160px]">
           <AppSelect v-model="batchFilterStatus" :items="statusOpts" placeholder="Semua status" clearable @update:model-value="loadBatches" />
         </div>
-      </div>
-    </div>
-
-    <div class="rounded-lg border border-card-line bg-card">
-      <div class="flex justify-end px-4 pt-3">
-        <ViewModeToggle v-model="modeBatch" />
+        <div class="ms-auto"><ViewModeToggle v-model="modeBatch" /></div>
       </div>
 
       <!-- Mode tabel -->
@@ -184,7 +186,8 @@
     <AppDialog v-model="batchDialog" title="Buat Batch Laporan" :max-width="520" :icon="FilePlus">
       <div class="mb-2">
         <label class="mb-1.5 block text-sm font-medium text-foreground">Kawasan *</label>
-        <AppSelect v-model="batchForm.kawasan_id" :items="kawasanOpts" placeholder="Pilih kawasan" in-modal />
+        <AppSelect v-model="batchForm.kawasan_id" :items="kawasanOptsScoped" :disabled="!!scopedKawasanId" placeholder="Pilih kawasan" in-modal />
+        <p v-if="scopedKawasanId" class="mt-1 text-xs text-muted-foreground-1">Terkunci ke kawasan penugasan Anda.</p>
         <p v-if="batchErr.kawasan_id" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ batchErr.kawasan_id }}</p>
       </div>
 
@@ -267,7 +270,7 @@ import type { MenuItem } from '~/components/AppMenu.vue'
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeBatch } = useViewMode('verifikasi-batch')
-const { isUser, canVerif, kawasanOpts, snack, toast, loadMaster } = useVerifikasiMaster()
+const { isUser, canVerif, kawasanOptsScoped, scopedKawasanId, snack, toast, loadMaster } = useVerifikasiMaster()
 
 type Batch = { id: number; kawasan_kode: string; kawasan_nama: string; periode_start: string; periode_end: string; periode_type: string; tahun: number; status: string }
 
@@ -312,20 +315,29 @@ async function loadBatches() {
   batchLoading.value = true
   try {
     const params: Record<string, string> = {}
-    if (batchFilterKawasan.value) params.kawasan_id = String(batchFilterKawasan.value)
+    // Petugas: permintaan selalu dibatasi ke kawasan penugasan.
+    const kawasanId = scopedKawasanId.value ?? batchFilterKawasan.value
+    if (kawasanId) params.kawasan_id = String(kawasanId)
     if (batchFilterStatus.value) params.status = batchFilterStatus.value
     const r = await $fetch<{ data: Batch[] }>('/api/laporan/batch', { query: params })
     batches.value = r.data
   } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat batch', 'error') }
   finally { batchLoading.value = false }
 }
+function openBatchDialog() {
+  // Petugas: kawasan sudah ditentukan oleh penugasan.
+  if (scopedKawasanId.value) batchForm.kawasan_id = scopedKawasanId.value
+  batchDialog.value = true
+}
 async function createBatch() {
   batchErr.kawasan_id = ''
-  if (!batchForm.kawasan_id) { batchErr.kawasan_id = 'Kawasan wajib'; return }
+  // Kawasan penugasan tidak bisa ditimpa dari klien.
+  const kawasanId = scopedKawasanId.value ?? batchForm.kawasan_id
+  if (!kawasanId) { batchErr.kawasan_id = 'Kawasan wajib'; return }
   if (!batchForm.periode_start || !batchForm.periode_end) { toast('Periode wajib', 'error'); return }
   batchSaving.value = true
   try {
-    await $fetch('/api/laporan/batch', { method: 'POST', body: { kawasan_id: batchForm.kawasan_id, periode_type: batchForm.periode_type, periode_start: batchForm.periode_start, periode_end: batchForm.periode_end, tahun: Number(batchForm.tahun), catatan: batchForm.catatan } })
+    await $fetch('/api/laporan/batch', { method: 'POST', body: { kawasan_id: kawasanId, periode_type: batchForm.periode_type, periode_start: batchForm.periode_start, periode_end: batchForm.periode_end, tahun: Number(batchForm.tahun), catatan: batchForm.catatan } })
     toast('Batch dibuat')
     batchDialog.value = false
     batchForm.kawasan_id = null; batchForm.catatan = ''
@@ -345,5 +357,10 @@ async function verifBatch(b: { id: number }, aksi: string) {
   } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || String(e), 'error') }
 }
 
-onMounted(async () => { await loadMaster(); await loadBatches() })
+onMounted(async () => {
+  await loadMaster()
+  // Petugas: filter kawasan dikunci ke penugasan (tampil, tidak bisa diubah).
+  if (scopedKawasanId.value) batchFilterKawasan.value = scopedKawasanId.value
+  await loadBatches()
+})
 </script>

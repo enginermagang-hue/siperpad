@@ -1,4 +1,5 @@
 import { query } from '../../utils/db'
+import { sessionKawasanId } from '../../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -6,7 +7,18 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event) as { kawasan_id?: string; tahun?: string; status?: string }
   const where: string[] = []
   const params: unknown[] = []
-  if (q.kawasan_id) { where.push('b.kawasan_id = ?'); params.push(Number(q.kawasan_id)) }
+  // Petugas dengan penugasan kawasan: daftar dikunci ke kawasan penugasannya,
+  // permintaan ke kawasan lain ditolak (bukan diabaikan diam-diam).
+  const scoped = sessionKawasanId(session.user)
+  const requested = q.kawasan_id ? Number(q.kawasan_id) : null
+  if (scoped != null) {
+    if (requested != null && requested !== scoped) {
+      throw createError({ statusCode: 403, message: 'Anda hanya dapat mengakses batch kawasan penugasan Anda' })
+    }
+    where.push('b.kawasan_id = ?'); params.push(scoped)
+  } else if (q.kawasan_id) {
+    where.push('b.kawasan_id = ?'); params.push(Number(q.kawasan_id))
+  }
   if (q.tahun) { where.push('b.tahun = ?'); params.push(Number(q.tahun)) }
   if (q.status) { where.push('b.status = ?'); params.push(q.status.trim()) }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''

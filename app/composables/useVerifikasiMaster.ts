@@ -13,6 +13,21 @@ export function useVerifikasiMaster() {
   const jenisList = ref<Jenis[]>([])
   const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: k.kode + ' — ' + k.nama, value: k.id })))
 
+  // Penugasan kawasan petugas (null = bebas memilih kawasan). Sama dengan
+  // `scopedKawasanId` di pad.vue / entri-mingguan.vue.
+  const scopedKawasanId = computed<number | null>(() => {
+    if (!isUser.value) return null
+    const v = session.user.value?.kawasan_id
+    if (v == null) return null
+    const n = Number(v)
+    return Number.isFinite(n) && n > 0 ? n : null
+  })
+  // Opsi kawasan yang boleh dipilih: petugas hanya kawasan penugasannya.
+  const kawasanOptsScoped = computed(() => {
+    const s = scopedKawasanId.value
+    return s == null ? kawasanOpts.value : kawasanOpts.value.filter((o) => o.value === s)
+  })
+
   const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' | 'warning' })
   function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
 
@@ -30,5 +45,5 @@ export function useVerifikasiMaster() {
     try { const r = await $fetch<{ data: Jenis[] }>('/api/jenis-retribusi'); jenisList.value = r.data } catch {}
   }
 
-  return { role, isAdmin, isUser, canVerif, kawasan, jenisList, kawasanOpts, snack, toast, fmt, bulanOpts, bulanLabel, loadMaster }
+  return { role, isAdmin, isUser, canVerif, kawasan, jenisList, kawasanOpts, kawasanOptsScoped, scopedKawasanId, snack, toast, fmt, bulanOpts, bulanLabel, loadMaster }
 }
