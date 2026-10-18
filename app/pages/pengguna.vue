@@ -98,7 +98,7 @@
       <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
       <v-text-field v-model="form.nip" label="NIP" variant="outlined" density="compact" hide-details class="mb-2" />
       <v-text-field v-model="form.email" label="Email *" variant="outlined" density="compact" :error-messages="err.email" class="mb-2" />
-      <v-select v-model="form.role" :items="['admin','verifikator','kepala']" label="Role *" variant="outlined" density="compact" :error-messages="err.role" class="mb-2" />
+      <v-select v-model="form.role" :items="['user','admin','kepala']" label="Role *" variant="outlined" density="compact" :error-messages="err.role" class="mb-2" />
       <v-text-field v-model="form.password" :label="editing ? 'Password baru (kosongkan jika tidak ganti)' : 'Password *'" type="password" variant="outlined" density="compact" :error-messages="err.password" class="mb-2" />
       <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
       <template #actions>
@@ -155,14 +155,14 @@ watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 const dialog = ref(false)
 const editing = ref<Row | null>(null)
 const saving = ref(false)
-const form = reactive({ nama: '', nip: '', email: '', role: 'admin' as string, password: '', aktif: true })
+const form = reactive({ nama: '', nip: '', email: '', role: 'user' as string, password: '', aktif: true })
 const err = reactive({ nama: '', email: '', role: '', password: '' })
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)
 const deleting = ref(false)
 const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' | 'warning' })
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
-function roleColor(r: string) { if (r === 'admin') return 'primary'; if (r === 'verifikator') return 'warning'; return 'success' }
+function roleColor(r: string) { if (r === 'user') return 'info'; if (r === 'admin') return 'primary'; return 'success' }
 
 async function load() {
   loading.value = true
@@ -171,7 +171,7 @@ async function load() {
 }
 function openAdd() {
   editing.value = null
-  form.nama = ''; form.nip = ''; form.email = ''; form.role = 'admin'; form.password = ''; form.aktif = true
+  form.nama = ''; form.nip = ''; form.email = ''; form.role = 'user'; form.password = ''; form.aktif = true
   err.nama = ''; err.email = ''; err.role = ''; err.password = ''
   dialog.value = true
 }
@@ -187,7 +187,7 @@ async function save() {
   err.nama = ''; err.email = ''; err.role = ''; err.password = ''
   if (!form.nama.trim()) err.nama = 'Nama wajib'
   if (!form.email.trim()) err.email = 'Email wajib'
-  if (!['admin','verifikator','kepala'].includes(form.role)) err.role = 'Role tidak valid'
+  if (!['user','admin','kepala'].includes(form.role)) err.role = 'Role tidak valid'
   if (!editing.value && (!form.password || form.password.length < 6)) err.password = 'Password minimal 6 karakter'
   if (editing.value && form.password && form.password.length < 6) err.password = 'Password minimal 6 karakter'
   if (err.nama || err.email || err.role || err.password) return

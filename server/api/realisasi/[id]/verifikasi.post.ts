@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
   const role = String(session.user.role)
-  if (!['verifikator', 'kepala', 'admin'].includes(role)) throw createError({ statusCode: 403, message: 'Hanya verifikator/kepala' })
+  if (!['admin', 'kepala'].includes(role)) throw createError({ statusCode: 403, message: 'Hanya admin/kepala' })
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
   const body = await readBody(event) as { aksi?: string; catatan?: string }

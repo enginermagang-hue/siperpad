@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   if (b.nama != null) { const v = String(b.nama).trim(); if (!v) throw createError({ statusCode: 400, message: 'Nama wajib' }); sets.push('nama = ?'); params.push(v) }
   if (b.nip !== undefined) { sets.push('nip = ?'); params.push(String(b.nip).trim()) }
   if (b.email != null) { const v = String(b.email).trim().toLowerCase(); if (!v) throw createError({ statusCode: 400, message: 'Email wajib' }); sets.push('email = ?'); params.push(v) }
-  if (b.role != null) { const v = String(b.role).trim(); if (!['admin','verifikator','kepala'].includes(v)) throw createError({ statusCode: 400, message: 'Role tidak valid' }); sets.push('role = ?'); params.push(v) }
+  if (b.role != null) { const v = String(b.role).trim(); if (!['user','admin','kepala'].includes(v)) throw createError({ statusCode: 400, message: 'Role tidak valid' }); sets.push('role = ?'); params.push(v) }
   if (b.aktif !== undefined) { sets.push('aktif = ?'); params.push(Number(b.aktif) ? 1 : 0) }
   if (b.password) { if (String(b.password).length < 6) throw createError({ statusCode: 400, message: 'Password minimal 6 karakter' }); sets.push('password_hash = ?'); params.push(hashPassword(String(b.password))) }
   if (!sets.length) throw createError({ statusCode: 400, message: 'Tidak ada field untuk diupdate' })

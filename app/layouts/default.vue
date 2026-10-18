@@ -30,17 +30,40 @@
           active-class="siperpad-active"
         />
 
-        <!-- Input Realisasi -->
+        <!-- Data PAD (admin/kepala) / Input Realisasi (user) -->
         <v-list-group value="input">
           <template #activator="{ props }">
-            <v-list-item v-bind="props" prepend-icon="mdi-file-document-outline" title="Input Realisasi" />
+            <v-list-item v-bind="props" prepend-icon="mdi-file-document-outline" :title="isUser ? 'Input Realisasi' : 'Data PAD'" />
           </template>
-          <v-list-item title="Realisasi Mingguan" to="/entri-mingguan" :active="route.path.startsWith('/entri-mingguan')" class="siperpad-sub" />
+          <v-list-item title="Entri Mingguan" to="/entri-mingguan" :active="route.path.startsWith('/entri-mingguan')" class="siperpad-sub" />
           <v-list-item title="Riwayat Transaksi" to="/pad" :active="route.path === '/pad'" class="siperpad-sub" />
         </v-list-group>
 
-        <!-- Data Master (Katalog) -->
-        <v-list-group value="master">
+        <!-- Verifikasi (admin/kepala) -->
+        <v-list-group v-if="isAdmin || isKepala" value="verifikasi">
+          <template #activator="{ props }">
+            <v-list-item v-bind="props" prepend-icon="mdi-clipboard-check-outline" title="Verifikasi" />
+          </template>
+          <v-list-item title="Realisasi Diajukan" to="/verifikasi" :active="route.path === '/verifikasi'" class="siperpad-sub" />
+          <v-list-item title="Batch Laporan" to="/verifikasi/batch" :active="route.path.startsWith('/verifikasi/batch')" class="siperpad-sub" />
+          <v-list-item v-if="isAdmin" title="Kunci Periode" to="/verifikasi/periode" :active="route.path.startsWith('/verifikasi/periode')" class="siperpad-sub" />
+          <v-list-item v-if="isAdmin" title="Catatan Temuan" to="/verifikasi/catatan" :active="route.path.startsWith('/verifikasi/catatan')" class="siperpad-sub" />
+          <v-list-item title="Audit Trail" to="/verifikasi/audit" :active="route.path.startsWith('/verifikasi/audit')" class="siperpad-sub" />
+        </v-list-group>
+
+        <!-- Pengajuan Batch (user) -->
+        <v-list-item
+          v-if="isUser"
+          prepend-icon="mdi-send"
+          title="Pengajuan Batch"
+          to="/verifikasi/batch"
+          :active="route.path.startsWith('/verifikasi/batch')"
+          class="mb-1"
+          active-class="siperpad-active"
+        />
+
+        <!-- Data Master (admin) -->
+        <v-list-group v-if="isAdmin" value="master">
           <template #activator="{ props }">
             <v-list-item v-bind="props" prepend-icon="mdi-folder-outline" title="Data Master (Katalog)" />
           </template>
@@ -54,19 +77,18 @@
           prepend-icon="mdi-file-chart-outline"
           title="Rekap & Laporan"
           to="/laporan"
-          :active="route.path.startsWith('/laporan') && !route.query.tab"
+          :active="route.path.startsWith('/laporan')"
           class="mb-1"
           active-class="siperpad-active"
         />
 
-        <!-- Pengaturan Sistem (gabung: Pengaturan + Pengguna + Verifikasi) -->
+        <!-- Pengaturan Sistem -->
         <v-list-group value="pengaturan">
           <template #activator="{ props }">
             <v-list-item v-bind="props" prepend-icon="mdi-cog-outline" title="Pengaturan Sistem" />
           </template>
           <v-list-item title="Pengaturan" to="/settings" :active="route.path.startsWith('/settings')" class="siperpad-sub" />
           <v-list-item v-if="isAdmin" title="Pengguna" to="/pengguna" :active="route.path.startsWith('/pengguna')" class="siperpad-sub" />
-          <v-list-item v-if="isAdmin || isVerifikator || isKepala" title="Verifikasi" to="/verifikasi" :active="route.path.startsWith('/verifikasi')" class="siperpad-sub" />
         </v-list-group>
       </v-list>
     </v-navigation-drawer>
@@ -199,7 +221,7 @@ const notifItems = computed(() => {
   if (d.verifikasi.batch > 0) {
     items.push({
       key: 'batch', title: 'Laporan menunggu verifikasi', subtitle: 'Batch laporan berstatus diajukan',
-      icon: 'mdi-file-clock-outline', color: 'primary', count: d.verifikasi.batch, to: '/verifikasi',
+      icon: 'mdi-file-clock-outline', color: 'primary', count: d.verifikasi.batch, to: '/verifikasi/batch',
     })
   }
   if (d.anomali > 0) {
@@ -211,7 +233,7 @@ const notifItems = computed(() => {
   if (d.temuan > 0) {
     items.push({
       key: 'temuan', title: 'Temuan belum selesai', subtitle: 'Catatan temuan berstatus terbuka',
-      icon: 'mdi-clipboard-alert-outline', color: 'error', count: d.temuan, to: '/verifikasi',
+      icon: 'mdi-clipboard-alert-outline', color: 'error', count: d.temuan, to: '/verifikasi/catatan',
     })
   }
   return items
@@ -228,15 +250,15 @@ watch(notifMenu, (open) => {
 onMounted(() => loadNotif())
 
 const isAdmin = computed(() => session.user.value?.role === 'admin')
-const isVerifikator = computed(() => session.user.value?.role === 'verifikator')
+const isUser = computed(() => session.user.value?.role === 'user')
 const isKepala = computed(() => session.user.value?.role === 'kepala')
-const userName = computed(() => session.user.value?.nama || 'Admin Utama')
+const userName = computed(() => session.user.value?.nama || 'Pengguna')
 const roleLabel = computed(() => {
   const r = session.user.value?.role
-  if (r === 'admin') return 'Bendahara Penerimaan'
-  if (r === 'verifikator') return 'Verifikator'
+  if (r === 'user') return 'Petugas Input'
+  if (r === 'admin') return 'Administrator'
   if (r === 'kepala') return 'Kepala'
-  return 'Bendahara Penerimaan'
+  return ''
 })
 
 watch(isDark, (val) => {

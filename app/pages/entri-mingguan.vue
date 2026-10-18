@@ -7,7 +7,7 @@
       </div>
       <div class="d-flex align-center ga-3">
         <v-chip v-if="meta?.locked" color="warning" prepend-icon="mdi-lock">Periode Terkunci</v-chip>
-        <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" :disabled="!kawasanId || !!meta?.locked" @click="openInput">Input Entri</v-btn>
+        <v-btn v-if="isUser" color="primary" prepend-icon="mdi-plus" :disabled="!kawasanId || !!meta?.locked" @click="openInput">Input Entri</v-btn>
       </div>
     </div>
 
@@ -46,52 +46,72 @@
             <th class="text-right">Nilai {{ labelMingguAktif }}</th>
             <th class="text-right">Total Bulanan</th>
             <th style="width:120px">Status</th>
-            <th v-if="isAdmin">Aksi</th>
+            <th v-if="isUser">Aksi</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading"><td :colspan="colCount" class="text-center py-6">Memuat...</td></tr>
           <tr v-else-if="!rows.length"><td :colspan="colCount" class="text-center py-6 text-medium-emphasis">Tidak ada pos penerimaan</td></tr>
-          <tr v-for="r in rows" :key="r.jenis_id">
-            <td class="font-weight-medium">{{ r.kode || '-' }}</td>
-            <td>
-              {{ r.nama }}
-              <v-chip v-if="r.tarif" size="x-small" variant="tonal" class="ml-1">Tarif {{ fmt(r.tarif) }}</v-chip>
-            </td>
-            <td class="text-right">{{ fmt(r.target) }}</td>
-            <td class="text-right text-medium-emphasis">{{ fmt(r.sBelum) }}</td>
-            <td class="text-right font-weight-medium">
-              {{ fmt(cellOf(r).nilai) }}
-              <div v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null" class="text-caption text-medium-emphasis">
-                {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
-              </div>
-            </td>
-            <td class="text-right font-weight-medium">{{ fmt(rowTotal(r)) }}</td>
-            <td>
-              <template v-if="cellOf(r).status">
-                <template v-if="isCellLocked(r)">
-                  <v-tooltip location="top" text="Terkunci — sudah diajukan, tidak bisa diubah" :open-delay="200">
-                    <template #activator="{ props }">
-                      <v-chip v-bind="props" size="small" :color="statusColor(cellOf(r).status)" variant="tonal" prepend-icon="mdi-lock">{{ cellOf(r).status }}</v-chip>
-                    </template>
-                  </v-tooltip>
+          <template v-for="r in rows" :key="r.jenis_id">
+            <tr class="expand-row" @click="toggleExpand(r.jenis_id)">
+              <td class="font-weight-medium">
+                <v-icon size="small" class="expand-chevron mr-1" :class="{ 'expand-chevron--open': expandedId === r.jenis_id }">mdi-chevron-right</v-icon>
+                {{ r.kode || '-' }}
+              </td>
+              <td>
+                {{ r.nama }}
+                <v-chip v-if="r.tarif" size="x-small" variant="tonal" class="ml-1">Tarif {{ fmt(r.tarif) }}</v-chip>
+              </td>
+              <td class="text-right">{{ fmt(r.target) }}</td>
+              <td class="text-right text-medium-emphasis">{{ fmt(r.sBelum) }}</td>
+              <td class="text-right font-weight-medium">
+                {{ fmt(cellOf(r).nilai) }}
+                <div v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null" class="text-caption text-medium-emphasis">
+                  {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
+                </div>
+              </td>
+              <td class="text-right font-weight-medium">{{ fmt(rowTotal(r)) }}</td>
+              <td>
+                <template v-if="cellOf(r).status">
+                  <template v-if="isCellLocked(r)">
+                    <v-tooltip location="top" text="Terkunci — sudah diajukan, tidak bisa diubah" :open-delay="200">
+                      <template #activator="{ props }">
+                        <v-chip v-bind="props" size="small" :color="statusColor(cellOf(r).status)" variant="tonal" prepend-icon="mdi-lock">{{ cellOf(r).status }}</v-chip>
+                      </template>
+                    </v-tooltip>
+                  </template>
+                  <v-chip v-else size="small" :color="statusColor(cellOf(r).status)" variant="tonal">{{ cellOf(r).status }}</v-chip>
                 </template>
-                <v-chip v-else size="small" :color="statusColor(cellOf(r).status)" variant="tonal">{{ cellOf(r).status }}</v-chip>
-              </template>
-              <span v-else class="text-medium-emphasis">-</span>
-            </td>
-            <td v-if="isAdmin">
-              <v-menu v-if="cellOf(r).status === 'draft'" location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" :disabled="!!meta?.locked" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
-                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
-                </v-list>
-              </v-menu>
-            </td>
-          </tr>
+                <span v-else class="text-medium-emphasis">-</span>
+              </td>
+              <td v-if="isUser">
+                <v-menu v-if="cellOf(r).status === 'draft'" location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" :disabled="!!meta?.locked" @click.stop />
+                  </template>
+                  <v-list density="compact" min-width="160">
+                    <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
+                    <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
+                  </v-list>
+                </v-menu>
+              </td>
+            </tr>
+            <tr v-if="expandedId === r.jenis_id">
+              <td :colspan="colCount" class="pa-0">
+                <PerhitunganPanel
+                  :title="`${r.kode || '-'} — ${r.nama}`"
+                  :subtitle="`${kawasanLabel} · ${labelBulan} ${tahun}`"
+                  :mode-label="modeLabelOf(r)"
+                  :formula="formulaOf(r)"
+                  :lines="panelLines(r)"
+                  :target="r.target"
+                  :total="rowTotal(r)"
+                  total-label="Total Bulanan"
+                  basis-note="Grid memakai basis draft + diajukan + disetujui (kecuali ditolak). Angka resmi rekap/ekspor hanya status disetujui."
+                />
+              </td>
+            </tr>
+          </template>
         </tbody>
         <tfoot v-if="rows.length">
           <tr class="font-weight-bold">
@@ -101,7 +121,7 @@
             <td class="text-right">{{ fmt(sumMingguAktif) }}</td>
             <td class="text-right">{{ fmt(sumTotal) }}</td>
             <td></td>
-            <td v-if="isAdmin"></td>
+            <td v-if="isUser"></td>
           </tr>
         </tfoot>
       </v-table>
@@ -128,7 +148,7 @@
             <div v-if="cellOf(r).kuantitas != null && cellOf(r).tarif != null" class="text-caption text-medium-emphasis mt-1">
               {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
             </div>
-            <template v-if="isAdmin && cellOf(r).status === 'draft'" #actions>
+            <template v-if="isUser && cellOf(r).status === 'draft'" #actions>
               <v-btn size="small" variant="text" prepend-icon="mdi-pencil" :disabled="!!meta?.locked" @click="openEdit(r)">Edit</v-btn>
               <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" :disabled="!!meta?.locked" @click="confirmDelete(r)">Hapus</v-btn>
             </template>
@@ -144,7 +164,7 @@
             <template #append>
               <span class="text-body-2 font-weight-medium mr-2">{{ fmt(cellOf(r).nilai) }}</span>
               <v-chip v-if="cellOf(r).status" size="x-small" :color="statusColor(cellOf(r).status)" variant="tonal" class="mr-1" :prepend-icon="isCellLocked(r) ? 'mdi-lock' : undefined">{{ cellOf(r).status }}</v-chip>
-              <v-menu v-if="isAdmin && cellOf(r).status === 'draft'" location="bottom end">
+              <v-menu v-if="isUser && cellOf(r).status === 'draft'" location="bottom end">
                 <template #activator="{ props }">
                   <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" :disabled="!!meta?.locked" />
                 </template>
@@ -164,8 +184,8 @@
           Total {{ labelMingguAktif }}: <b>{{ fmt(sumMingguAktif) }}</b> · Total Bulanan: <b>{{ fmt(sumTotal) }}</b>
         </div>
         <div class="d-flex ga-2">
-          <v-btn v-if="!meta?.locked" color="secondary" variant="tonal" prepend-icon="mdi-send-clock" :disabled="!hasDraftMinggu(tabMinggu)" :loading="ajukanMingguLoading" @click="ajukanMingguIni">Ajukan Minggu Ini</v-btn>
-          <v-btn v-if="!meta?.locked" color="primary" variant="tonal" prepend-icon="mdi-send" :disabled="!hasDraft" :loading="ajukanLoading" @click="ajukanSemua">Ajukan Semua</v-btn>
+          <v-btn v-if="isUser && !meta?.locked" color="secondary" variant="tonal" prepend-icon="mdi-send-clock" :disabled="!hasDraftMinggu(tabMinggu)" :loading="ajukanMingguLoading" @click="ajukanMingguIni">Ajukan Minggu Ini</v-btn>
+          <v-btn v-if="isUser && !meta?.locked" color="primary" variant="tonal" prepend-icon="mdi-send" :disabled="!hasDraft" :loading="ajukanLoading" @click="ajukanSemua">Ajukan Semua</v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -257,7 +277,7 @@ type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level: number; has_child: number; tarif: number | null; mode_tarif: string; satuan: string }
 
 const session = useUserSession()
-const isAdmin = computed(() => String(session.user.value?.role) === 'admin')
+const isUser = computed(() => String(session.user.value?.role) === 'user')
 
 const kawasan = ref<Kawasan[]>([])
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
@@ -290,7 +310,7 @@ const mingguTabs = [
 ]
 const labelMingguAktif = computed(() => mingguTabs.find((w) => w.value === tabMinggu.value)?.label || `Minggu ${tabMinggu.value}`)
 
-const colCount = computed(() => (isAdmin.value ? 8 : 7))
+const colCount = computed(() => (isUser.value ? 8 : 7))
 
 const jenisOpts = computed(() => jenisList.value
   .filter((j) => !j.has_child)
@@ -340,6 +360,40 @@ const sumMinggu = computed(() => [0, 1, 2, 3].map((i) => rows.value.reduce((s, r
 const sumMingguAktif = computed(() => rows.value.reduce((s, r) => s + r.minggu[tabMinggu.value - 1]!.nilai, 0))
 const sumTotal = computed(() => sumMinggu.value.reduce((s, v) => s + v, 0))
 
+// ── Panel langkah perhitungan (inline expand) ─────────────────────
+const expandedId = ref<number | null>(null)
+function toggleExpand(id: number) { expandedId.value = expandedId.value === id ? null : id }
+
+const labelBulan = computed(() => meta.value?.bulanLabel || bulanOpts.find((b) => b.value === bulan.value)?.label || '')
+
+function modeLabelOf(r: GridRow): string {
+  if (r.mode_tarif === 'kuantitas') {
+    const parts = ['Kuantitas']
+    if (r.satuan) parts.push(r.satuan)
+    if (r.tarif) parts.push(`tarif ${fmt(r.tarif)}`)
+    return parts.join(' · ')
+  }
+  return 'Langsung'
+}
+
+function formulaOf(r: GridRow): string {
+  return r.mode_tarif === 'kuantitas' ? 'jumlah = round(kuantitas × tarif)' : 'jumlah = nilai Rupiah yang diinput'
+}
+
+function panelLines(r: GridRow) {
+  const lines: { op?: string; label: string; value: string; note?: string }[] = [
+    { label: 's/d Bulan Lalu', value: fmt(r.sBelum) },
+  ]
+  mingguTabs.forEach((w, i) => {
+    const cell = r.minggu[i]!
+    const noteParts: string[] = []
+    if (cell.kuantitas != null && cell.tarif != null) noteParts.push(`${Number(cell.kuantitas).toLocaleString('id-ID')} × ${fmt(cell.tarif)}`)
+    if (cell.status) noteParts.push(cell.status)
+    lines.push({ op: '+', label: `${w.label} (tgl ${w.range})`, value: fmt(cell.nilai), note: noteParts.join(' · ') || undefined })
+  })
+  return lines
+}
+
 // ── Modal input/edit ──────────────────────────────────────────────
 const dialog = ref(false)
 const editing = ref<GridRow | null>(null)
@@ -372,7 +426,7 @@ function onJenisChange(val: number | null) {
 }
 
 function openInput() {
-  if (!isAdmin.value || meta.value?.locked) return
+  if (!isUser.value || meta.value?.locked) return
   editing.value = null
   form.jenis_retribusi_id = null
   form.nilai = 0
@@ -383,7 +437,7 @@ function openInput() {
 }
 
 function openEdit(r: GridRow) {
-  if (!isAdmin.value || meta.value?.locked) return
+  if (!isUser.value || meta.value?.locked) return
   const cell = cellOf(r)
   if (cell.status !== 'draft') return
   editing.value = r
@@ -440,7 +494,7 @@ const delTarget = ref<GridRow | null>(null)
 const deleting = ref(false)
 
 function confirmDelete(r: GridRow) {
-  if (!isAdmin.value || meta.value?.locked) return
+  if (!isUser.value || meta.value?.locked) return
   const cell = cellOf(r)
   if (cell.status !== 'draft' || !cell.realisasi_id) return
   delTarget.value = r
@@ -513,3 +567,19 @@ async function ajukanMingguIni() {
 
 onMounted(async () => { await loadKawasan(); await loadJenis(); await load() })
 </script>
+
+<style scoped>
+.expand-row {
+  cursor: pointer;
+}
+.expand-row:hover {
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+.expand-chevron {
+  transition: transform 0.15s ease;
+  vertical-align: middle;
+}
+.expand-chevron--open {
+  transform: rotate(90deg);
+}
+</style>

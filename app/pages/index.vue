@@ -7,14 +7,13 @@
     </div>
 
     <v-card flat class="mb-4 pa-3 d-flex align-center flex-wrap ga-3" style="border-radius: 10px">
-      <v-btn color="primary" prepend-icon="mdi-plus" to="/entri-mingguan">Tambah Data Realisasi</v-btn>
-      <v-spacer />
-      <div class="d-flex ga-2 flex-wrap align-center">
-        <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="min-width: 170px" placeholder="Semua" @update:model-value="loadRekap" />
-        <v-select v-model="tahun" :items="tahunOpts" density="compact" variant="outlined" hide-details style="min-width: 110px" label="Tahun" @update:model-value="loadRekap" />
-        <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Pilih Bulan/Minggu" density="compact" variant="outlined" hide-details style="min-width: 175px" @update:model-value="loadRekap" />
-        <v-select v-model="scope" :items="scopeOpts" item-title="label" item-value="value" density="compact" variant="outlined" hide-details style="min-width: 125px" @update:model-value="loadRekap" />
-        <v-text-field v-model="pencarian" density="compact" variant="outlined" hide-details placeholder="Pencarian" style="min-width: 160px" prepend-inner-icon="mdi-magnify" clearable />
+      <v-btn v-if="isUser" color="primary" prepend-icon="mdi-plus" to="/entri-mingguan">Tambah Data Realisasi</v-btn>
+      <div class="d-flex ga-2 flex-wrap align-center" :class="isUser ? 'ml-auto' : 'flex-grow-1'">
+        <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="min-width: 170px" placeholder="Semua" :class="filterGrow" @update:model-value="loadRekap" />
+        <v-select v-model="tahun" :items="tahunOpts" density="compact" variant="outlined" hide-details style="min-width: 110px" label="Tahun" :class="filterGrow" @update:model-value="loadRekap" />
+        <v-select v-model="bulan" :items="bulanOpts" item-title="label" item-value="value" label="Pilih Bulan/Minggu" density="compact" variant="outlined" hide-details style="min-width: 175px" :class="filterGrow" @update:model-value="loadRekap" />
+        <v-select v-model="scope" :items="scopeOpts" item-title="label" item-value="value" density="compact" variant="outlined" hide-details style="min-width: 125px" :class="filterGrow" @update:model-value="loadRekap" />
+        <v-text-field v-model="pencarian" density="compact" variant="outlined" hide-details placeholder="Pencarian" style="min-width: 160px" prepend-inner-icon="mdi-magnify" clearable :class="filterGrow" />
       </div>
     </v-card>
 
@@ -173,6 +172,8 @@ definePageMeta({ layout: 'default', middleware: 'auth' })
 const { mode } = useViewMode('dashboard-top')
 
 const session = useUserSession()
+const isUser = computed(() => session.user.value?.role === 'user')
+const filterGrow = computed(() => (isUser.value ? '' : 'flex-grow-1'))
 const dbHealth = await useFetch('/api/health')
 const dbHealthy = dbHealth.data.value?.status === 'ok'
 const dbStatus = dbHealth.pending.value ? 'Memeriksa...' : dbHealthy ? 'Terhubung' : dbHealth.error.value ? 'Gagal' : 'Tidak diketahui'

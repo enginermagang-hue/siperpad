@@ -5,7 +5,7 @@
         <v-icon size="36" color="primary" class="mr-3">mdi-cash-multiple</v-icon>
         <h1 class="text-h4 font-weight-medium">Data PAD — Realisasi</h1>
       </div>
-      <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Realisasi</v-btn>
+      <v-btn v-if="isUser" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Realisasi</v-btn>
     </div>
 
     <v-card flat elevation="0" class="mb-4">
@@ -25,25 +25,48 @@
       </div>
 
       <v-table v-if="mode === 'table'" density="default">
-        <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Status</th><th v-if="isAdmin" style="width: 140px">Aksi</th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Kode</th><th>Jenis</th><th>Kawasan</th><th class="text-right">Jumlah</th><th class="text-right">Target</th><th class="text-right">Capaian</th><th>Status</th><th v-if="isUser" style="width: 140px">Aksi</th></tr></thead>
         <tbody>
-          <tr v-if="loading"><td colspan="9" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="9" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
-          <tr v-for="r in paginated" :key="r.id">
-            <td>{{ r.tanggal }}</td>
-            <td class="font-weight-medium">{{ r.jenis_kode || '-' }}</td>
-            <td>{{ r.jenis_nama }}</td>
-            <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
-            <td class="text-right">{{ fmt(r.jumlah) }}</td>
-            <td class="text-right">{{ fmt(r.target_nilai) }}</td>
-            <td class="text-right"><v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="small">{{ r.capaian }}%</v-chip></td>
-            <td><v-chip :color="statusColor(r.status)" size="small">{{ r.status }}</v-chip></td>
-            <td v-if="isAdmin">
-              <v-btn v-if="r.status === 'draft'" icon="mdi-pencil" variant="text" size="small" @click="openEdit(r)" />
-              <v-btn v-if="r.status === 'draft'" icon="mdi-send" variant="text" size="small" color="primary" @click="confirmAjukan(r)" />
-              <v-btn v-if="r.status === 'draft'" icon="mdi-delete" variant="text" size="small" color="error" @click="confirmDelete(r)" />
-            </td>
-          </tr>
+          <tr v-if="loading"><td :colspan="colCount" class="text-center py-6">Memuat...</td></tr>
+          <tr v-else-if="!filtered.length"><td :colspan="colCount" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
+          <template v-for="r in paginated" :key="r.id">
+            <tr class="expand-row" @click="toggleExpand(r.id)">
+              <td>
+                <v-icon size="small" class="expand-chevron mr-1" :class="{ 'expand-chevron--open': expandedId === r.id }">mdi-chevron-right</v-icon>
+                {{ r.tanggal }}
+              </td>
+              <td class="font-weight-medium">{{ r.jenis_kode || '-' }}</td>
+              <td>{{ r.jenis_nama }}</td>
+              <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
+              <td class="text-right">{{ fmt(r.jumlah) }}</td>
+              <td class="text-right">{{ fmt(r.target_nilai) }}</td>
+              <td class="text-right"><v-chip :color="r.capaian >= 100 ? 'success' : r.capaian >= 75 ? 'warning' : 'error'" size="small">{{ r.capaian }}%</v-chip></td>
+              <td><v-chip :color="statusColor(r.status)" size="small">{{ r.status }}</v-chip></td>
+              <td v-if="isUser">
+                <v-btn v-if="r.status === 'draft'" icon="mdi-pencil" variant="text" size="small" @click.stop="openEdit(r)" />
+                <v-btn v-if="r.status === 'draft'" icon="mdi-send" variant="text" size="small" color="primary" @click.stop="confirmAjukan(r)" />
+                <v-btn v-if="r.status === 'draft'" icon="mdi-delete" variant="text" size="small" color="error" @click.stop="confirmDelete(r)" />
+              </td>
+            </tr>
+            <tr v-if="expandedId === r.id">
+              <td :colspan="colCount" class="pa-0">
+                <PerhitunganPanel
+                  :title="`${r.jenis_kode || '-'} — ${r.jenis_nama}`"
+                  :subtitle="`${r.tanggal} · ${r.kawasan_kode} — ${r.kawasan_nama}`"
+                  mode-label="Langsung"
+                  formula="capaian = jumlah ÷ target tahun"
+                  :lines="[
+                    { label: 'Jumlah realisasi', value: fmt(r.jumlah) },
+                    { label: 'Status', value: r.status },
+                  ]"
+                  :target="r.target_nilai"
+                  :total="r.jumlah"
+                  total-label="Jumlah"
+                  basis-note="Capaian dihitung terhadap target tahun berjalan. Angka resmi hanya status disetujui."
+                />
+              </td>
+            </tr>
+          </template>
         </tbody>
       </v-table>
 
@@ -66,7 +89,7 @@
           <template #badge>
             <v-chip :color="statusColor(r.status)" size="small">{{ r.status }}</v-chip>
           </template>
-          <template v-if="isAdmin && r.status === 'draft'" #actions>
+          <template v-if="isUser && r.status === 'draft'" #actions>
             <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEdit(r)">Edit</v-btn>
             <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-send" @click="confirmAjukan(r)">Ajukan</v-btn>
             <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(r)">Hapus</v-btn>
@@ -82,7 +105,7 @@
             <template #append>
               <span class="text-body-2 text-medium-emphasis mr-2">{{ fmt(r.jumlah) }}</span>
               <v-chip :color="statusColor(r.status)" size="x-small" class="mr-1">{{ r.status }}</v-chip>
-              <v-menu v-if="isAdmin && r.status === 'draft'" location="bottom end">
+              <v-menu v-if="isUser && r.status === 'draft'" location="bottom end">
                 <template #activator="{ props }">
                   <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
                 </template>
@@ -152,7 +175,12 @@ type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level: number; has_child: number }
 
 const session = useUserSession()
-const isAdmin = computed(() => String(session.user.value?.role) === 'admin')
+const isUser = computed(() => String(session.user.value?.role) === 'user')
+const colCount = computed(() => (isUser.value ? 9 : 8))
+
+// Panel langkah perhitungan (inline expand) — keyed per transaksi.
+const expandedId = ref<number | null>(null)
+function toggleExpand(id: number) { expandedId.value = expandedId.value === id ? null : id }
 
 const kawasan = ref<Kawasan[]>([])
 const jenisList = ref<Jenis[]>([])
@@ -335,3 +363,19 @@ async function doAjukan() {
 
 onMounted(async () => { await loadKawasan(); await loadJenis(); await load() })
 </script>
+
+<style scoped>
+.expand-row {
+  cursor: pointer;
+}
+.expand-row:hover {
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+.expand-chevron {
+  transition: transform 0.15s ease;
+  vertical-align: middle;
+}
+.expand-chevron--open {
+  transform: rotate(90deg);
+}
+</style>

@@ -49,8 +49,8 @@
 
           <div class="text-center mt-6">
             <p class="text-caption text-medium-emphasis">
-              Demo: admin@mail.com / verif@mail.com / kepala@mail.com<br>
-              Password: <strong>123456</strong>
+              Demo akun — password <strong>123456</strong><br>
+              <strong>user@mail.com</strong> (Petugas Input) · <strong>admin@mail.com</strong> (Administrator) · <strong>kepala@mail.com</strong> (Kepala)
             </p>
           </div>
         </v-card>

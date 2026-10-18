@@ -98,8 +98,8 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
   const tahun = 2026
 
   const userDefs = [
+    { nama: 'Petugas Input', nip: '199001012015011001', email: 'user@mail.com', role: 'user' },
     { nama: 'Admin Operator', nip: '198001012006041001', email: 'admin@mail.com', role: 'admin' },
-    { nama: 'Verifikator', nip: '198502152010012001', email: 'verif@mail.com', role: 'verifikator' },
     { nama: 'Kepala Dinas', nip: '198001012005011001', email: 'kepala@mail.com', role: 'kepala' },
   ] as const
 
@@ -112,7 +112,7 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
     )
     userIds.push(rows[0]!.id)
   }
-  const [adminUserId, verifUserId, kepalaUserId] = userIds
+  const [userId, adminUserId] = userIds
 
   const kawasanAId = await insertKawasan(ctx, { kode: 'A', nama: 'Kampung Seni Flobamorata', urutan: 1 })
   const kawasanBId = await insertKawasan(ctx, { kode: 'B', nama: 'Pantai Lasiana', urutan: 2 })
@@ -251,7 +251,7 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
     periode_end: '2026-08-31',
     tahun,
     status: 'disetujui',
-    diajukan_oleh: adminUserId,
+    diajukan_oleh: userId,
     diajukan_at: '2026-08-31T17:00:00',
     catatan: 'Laporan realisasi Agustus 2026 — Kawasan Kampung Seni Flobamorata',
   })
@@ -262,7 +262,7 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
     periode_end: '2026-08-31',
     tahun,
     status: 'disetujui',
-    diajukan_oleh: adminUserId,
+    diajukan_oleh: userId,
     diajukan_at: '2026-08-31T17:00:00',
     catatan: 'Laporan realisasi Agustus 2026 — Kawasan Pantai Lasiana',
   })

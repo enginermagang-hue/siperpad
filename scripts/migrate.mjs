@@ -100,8 +100,8 @@ async function seedAll() {
 
   // Users
   const userDefs = [
+    { nama: 'Petugas Input', nip: '199001012015011001', email: 'user@mail.com', role: 'user' },
     { nama: 'Admin Operator', nip: '198001012006041001', email: 'admin@mail.com', role: 'admin' },
-    { nama: 'Verifikator', nip: '198502152010012001', email: 'verif@mail.com', role: 'verifikator' },
     { nama: 'Kepala Dinas', nip: '198001012005011001', email: 'kepala@mail.com', role: 'kepala' },
   ]
 
@@ -114,7 +114,7 @@ async function seedAll() {
     )
     userIds.push(rows[0].id)
   }
-  const [adminUserId] = userIds
+  const [userId, adminUserId] = userIds
 
   // Kawasan
   const insertKawasan = async (kode, nama, urutan) => {
@@ -269,12 +269,12 @@ async function seedAll() {
 
   await insertBatch({
     kawasan_id: kawasanAId, periode_type: 'bulanan', periode_start: '2026-08-01',
-    periode_end: '2026-08-31', tahun, status: 'disetujui', diajukan_oleh: adminUserId,
+    periode_end: '2026-08-31', tahun, status: 'disetujui', diajukan_oleh: userId,
     diajukan_at: '2026-08-31T17:00:00', catatan: 'Laporan realisasi Agustus 2026 — Kawasan Kampung Seni Flobamorata',
   })
   await insertBatch({
     kawasan_id: kawasanBId, periode_type: 'bulanan', periode_start: '2026-08-01',
-    periode_end: '2026-08-31', tahun, status: 'disetujui', diajukan_oleh: adminUserId,
+    periode_end: '2026-08-31', tahun, status: 'disetujui', diajukan_oleh: userId,
     diajukan_at: '2026-08-31T17:00:00', catatan: 'Laporan realisasi Agustus 2026 — Kawasan Pantai Lasiana',
   })
 

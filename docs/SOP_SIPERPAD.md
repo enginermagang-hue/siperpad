@@ -6,17 +6,17 @@
 
 | Role | Akses |
 |------|-------|
-| `admin` | Input realisasi, kelola master (kawasan/jenis/target), kelola pengguna, buat & ajukan batch, verifikasi batch/realisasi, ekspor laporan, sinkronisasi Dropbox |
-| `verifikator` | Lihat semua, verifikasi realisasi & batch (`diajukan → disetujui/ditolak`), lihat audit log |
-| `kepala` | Lihat laporan & dashboard, ekspor CSV/XLSX/PDF, verifikasi batch/realisasi |
+| `user` | Input realisasi (Data PAD harian & Entri Mingguan), ajukan realisasi (satuan/massal), buat & ajukan batch laporan |
+| `admin` | Kelola master (kawasan/jenis/target), kelola pengguna, verifikasi realisasi & batch, ekspor laporan, kunci/buka periode, sinkronisasi Dropbox |
+| `kepala` | Lihat laporan & dashboard, ekspor CSV/XLSX/PDF, verifikasi realisasi & batch |
 
 ## 2. Alur Kerja
 
 ```
 Master (kawasan → jenis retribusi → target tahunan)
-  → Input realisasi (Data PAD harian, atau Entri Mingguan grid — admin)
-  → Ajukan (draft → diajukan; bisa massal per periode/kawasan)
-  → Verifikasi (verifikator/kepala — diajukan → disetujui/ditolak)
+  → Input realisasi (Data PAD harian, atau Entri Mingguan grid — user)
+  → Ajukan (draft → diajukan; bisa massal per periode/kawasan — user)
+  → Verifikasi (admin/kepala — diajukan → disetujui/ditolak)
   → Angka resmi = hanya status DISETUJUI (dashboard/laporan/ekspor)
   → Laporan rekap, perbandingan periode & ekspor (admin/kepala)
   → Kunci periode terkunci (admin) setelah semua terverifikasi
@@ -27,7 +27,7 @@ Master (kawasan → jenis retribusi → target tahunan)
 
 ## 3. Langkah Operasional
 
-### 3.1 Input Realisasi (Admin)
+### 3.1 Input Realisasi (Petugas Input / user)
 **A. Via Data PAD (harian)**
 1. Buka **Data PAD** (`/pad`).
 2. Klik **Tambah Realisasi** — pilih Jenis Retribusi, isi Tanggal (YYYY-MM-DD), Jumlah (≥0), Catatan.
@@ -35,7 +35,7 @@ Master (kawasan → jenis retribusi → target tahunan)
 4. Klik **Simpan** (status `draft`).
 5. Pada tabel, klik **Ajukan** (ikon send) — status menjadi `diajukan`, tidak bisa diedit/hapus lagi.
 
-**B. Via Entri Mingguan (grid — admin)**
+**B. Via Entri Mingguan (grid — user)**
 1. Buka **Entri Mingguan** (`/entri-mingguan`).
 2. Pilih Kawasan, Bulan, Tahun. Isi nilai per Minggu I–IV (tanggal representatif: hari 1/8/15/22).
 3. Klik di luar sel / Enter untuk menyimpan tiap sel (status `draft`).
@@ -49,13 +49,13 @@ Master (kawasan → jenis retribusi → target tahunan)
 4. **Hapus**: hapus target yang salah (tidak memengaruhi realisasi histori).
 5. **Peringatan anomali** muncul bila target induk tertulis ≠ jumlah anak (contoh A.2: selisih Rp13.680.000) — koordinasikan dengan Bendahara Penerimaan.
 
-### 3.3 Verifikasi (Verifikator/Kepala/Admin)
-1. Buka **Verifikasi** (`/verifikasi`) — tab **Realisasi Diajukan**.
-2. Filter per kawasan/jenis bila perlu. Klik **Setujui** atau **Tolak**, atau **Setujui Semua** untuk massal — status berubah, tercatat di **Audit Trail**.
-3. Tab **Batch Laporan** — admin membuat batch periode (mis. `bulanan 2026-08`), lalu ajukan. Verifikator men-setujui/menolak batch.
-4. Tab **Kunci Periode** (admin) — lihat bagian 3.7.
-5. Tab **Catatan Temuan** — lihat bagian 3.8.
-6. Tab **Audit Trail** — lihat jejak `VERIFIKASI_SETUJU/TOLAK`, `VERIFIKASI_MASSAL_*`, `KUNCI_PERIODE`, `BUKA_PERIODE`; filter per entitas.
+### 3.3 Verifikasi (Admin/Kepala)
+Tiap bagian punya halaman sendiri (menu **Verifikasi** di sidebar):
+1. **Realisasi Diajukan** (`/verifikasi`) — filter kawasan/jenis; klik **Setujui**/**Tolak** atau **Setujui Semua** (massal). Status berubah + tercatat di Audit Trail.
+2. **Batch Laporan** (`/verifikasi/batch`) — user membuat batch periode (mis. `bulanan 2026-08`) lalu **Ajukan**; Admin/Kepala **Setujui**/**Tolak**.
+3. **Kunci Periode** (`/verifikasi/periode`, admin) — lihat bagian 3.7.
+4. **Catatan Temuan** (`/verifikasi/catatan`, admin) — lihat bagian 3.8.
+5. **Audit Trail** (`/verifikasi/audit`) — jejak `VERIFIKASI_SETUJU/TOLAK`, `VERIFIKASI_MASSAL_*`, `KUNCI_PERIODE`, `BUKA_PERIODE`; filter per entitas.
 
 ### 3.4 Laporan, Perbandingan & Ekspor
 1. Buka **Laporan** (`/laporan`).
@@ -75,14 +75,14 @@ Buka **Dashboard** (`/`):
 Buka **Pengguna** — tambah/edit (nama/nip/email/role/aktif/password), nonaktifkan (soft delete — `aktif=0`). Tidak bisa nonaktifkan diri sendiri.
 
 ### 3.7 Penguncian Periode (Admin)
-1. Buka **Verifikasi → Kunci Periode**.
+1. Buka **Verifikasi → Kunci Periode** (`/verifikasi/periode`).
 2. Pilih Kawasan, Tahun, Bulan → **Kunci Periode**.
 3. Syarat: **tidak ada** realisasi `draft`/`diajukan` pada periode tsb (verifikasi dahulu). `POST /api/periode-lock`.
 4. Selama terkunci, input/edit/hapus realisasi pada periode tsb ditolak (HTTP 409) — termasuk Entri Mingguan.
 5. **Buka** kunci: tombol **Buka** pada tabel (`DELETE /api/periode-lock/:id`). Semua aksi tercatat di audit log.
 
 ### 3.8 Catatan Temuan
-1. Buka **Verifikasi → Catatan Temuan**.
+1. Buka **Verifikasi → Catatan Temuan** (`/verifikasi/catatan`).
 2. Pilih Kawasan/Tahun/Bulan, isi catatan → **Tambah** (`POST /api/catatan`).
 3. Tandai **Selesai**/**Buka** (`PUT /api/catatan/:id`); admin dapat menghapus (`DELETE /api/catatan/:id`).
 
@@ -110,7 +110,7 @@ NUT_SESSION_PASSWORD=… (>32 char)
 ## 5. Audit & Backup
 
 - Setiap aksi `verifikasi`, `ajukan batch`, `verifikasi batch`, `ajukan massal`, `verifikasi massal`, `kunci/buka periode` menulis baris `audit_log`.
-- Lihat via **Verifikasi → Audit Trail** atau `GET /api/audit-log?entitas=&entitas_id=&limit=50`.
+- Lihat via **Verifikasi → Audit Trail** (`/verifikasi/audit`) atau `GET /api/audit-log?entitas=&entitas_id=&limit=50`.
 - Backup JSON harian via **Pengaturan** atau cron: `POST /api/sync/dropbox` (admin only, Bearer session).
 
 ## 6. Troubleshooting

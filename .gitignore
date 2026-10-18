@@ -24,3 +24,7 @@ logs
 !.env.example
 
 .vercel
+
+# Local scratch / secret-bearing files (never commit)
+_cj_admin.txt
+*.err

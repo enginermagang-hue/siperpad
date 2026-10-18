@@ -51,13 +51,13 @@ Kunci `runtimeConfig`: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `DROPBOX_*`, `N
 
 | Tabel | Kolom kunci | Status |
 |-------|-------------|--------|
-| `users` | `id, nama, nip, email, role(admin/verifikator/kepala), aktif` | ✅ seeded 3 user (`admin@mail.com`/`verif@mail.com`/`kepala@mail.com` / `123456`) |
+| `users` | `id, nama, nip, email, role(user/admin/kepala), aktif` | ✅ seeded 3 user (`user@mail.com`/`admin@mail.com`/`kepala@mail.com` / `123456`) — `admin` = gabungan admin+verifikator lama (migrasi `005_role_user.sql`) |
 | `kawasan` | `id, kode(UNIQUE), nama, urutan, aktif` | ✅ seeded 2 kawasan (A: Kampung Seni, B: Pantai Lasiana) |
 | `jenis_retribusi` | `id, kawasan_id, parent_id(self-ref), kode (kode jenis), kode_rekening (opsional, induk/sub-induk), nama, level, urutan, aktif` — unique `(kawasan_id, parent_id, nama)` | ✅ seeded ~35 jenis hierarkis; `kode_rekening` via migrasi `004_kode_rekening.sql` + input di `jenis-retribusi.vue`, dipakai kolom "Kode Rekening" PDF |
 | `target` | `jenis_retribusi_id, tahun, nilai` — unique `(jenis_retribusi_id, tahun)` | ✅ seeded 2026 + CRUD `server/api/target*` + `app/pages/master/target.vue` |
-| `realisasi` | `jenis_retribusi_id, tanggal, jumlah, catatan, batch_id, status(draft/diajukan/disetujui/ditolak), created_by` | ✅ API + UI (`server/api/realisasi*` termasuk `verifikasi`, `app/pages/pad.vue` + `verifikasi.vue`) |
-| `laporan_batch` | `kawasan_id, periode_type(mingguan/bulanan/semester/tahunan), periode_start/end, tahun, status, diajukan_oleh, verified_by` | ✅ API `server/api/laporan/batch*` + tab di `verifikasi.vue` |
-| `audit_log` | `user_id, aksi, entitas, entitas_id, before/after` | ✅ API `server/api/audit-log.get.ts` + tab Audit di `verifikasi.vue` |
+| `realisasi` | `jenis_retribusi_id, tanggal, jumlah, catatan, batch_id, status(draft/diajukan/disetujui/ditolak), created_by` | ✅ API + UI (`server/api/realisasi*` termasuk `verifikasi`, `app/pages/pad.vue` + `app/pages/verifikasi/*`) |
+| `laporan_batch` | `kawasan_id, periode_type(mingguan/bulanan/semester/tahunan), periode_start/end, tahun, status, diajukan_oleh, verified_by` | ✅ API `server/api/laporan/batch*` + `app/pages/verifikasi/batch.vue` |
+| `audit_log` | `user_id, aksi, entitas, entitas_id, before/after` | ✅ API `server/api/audit-log.get.ts` + `app/pages/verifikasi/audit.vue` |
 | `settings` | bukan tabel — file `docs/SOP_SIPERPAD.md`, API `auth/change-password`, `sistem-info`, `sync/dropbox` | ✅ |
 | `_migrations` | tracking migrasi | ✅ |
 
@@ -71,7 +71,7 @@ Seed: `server/database/seed.ts`, migrasi runner `server/utils/db.ts` + endpoint 
 | Logout | `server/api/auth/logout.post.ts` | ✅ |
 | Session | `server/api/auth/me.get.ts`, middleware `auth` | ✅ |
 | Layout + dark mode | `app/layouts/default.vue`, `app/composables/useDarkMode.ts` | ✅ |
-| Navigasi | Sidebar — Dashboard, Data PAD (admin), Verifikasi (admin/verifikator/kepala), **MASTER DATA** group (Kawasan/Jenis/Target), Laporan, Pengguna (admin), Pengaturan (semua) | ✅ |
+| Navigasi | Sidebar role-aware — Dashboard; Data PAD/Input Realisasi (user); Verifikasi (admin/kepala); Pengajuan Batch (user); Data Master (admin); Rekap & Laporan; Pengaturan Sistem (Pengaturan semua, Pengguna admin) | ✅ |
 
 ### 3.3 Master Data — Selesai
 
@@ -102,23 +102,24 @@ Dihapus: `app/pages/master-data.vue` (placeholder).
 | Fitur | File | Detail | Status |
 |-------|------|--------|--------|
 | Realisasi API | `server/api/realisasi.get.ts`, `realisasi.post.ts`, `realisasi/[id].get/put/delete.ts`, `realisasi/[id]/ajukan.post.ts` | Filter kawasan/jenis/status/tanggal, capaian vs target, guard `draft` only edit/delete, `ajukan` draft→diajukan, admin-only write | ✅ |
-| Verifikasi realisasi | `server/api/realisasi/[id]/verifikasi.post.ts` | `diajukan → disetujui/ditolak` — role verifikator/kepala/admin, audit_log | ✅ |
+| Verifikasi realisasi | `server/api/realisasi/[id]/verifikasi.post.ts` | `diajukan → disetujui/ditolak` — role admin/kepala, audit_log | ✅ |
 | Target CRUD | `server/api/target.get.ts` (list+lookup), `target.post.ts`, `target/[id].delete.ts` | `GET ?tahun&kawasan_id` list, `POST` upsert `(jenis,tahun)`, `DELETE`, admin-only, detail lookup `?jenis_retribusi_id&tahun` | ✅ |
 | Target page | `app/pages/master/target.vue` | Filter kawasan/tahun+search, tabel + pagination 5/10/25/50, dialog upsert, hapus, admin-only | ✅ |
 | Target lookup | `server/api/target.get.ts` | `GET ?jenis_retribusi_id&tahun` → nilai target untuk preview capaian di pad/verifikasi | ✅ |
 | Data PAD page | `app/pages/pad.vue` | Filter kawasan/jenis/status+search, tabel realisasi + capaian chip + pagination, dialog tambah/edit dengan preview target & capaian, ajukan & hapus draft | ✅ |
+| Panel langkah perhitungan | `app/components/PerhitunganPanel.vue`, `app/pages/pad.vue`, `app/pages/entri-mingguan.vue` | Baris tabel bisa di-expand (inline) menampilkan langkah perhitungan: mode/formula, rincian Minggu I–IV, target, total, capaian — semua role, read-only | ✅ |
 
 ### 3.6 Fase 2 — Verifikasi, Batch, Pengguna & Audit — Selesai
 
 | Fitur | File | Detail | Status |
 |-------|------|--------|--------|
-| Verifikasi page | `app/pages/verifikasi.vue` | Tabs: Realisasi Diajukan + Batch Laporan + Audit Trail; filter, paginasi, setujui/tolak, buat batch — role verifikator/kepala/admin | ✅ |
+| Verifikasi page | `app/pages/verifikasi/*.vue` | Halaman terpisah: Realisasi Diajukan, Batch Laporan, Kunci Periode, Catatan Temuan, Audit Trail (dulu tab dalam satu file) | ✅ |
 | Batch API | `server/api/laporan/batch.get/post.ts`, `batch/[id]/ajukan+verifikasi.post.ts` | `GET ?kawasan_id&status`, `POST` create draft, `ajukan` draft→diajukan (admin), `verifikasi` diajukan→disetujui/ditolak + audit | ✅ |
 | Pengguna API | `server/api/users.get/post.ts`, `users/[id]/put/delete.ts` | List/create/update/soft-delete (aktif=0), scrypt hash, self-delete guard, admin-only | ✅ |
 | Pengguna page | `app/pages/pengguna.vue` | Tabel + search + pagination, dialog tambah/edit (role/password/aktif), nonaktifkan guard self, admin-only | ✅ |
 | Audit log API | `server/api/audit-log.get.ts` | `GET ?entitas&entitas_id&aksi&limit` join users, semua role read | ✅ |
-| Audit viewer | Tab Audit di `verifikasi.vue` | Filter entitas/id, tabel at/user/aksi/entitas/before→after | ✅ |
-| Navigasi | `app/layouts/default.vue` | Verifikasi untuk admin/verifikator/kepala; MASTER DATA tambah Target Tahunan (`mdi-bullseye-arrow`) + Pengaturan (`mdi-cog-outline`) | ✅ |
+| Audit viewer | `app/pages/verifikasi/audit.vue` | Filter entitas/id, tabel at/user/aksi/entitas/before→after | ✅ |
+| Navigasi | `app/layouts/default.vue` | Role-aware: Verifikasi (admin/kepala) + sub-halaman; Pengajuan Batch (user); Data Master (admin); Data PAD/Input Realisasi; Pengaturan Sistem | ✅ |
 
 ### 3.7 Fase 3 — Pengaturan, Dropbox & SOP — Selesai
 
@@ -130,6 +131,26 @@ Dihapus: `app/pages/master-data.vue` (placeholder).
 | Dropbox sync API | `server/api/sync/dropbox.post.ts` | Admin-only; dump JSON → `DROPBOX_FOLDER/siperpad-backup-YYYY-MM-DD.json` via SDK `filesUpload` | ✅ |
 | SOP | `docs/SOP_SIPERPAD.md` | Peran, alur, langkah operasional lengkap (input, target, verifikasi, laporan, pengguna, pengaturan), env & troubleshooting | ✅ |
 
+### 3.8 Fase 5 — Restrukturisasi Role (user/admin/kepala) — Selesai
+
+Migrasi `server/database/migrations/005_role_user.sql` — rebuild tabel `users` (`CHECK (role IN ('user','admin','kepala'))`) sekaligus mapping role lama `verifikator` → `admin`.
+
+| Perubahan | Detail | Status |
+|-----------|--------|--------|
+| Role baru `user` | Input realisasi (Data PAD + grid mingguan), edit/hapus draft, ajukan realisasi (satuan & massal), buat & ajukan batch laporan | ✅ |
+| `admin` = admin + verifikator lama | Kelola master & pengguna, verifikasi realisasi & batch, ekspor, kunci periode, sync Dropbox | ✅ |
+| `kepala` | Lihat laporan/dashboard, ekspor, verifikasi realisasi & batch | ✅ |
+| Guard API | Input/ajukan → `user`; verifikasi & ekspor → `admin`/`kepala`; master/users/sync/periode-lock → `admin` | ✅ |
+| Middleware & nav | `/kawasan-wisata`,`/jenis-retribusi`,`/master/target`,`/pengguna` admin-only; `/verifikasi` admin/kepala/user; label `user` = "Petugas Input", `admin` = "Administrator" | ✅ |
+| Sidebar & halaman Verifikasi | `app/layouts/default.vue`, `app/pages/verifikasi/*`, `app/components/VerifikasiNav.vue`, `app/composables/useVerifikasiMaster.ts` | Sidebar role-aware; tab Verifikasi dipecah jadi 5 halaman; guard sub-route (`/verifikasi/periode`,`/verifikasi/catatan` admin-only; `user` hanya `/verifikasi/batch`) | ✅ |
+| Seed & script | `user@mail.com` (user), `admin@mail.com` (admin), `kepala@mail.com` (kepala) / `123456` | ✅ |
+
+**Keputusan kunci Fase 5:**
+- Pemisahan tugas: `user` menginput & mengajukan; `admin`/`kepala` memverifikasi — `admin` tidak lagi menginput realisasi.
+- `admin` = gabungan admin + verifikator lama (nama `admin` dipertahankan).
+- Angka resmi tetap hanya status `disetujui`.
+- Sesi lama yang masih menyimpan role `admin`/`verifikator` perlu **login ulang** agar role baru berlaku.
+
 ---
 
 ## 4. Apa yang Belum Dibangun
@@ -139,7 +160,7 @@ Dihapus: `app/pages/master-data.vue` (placeholder).
 | **Dashboard** (`/`) | `app/pages/index.vue` | Filter kawasan+tahun+scope, cards, chart multi-series — selesai | ✅ |
 | **Data PAD** (`/pad`) | `app/pages/pad.vue` | Filter + tabel realisasi + dialog + preview capaian — selesai | ✅ |
 | **Laporan** (`/laporan`) | `app/pages/laporan.vue` | Rekap + export CSV/XLSX/PDF — selesai | ✅ |
-| **Verifikasi** (`/verifikasi`) | `app/pages/verifikasi.vue` | Tabs realisasi diajukan + batch + audit — selesai | ✅ |
+| **Verifikasi** (`/verifikasi`) | `app/pages/verifikasi/*.vue` | Halaman terpisah: realisasi diajukan, batch, kunci periode, catatan temuan, audit — selesai | ✅ |
 | **Pengguna** (`/pengguna`) | `app/pages/pengguna.vue` | CRUD + search + pagination — selesai | ✅ |
 | **Pengaturan** (`/settings`) | `app/pages/settings.vue` | Ganti password + info sistem + sync Dropbox + SOP link — selesai | ✅ |
 | **Realisasi CRUD** | `server/api/realisasi*` + `verifikasi` | Selesai — termasuk verifikasi diajukan→disetujui/ditolak + audit | ✅ |
@@ -215,7 +236,7 @@ GET /api/laporan/export?format=csv|pdf|xlsx&kawasan_id&tahun&periode_type&period
 
 ### Fase 3 — Operasional & Kepatuhan (P2) — Selesai
 
-- **Audit log viewer** — tab Audit di `verifikasi.vue` + `GET /api/audit-log` ✅
+- **Audit log viewer** — `app/pages/verifikasi/audit.vue` + `GET /api/audit-log` ✅
 - **Dropbox sync** — `POST /api/sync/dropbox` (admin) + `server/utils/dropbox.ts` refresh token ✅
 - **Buku panduan / SOP** — `docs/SOP_SIPERPAD.md` ✅
 - **Pengaturan** (`/settings`): ganti password (`POST /api/auth/change-password`), info sistem (`GET /api/sistem-info`) ✅
@@ -230,9 +251,9 @@ Migrasi `server/database/migrations/002_fase4.sql` (kolom `target.nilai_induk`, 
 | 4.1 | **Perbandingan antar periode** | `server/api/laporan/bandingkan.get.ts` + tab di `laporan.vue` | `GET ?tahun&bulan_a&bulan_b` atau rentang bebas `a_from/a_to/b_from/b_to`; matriks per pos + selisih & % | ✅ |
 | 4.2 | **Dashboard analitik** | `app/pages/index.vue`, `app/api/laporan/rekap.get.ts`, `SiperpadChart.vue` (type bar/donut) | KPI realisasi s/d bulan ini, tren mingguan I–IV, bulan vs bulan lalu, Top Kontributor + donut komposisi, perbaikan karakter rusak | ✅ |
 | 4.3 | **Anomali target anak ≠ induk** | `server/utils/rekap.ts` (`getTargetAnomali`), `server/api/target/anomali.get.ts`, banner di `index.vue`/`master/target.vue`, catatan di export | Deteksi selisih target induk tertulis vs SUM anak (contoh A.2: selisih Rp13.680.000) | ✅ |
-| 4.4 | **Penguncian periode** | `server/api/periode-lock.get/post.ts`, `periode-lock/[id].delete.ts`, `server/utils/lock.ts`, tab di `verifikasi.vue` | Admin-only; kunci per (tahun, bulan, kawasan); guard di `realisasi.post/put/delete` + grid + ajukan; tolak kunci bila masih ada draft/diajukan | ✅ |
+| 4.4 | **Penguncian periode** | `server/api/periode-lock.get/post.ts`, `periode-lock/[id].delete.ts`, `server/utils/lock.ts`, `app/pages/verifikasi/periode.vue` | Admin-only; kunci per (tahun, bulan, kawasan); guard di `realisasi.post/put/delete` + grid + ajukan; tolak kunci bila masih ada draft/diajukan | ✅ |
 | 4.5 | **Entri grid mingguan** | `app/pages/entri-mingguan.vue`, `server/api/realisasi/grid.get/post.ts`, `ajukan-massal.post.ts` | Tabs Minggu I–IV + tabel read-only (kolom Status per minggu); input/edit via **modal** per tab (jenis leaf, nilai, catatan, preview target/kumulatif); edit & hapus entri `draft` dari tabel; "Ajukan Minggu Ini"/"Ajukan Semua". Tanggal representatif 1/8/15/22 | ✅ |
-| 4.6 | **Tarif objek + catatan temuan** | `jenis-retribusi.*` (+`tarif`), `server/api/catatan.get/post.ts`, `catatan/[id].put/delete.ts`, tab di `verifikasi.vue` | Field tarif opsional di master jenis; log catatan/temuan per periode (terbuka/selesai) | ✅ |
+| 4.6 | **Tarif objek + catatan temuan** | `jenis-retribusi.*` (+`tarif`), `server/api/catatan.get/post.ts`, `catatan/[id].put/delete.ts`, `app/pages/verifikasi/catatan.vue` | Field tarif opsional di master jenis; log catatan/temuan per periode (terbuka/selesai) | ✅ |
 | 4.7 | **Mode tarif kuantitas/langsung** | migrasi `003_mode_tarif.sql`, `jenis-retribusi.*` (+`mode_tarif`,`satuan`), `realisasi/grid.post|get.ts`, `app/pages/jenis-retribusi.vue`, `app/pages/entri-mingguan.vue` | Per jenis: `langsung` (nilai Rp) atau `kuantitas` (unit × tarif). `realisasi.jumlah` tetap Rupiah = `round(kuantitas × tarif)`; `kuantitas`+`tarif` disimpan sebagai jejak historis. Modal entri menyesuaikan mode (input unit + preview `200 × Rp2.000 = Rp400.000`); tabel menampilkan total + caption kuantitas×tarif. Mode kuantitas tanpa tarif diblokir di modal | ✅ |
 | 4.8 | **Kode rekening jenis retribusi** | migrasi `004_kode_rekening.sql`, `jenis-retribusi.{get,post}.ts`, `jenis-retribusi/[id].put.ts`, `app/pages/jenis-retribusi.vue`, `server/api/laporan/export.get.ts`, `server/database/seed.ts` | Field baru `jenis_retribusi.kode_rekening` (mis. `4.1.02,02.012`) terpisah dari `kode` (kode jenis `A.1`). Pengisian opsional di semua level (induk/sub-induk lazim diisi, leaf dibiarkan kosong); dipakai kolom **Kode Rekening** pada PDF LAPORAN REALISASI PENERIMAAN. Seed mengisi induk A.1/B.1=`4.1.02,02.014`, A.2=`4.1.02,02.012`, B.2=`4.1.02,02.017` | ✅ |
 | 4.9 | **List numbering hierarki** | `server/utils/rekapMingguan.ts` (+field `nomor`), `server/api/laporan/export.get.ts` (PDF + XLSX) | Penomoran bersarang di kolom **JENIS PENERIMAAN** untuk semua level: level 1=`1.`, level 2=`a.` (lanjut `aa`), level 3=`1.`, level ≥4=`-`. Nomor di-reset per induk, dihitung dari indeks sibling setelah sort (`urutan`,`id`). Kawasan & TOTAL tanpa nomor. Kolom Kode Rekening tetap kode rekening resmi | ✅ |
@@ -264,7 +285,7 @@ Setiap langkah: migrasi tidak diperlukan (schema sudah siap); hanya API + halama
 
 - **Pagination:** client-side (`perPage` ref + `paginated` slice) untuk master; server-side dipertimbangkan jika `realisasi` > 500 baris.
 - **Icons:** `@mdi/font` 7.4.47 — pakai icon yang ada (`mdi-format-list-bulleted`, `mdi-map-marker-multiple`); hindari `mdi-list-box-multiple-outline` (tidak ada di 7.x).
-- **Auth:** tulis (`POST/PUT/DELETE`) guard `role === 'admin'`; baca boleh semua role terautentikasi.
+- **Auth:** role `user`/`admin`/`kepala` (lihat §3.8). Tulis master/users/sync/periode-lock guard `admin`; input & ajukan realisasi/batch guard `user`; verifikasi & ekspor guard `admin`/`kepala`; baca boleh semua role terautentikasi.
 - **Soft delete:** `jenis_retribusi` dan `realisasi` pakai `aktif=0` / `status` agar histori target/rekap tidak hilang (FK `ON DELETE CASCADE` tidak terpicu).
 - **Perhitungan:** pusatkan di `server/utils/rekap.ts` (dipakai rekap API + export) — hindari duplikasi rumus di frontend.
 - **Export libs:** tambah hanya saat dibutuhkan (hindari bloat): `xlsx` untuk XLSX, `pdfkit` untuk PDF. CSV tanpa dep (string join).

@@ -4,7 +4,7 @@ import { assertPeriodeOpen, kawasanIdOfJenis } from '../utils/lock'
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
-  if (String(session.user.role) !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin dapat input realisasi' })
+  if (String(session.user.role) !== 'user') throw createError({ statusCode: 403, message: 'Hanya petugas input dapat input realisasi' })
 
   const body = await readBody(event) as { jenis_retribusi_id?: number; tanggal?: string; jumlah?: number; catatan?: string; batch_id?: number | null }
   const jenisId = Number(body.jenis_retribusi_id)

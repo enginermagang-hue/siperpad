@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const role = String(b.role || '').trim()
   const aktif = b.aktif != null ? (Number(b.aktif) ? 1 : 0) : 1
   if (!nama || !email || !pw) throw createError({ statusCode: 400, message: 'Nama, email, password wajib' })
-  if (!['admin','verifikator','kepala'].includes(role)) throw createError({ statusCode: 400, message: 'Role harus admin/verifikator/kepala' })
+  if (!['user','admin','kepala'].includes(role)) throw createError({ statusCode: 400, message: 'Role harus user/admin/kepala' })
   if (pw.length < 6) throw createError({ statusCode: 400, message: 'Password minimal 6 karakter' })
   try {
     const rows = await query<{ id: number }>('INSERT INTO users (nama, nip, email, password_hash, role, aktif) VALUES (?, ?, ?, ?, ?, ?) RETURNING id', [nama, nip, email, hashPassword(pw), role, aktif])
