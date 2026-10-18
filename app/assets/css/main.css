@@ -189,3 +189,38 @@ body {
 .siperpad-dialog-scroll::-webkit-scrollbar-thumb:hover {
   background-color: var(--primary);
 }
+
+/* ---------------------------------------------------------------------------
+   Scrollbar dropdown AppSelect (native CSS, bukan OverlayScrollbars)
+   Dropdown dibuat dinamis oleh Preline dengan `position:absolute` di dalam
+   wrapper (dropdownScope 'parent'). OverlayScrollbars memaksa viewport
+   `overflow-y: scroll` permanen sehingga menjadi clipping context dan memotong
+   dropdown lain di sekitarnya — alasan yang sama seperti body dialog.
+   Tampilan disamakan dengan os-theme-siperpad: 8px, rounded, token Preline.
+
+   CATATAN: dropdownClasses memakai `p-1` (4px) sehingga searchWrapperClasses
+   harus `-m-1` (bukan `-m-1.5`) agar wrapper pencarian tidak melebihi padding
+   dropdown dan memicu scrollbar horizontal.
+--------------------------------------------------------------------------- */
+.siperpad-select-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.siperpad-select-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 0;
+}
+
+.siperpad-select-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.siperpad-select-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 8px;
+}
+
+.siperpad-select-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary);
+}

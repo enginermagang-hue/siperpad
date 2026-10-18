@@ -45,7 +45,9 @@ OverlayScrollbars is therefore mounted **explicitly** on exactly two elements:
 - `document.body` — `app/plugins/scrollbar.client.ts`
 - sidebar scroll container — `mountScrollbar()` in `app/layouts/default.vue`
 
-Dialog body (`AppDialog.vue`) uses the native CSS scrollbar class `.siperpad-dialog-scroll` (defined in `main.css`) instead, keeping `overflow-y-auto` so clipping only happens when the content actually overflows. Scrollbar visibility is `auto` (OS default), so bars only appear on overflow.
+Two surfaces use native CSS scrollbars (`.siperpad-dialog-scroll` for the `AppDialog` body, `.siperpad-select-scroll` for the `AppSelect` dropdown) instead, keeping `overflow-y-auto` so clipping only happens when the content actually overflows. Both are defined in `main.css` and use the `--scrollbar-thumb` / `--primary` tokens. Scrollbar visibility is `auto` (OS default), so bars only appear on overflow.
+
+`AppSelect`'s dropdown has `p-1` (4px) padding, so `searchWrapperClasses` **must** be `-m-1` (not `-m-1.5`): a larger negative margin makes the search wrapper exceed the dropdown padding and triggers a horizontal scrollbar (only visible on selects with >10 options, where `hasSearch` turns on). The dropdown also carries `overflow-x-hidden` as a safety net.
 
 Icons come from `lucide-vue-next` (imported per file). Dark mode is a `dark` class on `<html>` managed by `useTheme()` (cookie-backed, SSR-safe). Breakpoint helper is `useBreakpoint()` with `md` = 768px (Tailwind), not Vuetify's 960px.
 
