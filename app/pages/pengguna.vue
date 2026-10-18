@@ -1,46 +1,109 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
-      <div class="d-flex align-center">
-        <v-icon size="36" color="primary" class="mr-3">mdi-account-cog</v-icon>
-        <h1 class="text-h4 font-weight-medium">Pengguna</h1>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <UserCog class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">Pengguna</h1>
       </div>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Pengguna</v-btn>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+               text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
+        @click="openAdd"
+      >
+        <Plus class="shrink-0 size-4" aria-hidden="true" />
+        Tambah Pengguna
+      </button>
     </div>
 
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text class="pb-0">
-        <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari nama / NIP / email..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 360px" class="mb-4" />
-      </v-card-text>
-    </v-card>
+    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+      <div class="relative max-w-[360px]">
+        <Search
+          class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+          aria-hidden="true"
+        />
+        <input
+          v-model="q"
+          type="text"
+          placeholder="Cari nama / NIP / email..."
+          class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+      </div>
+    </div>
 
-    <v-card flat elevation="0">
-      <div class="d-flex justify-end px-4 pt-3">
+    <div class="rounded-lg border border-card-line bg-card">
+      <div class="flex justify-end px-4 pt-3">
         <ViewModeToggle v-model="mode" />
       </div>
 
-      <v-table v-if="mode === 'table'" density="default">
-        <thead><tr><th>Nama</th><th>NIP</th><th>Email</th><th>Role</th><th>Status</th><th style="width: 140px">Aksi</th></tr></thead>
-        <tbody>
-          <tr v-if="loading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="6" class="text-center py-6 text-medium-emphasis">Belum ada data</td></tr>
-          <tr v-for="r in paginated" :key="r.id">
-            <td class="font-weight-medium">{{ r.nama }}</td>
-            <td>{{ r.nip || '-' }}</td>
-            <td>{{ r.email }}</td>
-            <td><v-chip size="small" :color="roleColor(r.role)" variant="tonal">{{ r.role }}</v-chip></td>
-            <td><v-chip :color="r.aktif ? 'success' : 'grey'" size="small">{{ r.aktif ? 'Aktif' : 'Nonaktif' }}</v-chip></td>
-            <td>
-              <v-btn icon="mdi-pencil" variant="text" size="small" :disabled="r.id === selfId" @click="openEdit(r)" />
-              <v-btn icon="mdi-delete" variant="text" size="small" color="error" :disabled="r.id === selfId" @click="confirmDelete(r)" />
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <!-- Mode tabel -->
+      <div v-if="mode === 'table'" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-table-line text-sm">
+          <thead>
+            <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+              <th class="px-3 py-2.5 text-start font-medium">Nama</th>
+              <th class="px-3 py-2.5 text-start font-medium">NIP</th>
+              <th class="px-3 py-2.5 text-start font-medium">Email</th>
+              <th class="px-3 py-2.5 text-start font-medium">Role</th>
+              <th class="px-3 py-2.5 text-start font-medium">Status</th>
+              <th class="w-[140px] px-3 py-2.5 text-start font-medium">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-table-line">
+            <tr v-if="loading">
+              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+            </tr>
+            <tr v-else-if="!filtered.length">
+              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
+            </tr>
+            <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover">
+              <td class="px-3 py-2.5 font-medium text-foreground">{{ r.nama }}</td>
+              <td class="px-3 py-2.5 text-foreground">{{ r.nip || '-' }}</td>
+              <td class="px-3 py-2.5 text-foreground">{{ r.email }}</td>
+              <td class="px-3 py-2.5">
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="roleChip(r.role)">
+                  {{ r.role }}
+                </span>
+              </td>
+              <td class="px-3 py-2.5">
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="aktifChip(r.aktif)">
+                  {{ r.aktif ? 'Aktif' : 'Nonaktif' }}
+                </span>
+              </td>
+              <td class="px-3 py-2.5">
+                <div class="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    class="rounded-md p-1.5 text-muted-foreground-1 hover:bg-layer-hover focus:outline-hidden
+                           disabled:opacity-40 disabled:pointer-events-none"
+                    :disabled="r.id === selfId"
+                    aria-label="Edit"
+                    @click="openEdit(r)"
+                  >
+                    <Pencil class="shrink-0 size-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md p-1.5 text-red-600 hover:bg-layer-hover focus:outline-hidden
+                           disabled:opacity-40 disabled:pointer-events-none dark:text-red-400"
+                    :disabled="r.id === selfId"
+                    aria-label="Nonaktifkan"
+                    @click="confirmDelete(r)"
+                  >
+                    <Trash2 class="shrink-0 size-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <div v-else-if="mode === 'list'" class="pa-3">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
+      <!-- Mode list -->
+      <div v-else-if="mode === 'list'" class="p-3">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
         <RecordCard
           v-for="r in paginated"
           v-else
@@ -53,75 +116,195 @@
           ]"
         >
           <template #badge>
-            <v-chip size="small" :color="roleColor(r.role)" variant="tonal">{{ r.role }}</v-chip>
-            <v-chip :color="r.aktif ? 'success' : 'grey'" size="small">{{ r.aktif ? 'Aktif' : 'Nonaktif' }}</v-chip>
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="roleChip(r.role)">
+              {{ r.role }}
+            </span>
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="aktifChip(r.aktif)">
+              {{ r.aktif ? 'Aktif' : 'Nonaktif' }}
+            </span>
           </template>
           <template #actions>
-            <v-btn size="small" variant="text" prepend-icon="mdi-pencil" :disabled="r.id === selfId" @click="openEdit(r)">Edit</v-btn>
-            <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" :disabled="r.id === selfId" @click="confirmDelete(r)">Nonaktifkan</v-btn>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover
+                     focus:outline-hidden disabled:opacity-40 disabled:pointer-events-none"
+              :disabled="r.id === selfId"
+              @click="openEdit(r)"
+            >
+              <Pencil class="shrink-0 size-3.5" aria-hidden="true" /> Edit
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-layer-hover
+                     focus:outline-hidden disabled:opacity-40 disabled:pointer-events-none dark:text-red-400"
+              :disabled="r.id === selfId"
+              @click="confirmDelete(r)"
+            >
+              <Trash2 class="shrink-0 size-3.5" aria-hidden="true" /> Nonaktifkan
+            </button>
           </template>
         </RecordCard>
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada data</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="r in paginated" :key="r.id" :title="r.nama" :subtitle="r.email">
-            <template #append>
-              <v-chip size="x-small" :color="roleColor(r.role)" variant="tonal" class="mr-1">{{ r.role }}</v-chip>
-              <v-menu location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-pencil" title="Edit" :disabled="r.id === selfId" @click="openEdit(r)" />
-                  <v-list-item prepend-icon="mdi-delete" title="Nonaktifkan" base-color="error" :disabled="r.id === selfId" @click="confirmDelete(r)" />
-                </v-list>
-              </v-menu>
-            </template>
-          </v-list-item>
-        </v-list>
+      <!-- Mode compact -->
+      <div v-else class="p-2">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada data</div>
+        <ul v-else class="divide-y divide-table-line">
+          <li v-for="r in paginated" :key="r.id" class="flex items-center gap-2 py-2">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-foreground">{{ r.nama }}</span>
+              <span class="block truncate text-xs text-muted-foreground-1">{{ r.email }}</span>
+            </span>
+            <span class="shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="roleChip(r.role)">
+              {{ r.role }}
+            </span>
+            <AppMenu
+              :items="[
+                { label: 'Edit', icon: Pencil, disabled: r.id === selfId, onClick: () => openEdit(r) },
+                { label: 'Nonaktifkan', icon: Trash2, variant: 'danger', disabled: r.id === selfId, onClick: () => confirmDelete(r) },
+              ]"
+            />
+          </li>
+        </ul>
       </div>
-      <v-divider v-if="total" />
-      <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
-        <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
+
+      <hr v-if="total" class="border-card-divider" />
+      <div v-if="total" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground-1">
           <span>Menampilkan {{ from }}–{{ to }} dari {{ total }}</span>
-          <v-select v-model="perPage" :items="[5, 10, 25, 50]" density="compact" variant="outlined" hide-details style="max-width: 90px" />
+          <div class="w-[90px]"><AppSelect v-model="perPage" :items="[5, 10, 25, 50]" :search="false" /></div>
           <span>per halaman</span>
         </div>
-        <v-pagination v-if="pageCount > 1" v-model="currentPage" :length="pageCount" :total-visible="5" density="compact" />
+        <AppPagination v-model="currentPage" :length="pageCount" :total-visible="5" />
       </div>
-    </v-card>
+    </div>
 
-    <AppDialog v-model="dialog" :title="editing ? 'Edit Pengguna' : 'Tambah Pengguna'" :max-width="520" :icon="editing ? 'mdi-account-edit' : 'mdi-account-plus'">
-      <v-text-field v-model="form.nama" label="Nama *" variant="outlined" density="compact" :error-messages="err.nama" class="mb-2" />
-      <v-text-field v-model="form.nip" label="NIP" variant="outlined" density="compact" hide-details class="mb-2" />
-      <v-text-field v-model="form.email" label="Email *" variant="outlined" density="compact" :error-messages="err.email" class="mb-2" />
-      <v-select v-model="form.role" :items="['user','admin','kepala']" label="Role *" variant="outlined" density="compact" :error-messages="err.role" class="mb-2" />
-      <v-text-field v-model="form.password" :label="editing ? 'Password baru (kosongkan jika tidak ganti)' : 'Password *'" type="password" variant="outlined" density="compact" :error-messages="err.password" class="mb-2" />
-      <v-switch v-model="form.aktif" label="Aktif" color="primary" hide-details />
+    <!-- Dialog tambah/edit -->
+    <AppDialog
+      v-model="dialog"
+      :title="editing ? 'Edit Pengguna' : 'Tambah Pengguna'"
+      :max-width="520"
+      :icon="editing ? UserPen : UserPlus"
+    >
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Nama *</label>
+        <input
+          v-model="form.nama"
+          type="text"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+        <p v-if="err.nama" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.nama }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">NIP</label>
+        <input
+          v-model="form.nip"
+          type="text"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Email *</label>
+        <input
+          v-model="form.email"
+          type="email"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+        <p v-if="err.email" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.email }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Role *</label>
+        <AppSelect
+          v-model="form.role"
+          :items="roleOpts"
+          :search="false"
+          in-modal
+        />
+        <p v-if="err.role" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.role }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">
+          {{ editing ? 'Password baru (kosongkan jika tidak ganti)' : 'Password *' }}
+        </label>
+        <input
+          v-model="form.password"
+          type="password"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+        <p v-if="err.password" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.password }}</p>
+      </div>
+
+      <label class="inline-flex cursor-pointer items-center gap-2">
+        <span class="relative inline-block h-5 w-9">
+          <input v-model="form.aktif" type="checkbox" class="peer sr-only" />
+          <span class="absolute inset-0 rounded-full bg-line-4 transition-colors peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary-focus"></span>
+          <span class="absolute start-0.5 top-0.5 size-4 rounded-full bg-white transition-transform peer-checked:translate-x-4"></span>
+        </span>
+        <span class="text-sm text-foreground">Aktif</span>
+      </label>
+
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
-        <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="dialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="saving"
+          @click="save"
+        >
+          <LoaderCircle v-if="saving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Simpan
+        </button>
       </template>
     </AppDialog>
 
-    <AppDialog v-model="delDialog" title="Nonaktifkan pengguna?" :max-width="420" icon="mdi-account-off">
+    <!-- Dialog nonaktifkan -->
+    <AppDialog v-model="delDialog" title="Nonaktifkan pengguna?" :max-width="420" :icon="UserX">
       Yakin nonaktifkan <b>{{ delTarget?.nama }}</b> ({{ delTarget?.email }})? Status jadi Nonaktif (soft delete).
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
-        <v-btn color="warning" :loading="deleting" @click="doDelete">Nonaktifkan</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="delDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white
+                 hover:bg-amber-700 focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="deleting"
+          @click="doDelete"
+        >
+          <LoaderCircle v-if="deleting" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Nonaktifkan
+        </button>
       </template>
     </AppDialog>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { LoaderCircle, Pencil, Plus, Search, Trash2, UserCog, UserPen, UserPlus, UserX } from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 type Row = { id: number; nama: string; nip: string; email: string; role: string; aktif: number; created_at: string }
 
@@ -129,6 +312,12 @@ const { mode } = useViewMode('pengguna')
 
 const session = useUserSession()
 const selfId = computed(() => Number(session.user.value?.id || 0))
+
+const roleOpts = [
+  { label: 'user — Petugas Input', value: 'user' },
+  { label: 'admin — Administrator', value: 'admin' },
+  { label: 'kepala — Kepala', value: 'kepala' },
+]
 
 const rows = ref<Row[]>([])
 const loading = ref(false)
@@ -162,7 +351,17 @@ const delTarget = ref<Row | null>(null)
 const deleting = ref(false)
 const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' | 'warning' })
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
-function roleColor(r: string) { if (r === 'user') return 'info'; if (r === 'admin') return 'primary'; return 'success' }
+
+function roleChip(r: string) {
+  if (r === 'admin') return 'bg-primary/10 text-primary'
+  if (r === 'kepala') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+  return 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+}
+function aktifChip(aktif: number) {
+  return aktif
+    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+    : 'bg-surface text-surface-foreground'
+}
 
 async function load() {
   loading.value = true

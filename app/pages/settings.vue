@@ -1,67 +1,149 @@
 <template>
   <div>
-    <div class="d-flex align-center mb-6">
-      <v-icon size="36" color="primary" class="mr-3">mdi-cog-outline</v-icon>
-      <h1 class="text-h4 font-weight-medium">Pengaturan</h1>
+    <div class="mb-6 flex items-center gap-3">
+      <Settings class="shrink-0 size-9 text-primary" aria-hidden="true" />
+      <h1 class="text-2xl font-medium text-foreground">Pengaturan</h1>
     </div>
 
-    <v-row>
-      <v-col cols="12" md="6">
-        <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="text-h6">Ganti Password</v-card-title>
-          <v-card-text>
-            <v-text-field v-model="curPw" label="Password lama *" type="password" variant="outlined" density="compact" :error-messages="err.cur" class="mb-2" />
-            <v-text-field v-model="newPw" label="Password baru *" type="password" variant="outlined" density="compact" :error-messages="err.next" class="mb-2" hint="Minimal 6 karakter" persistent-hint />
-            <v-text-field v-model="confirmPw" label="Konfirmasi password baru *" type="password" variant="outlined" density="compact" :error-messages="err.confirm" class="mb-2" />
-          </v-card-text>
-          <v-card-actions><v-spacer /><v-btn color="primary" :loading="saving" @click="changePw">Simpan Password</v-btn></v-card-actions>
-        </v-card>
-      </v-col>
+    <div class="grid grid-cols-12 gap-4">
+      <div class="col-span-12 md:col-span-6">
+        <div class="mb-4 rounded-lg border border-card-line bg-card">
+          <div class="border-b border-card-divider px-4 py-3">
+            <h2 class="text-base font-medium text-foreground">Ganti Password</h2>
+          </div>
+          <div class="p-4">
+            <div class="mb-2">
+              <label class="mb-1.5 block text-sm font-medium text-foreground">Password lama *</label>
+              <input
+                v-model="curPw"
+                type="password"
+                class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                       focus:border-primary-focus focus:ring-primary-focus"
+              />
+              <p v-if="err.cur" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.cur }}</p>
+            </div>
+            <div class="mb-2">
+              <label class="mb-1.5 block text-sm font-medium text-foreground">Password baru *</label>
+              <input
+                v-model="newPw"
+                type="password"
+                class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                       focus:border-primary-focus focus:ring-primary-focus"
+              />
+              <p class="mt-1 text-xs text-muted-foreground-1">Minimal 6 karakter</p>
+              <p v-if="err.next" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.next }}</p>
+            </div>
+            <div class="mb-2">
+              <label class="mb-1.5 block text-sm font-medium text-foreground">Konfirmasi password baru *</label>
+              <input
+                v-model="confirmPw"
+                type="password"
+                class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                       focus:border-primary-focus focus:ring-primary-focus"
+              />
+              <p v-if="err.confirm" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.confirm }}</p>
+            </div>
+          </div>
+          <div class="flex justify-end border-t border-card-divider px-4 py-3">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                     text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus
+                     disabled:opacity-50 disabled:pointer-events-none"
+              :disabled="saving"
+              @click="changePw"
+            >
+              <LoaderCircle v-if="saving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+              Simpan Password
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <v-col cols="12" md="6">
-        <v-card flat elevation="0" class="mb-4">
-          <v-card-title class="text-h6">Info Sistem</v-card-title>
-          <v-card-text>
-            <div v-if="infoLoading" class="text-medium-emphasis py-4">Memuat...</div>
+      <div class="col-span-12 md:col-span-6">
+        <div class="mb-4 rounded-lg border border-card-line bg-card">
+          <div class="border-b border-card-divider px-4 py-3">
+            <h2 class="text-base font-medium text-foreground">Info Sistem</h2>
+          </div>
+          <div class="p-4">
+            <div v-if="infoLoading" class="py-4 text-muted-foreground-1">Memuat...</div>
             <template v-else-if="info">
-              <div class="text-body-2 mb-1">Login sebagai <b>{{ info.user.nama }}</b> ({{ info.user.email }}) — <v-chip size="small" variant="tonal">{{ info.user.role }}</v-chip></div>
-              <v-divider class="my-3" />
-              <div class="text-body-2 mb-2"><b>Data</b></div>
-              <div class="d-flex flex-wrap ga-2 mb-3">
-                <v-chip size="small">Users: {{ info.counts.users }}</v-chip>
-                <v-chip size="small">Kawasan: {{ info.counts.kawasan }}</v-chip>
-                <v-chip size="small">Jenis: {{ info.counts.jenis }}</v-chip>
-                <v-chip size="small">Target: {{ info.counts.target }}</v-chip>
-                <v-chip size="small">Realisasi: {{ info.counts.realisasi }}</v-chip>
-                <v-chip size="small">Batch: {{ info.counts.batch }}</v-chip>
-                <v-chip size="small">Audit: {{ info.counts.audit }}</v-chip>
+              <div class="mb-1 text-sm text-foreground">
+                Login sebagai <b>{{ info.user.nama }}</b> ({{ info.user.email }}) —
+                <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                  {{ info.user.role }}
+                </span>
               </div>
-              <div class="text-body-2 mb-2"><b>Dropbox</b> <v-chip :color="info.dropbox.ready ? 'success' : 'warning'" size="small" class="ml-2">{{ info.dropbox.ready ? 'Terkonfigurasi' : 'Belum dikonfigurasi' }}</v-chip></div>
-              <div class="text-caption text-medium-emphasis mb-3">Folder: {{ info.dropbox.folder }}</div>
-              <v-btn v-if="isAdmin" color="primary" variant="tonal" prepend-icon="mdi-cloud-upload" :loading="syncing" :disabled="!info.dropbox.ready" @click="syncDropbox">Sinkron ke Dropbox</v-btn>
-              <div v-if="syncMsg" class="text-caption mt-2" :class="syncOk ? 'text-success' : 'text-error'">{{ syncMsg }}</div>
+
+              <hr class="my-3 border-line-1" />
+
+              <div class="mb-2 text-sm font-bold text-foreground">Data</div>
+              <div class="mb-3 flex flex-wrap gap-2">
+                <span
+                  v-for="c in counts"
+                  :key="c.label"
+                  class="inline-flex items-center rounded-full border border-layer-line px-2 py-0.5 text-xs text-layer-foreground"
+                >
+                  {{ c.label }}: {{ c.value }}
+                </span>
+              </div>
+
+              <div class="mb-2 text-sm text-foreground">
+                <b>Dropbox</b>
+                <span
+                  class="ms-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="info.dropbox.ready
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'"
+                >
+                  {{ info.dropbox.ready ? 'Terkonfigurasi' : 'Belum dikonfigurasi' }}
+                </span>
+              </div>
+              <div class="mb-3 text-xs text-muted-foreground-1">Folder: {{ info.dropbox.folder }}</div>
+
+              <button
+                v-if="isAdmin"
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium
+                       text-primary hover:bg-primary/20 focus:outline-hidden
+                       disabled:opacity-50 disabled:pointer-events-none"
+                :disabled="syncing || !info.dropbox.ready"
+                @click="syncDropbox"
+              >
+                <LoaderCircle v-if="syncing" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+                <CloudUpload v-else class="shrink-0 size-4" aria-hidden="true" />
+                Sinkron ke Dropbox
+              </button>
+
+              <div
+                v-if="syncMsg"
+                class="mt-2 text-xs"
+                :class="syncOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
+              >
+                {{ syncMsg }}
+              </div>
             </template>
-            <div v-else class="text-medium-emphasis">Gagal memuat info sistem</div>
-          </v-card-text>
-        </v-card>
+            <div v-else class="text-muted-foreground-1">Gagal memuat info sistem</div>
+          </div>
+        </div>
 
-        <v-card flat elevation="0">
-          <v-card-text class="text-caption text-medium-emphasis">
-            <div class="mb-1"><b>SiPerPAD</b> — Rekap PAD Lasiana &amp; Kampung Seni</div>
-            <div>Dokumen SOP: <code>docs/SOP_SIPERPAD.md</code></div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+        <div class="rounded-lg border border-card-line bg-card p-4 text-xs text-muted-foreground-1">
+          <div class="mb-1"><b class="text-foreground">SiPerPAD</b> — Rekap PAD Lasiana &amp; Kampung Seni</div>
+          <div>Dokumen SOP: <code class="rounded bg-surface px-1 py-0.5">docs/SOP_SIPERPAD.md</code></div>
+        </div>
+      </div>
+    </div>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { CloudUpload, LoaderCircle, Settings } from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 const session = useUserSession()
-const isAdmin = computed(() => String(session.user.value?.role) === 'admin')
+const isAdmin = computed(() => String(session.user.value?.role || '') === 'admin')
 
 const curPw = ref('')
 const newPw = ref('')
@@ -90,6 +172,20 @@ async function changePw() {
 
 const info = ref<{ user: { nama: string; email: string; role: string }; counts: Record<string, number>; dropbox: { ready: boolean; folder: string } } | null>(null)
 const infoLoading = ref(false)
+
+const counts = computed(() => {
+  const c = info.value?.counts || {}
+  return [
+    { label: 'Users', value: c.users ?? 0 },
+    { label: 'Kawasan', value: c.kawasan ?? 0 },
+    { label: 'Jenis', value: c.jenis ?? 0 },
+    { label: 'Target', value: c.target ?? 0 },
+    { label: 'Realisasi', value: c.realisasi ?? 0 },
+    { label: 'Batch', value: c.batch ?? 0 },
+    { label: 'Audit', value: c.audit ?? 0 },
+  ]
+})
+
 async function loadInfo() {
   infoLoading.value = true
   try { info.value = await $fetch('/api/sistem-info') }

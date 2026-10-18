@@ -1,65 +1,121 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
-      <div class="d-flex align-center">
-        <v-icon size="36" color="primary" class="mr-3">mdi-bullseye-arrow</v-icon>
-        <h1 class="text-h4 font-weight-medium">Target Tahunan</h1>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <Target class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">Target Tahunan</h1>
       </div>
-      <v-btn v-if="isAdmin" color="primary" prepend-icon="mdi-plus" @click="openAdd">Tambah Target</v-btn>
+      <button
+        v-if="isAdmin"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+               text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
+        @click="openAdd"
+      >
+        <Plus class="shrink-0 size-4" aria-hidden="true" />
+        Tambah Target
+      </button>
     </div>
 
-    <v-alert v-if="anomali.length" type="warning" variant="tonal" class="mb-4" prominent>
-      <div class="font-weight-bold mb-1">Peringatan Anomali Target — perlu konfirmasi Bendahara Penerimaan</div>
-      <div v-for="a in anomali" :key="a.jenis_id" class="text-body-2">
-        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak {{ fmt(a.jumlah_anak) }} <b>(selisih {{ fmt(a.selisih) }})</b>
+    <!-- Anomali -->
+    <div
+      v-if="anomali.length"
+      role="alert"
+      class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4
+             dark:border-amber-900 dark:bg-amber-950/60"
+    >
+      <div class="mb-1 flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200">
+        <TriangleAlert class="shrink-0 size-4" aria-hidden="true" />
+        Peringatan Anomali Target — perlu konfirmasi Bendahara Penerimaan
       </div>
-    </v-alert>
+      <div v-for="a in anomali" :key="a.jenis_id" class="text-sm text-amber-900/90 dark:text-amber-200/90">
+        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak
+        {{ fmt(a.jumlah_anak) }} <b>(selisih {{ fmt(a.selisih) }})</b>
+      </div>
+    </div>
 
-    <v-card flat elevation="0" class="mb-4">
-      <v-card-text class="pb-0">
-        <div class="d-flex flex-wrap ga-3 mb-4 align-center">
-          <v-select v-model="filterKawasan" :items="kawasanOpts" item-title="label" item-value="value" label="Kawasan" density="compact" variant="outlined" hide-details clearable style="max-width: 240px" placeholder="Semua" @update:model-value="load" />
-          <v-select v-model="tahun" :items="tahunOpts" label="Tahun" density="compact" variant="outlined" hide-details style="max-width: 120px" @update:model-value="load" />
-          <v-text-field v-model="q" density="compact" variant="outlined" placeholder="Cari kode / nama..." prepend-inner-icon="mdi-magnify" hide-details clearable style="max-width: 320px" />
-          <v-spacer />
-          <ViewModeToggle v-model="mode" />
+    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="w-full max-w-[240px]">
+          <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua" clearable @update:model-value="load" />
         </div>
-      </v-card-text>
-    </v-card>
+        <div class="w-full max-w-[120px]">
+          <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
+        </div>
+        <div class="relative w-full max-w-[320px]">
+          <Search
+            class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+            aria-hidden="true"
+          />
+          <input
+            v-model="q"
+            type="text"
+            placeholder="Cari kode / nama..."
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+          />
+        </div>
+        <div class="ms-auto"><ViewModeToggle v-model="mode" /></div>
+      </div>
+    </div>
 
-    <v-card flat elevation="0">
-      <v-table v-if="mode === 'table'" density="default">
-        <thead><tr><th>Kode</th><th>Jenis Retribusi</th><th>Kawasan</th><th>Tahun</th><th class="text-right">Target</th><th v-if="isAdmin" style="width: 70px">Aksi</th></tr></thead>
-        <tbody>
-          <tr v-if="loading"><td colspan="6" class="text-center py-6">Memuat...</td></tr>
-          <tr v-else-if="!filtered.length"><td colspan="6" class="text-center py-6 text-medium-emphasis">Belum ada target untuk tahun ini</td></tr>
-          <tr v-for="r in paginated" :key="r.id">
-            <td class="font-weight-medium">{{ r.kode || '-' }}</td>
-            <td>
-              {{ r.nama }}
-              <v-chip v-if="r.nilai_induk != null" size="x-small" color="warning" variant="tonal" class="ml-1">Induk tertulis: {{ fmt(r.nilai_induk) }}</v-chip>
-            </td>
-            <td><v-chip size="small" variant="tonal">{{ r.kawasan_kode }} — {{ r.kawasan_nama }}</v-chip></td>
-            <td>{{ r.tahun }}</td>
-            <td class="text-right">{{ fmt(r.nilai) }}</td>
-            <td v-if="isAdmin">
-              <v-menu location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
-                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
-                </v-list>
-              </v-menu>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+    <div class="rounded-lg border border-card-line bg-card">
+      <!-- Mode tabel -->
+      <div v-if="mode === 'table'" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-table-line text-sm">
+          <thead>
+            <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+              <th class="px-3 py-2.5 text-start font-medium">Kode</th>
+              <th class="px-3 py-2.5 text-start font-medium">Jenis Retribusi</th>
+              <th class="px-3 py-2.5 text-start font-medium">Kawasan</th>
+              <th class="px-3 py-2.5 text-start font-medium">Tahun</th>
+              <th class="px-3 py-2.5 text-end font-medium">Target</th>
+              <th v-if="isAdmin" class="w-[70px] px-3 py-2.5 text-start font-medium">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-table-line">
+            <tr v-if="loading">
+              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Memuat...</td>
+            </tr>
+            <tr v-else-if="!filtered.length">
+              <td colspan="6" class="py-6 text-center text-muted-foreground-1">Belum ada target untuk tahun ini</td>
+            </tr>
+            <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover">
+              <td class="px-3 py-2.5 font-medium text-foreground">{{ r.kode || '-' }}</td>
+              <td class="px-3 py-2.5 text-foreground">
+                {{ r.nama }}
+                <span
+                  v-if="r.nilai_induk != null"
+                  class="ms-1 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium
+                         text-amber-900 dark:bg-amber-950/60 dark:text-amber-300"
+                >
+                  Induk tertulis: {{ fmt(r.nilai_induk) }}
+                </span>
+              </td>
+              <td class="px-3 py-2.5">
+                <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
+                  {{ r.kawasan_kode }} — {{ r.kawasan_nama }}
+                </span>
+              </td>
+              <td class="px-3 py-2.5 text-foreground">{{ r.tahun }}</td>
+              <td class="px-3 py-2.5 text-end text-foreground">{{ fmt(r.nilai) }}</td>
+              <td v-if="isAdmin" class="px-3 py-2.5">
+                <AppMenu
+                  :items="[
+                    { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
+                    { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
+                  ]"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <div v-else-if="mode === 'list'" class="pa-3">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada target untuk tahun ini</div>
+      <!-- Mode list -->
+      <div v-else-if="mode === 'list'" class="p-3">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada target untuk tahun ini</div>
         <RecordCard
           v-for="r in paginated"
           v-else
@@ -68,75 +124,163 @@
           :subtitle="`${r.kawasan_kode} — ${r.kawasan_nama}`"
           :fields="[
             { label: 'Tahun', value: r.tahun },
-            { label: 'Target', value: fmt(r.nilai), class: 'text-right font-weight-medium' },
+            { label: 'Target', value: fmt(r.nilai), class: 'text-end font-medium' },
           ]"
         >
           <template #badge>
-            <v-chip v-if="r.nilai_induk != null" size="x-small" color="warning" variant="tonal">Induk: {{ fmt(r.nilai_induk) }}</v-chip>
+            <span
+              v-if="r.nilai_induk != null"
+              class="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium
+                     text-amber-900 dark:bg-amber-950/60 dark:text-amber-300"
+            >
+              Induk: {{ fmt(r.nilai_induk) }}
+            </span>
           </template>
           <template v-if="isAdmin" #actions>
-            <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openEdit(r)">Edit</v-btn>
-            <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(r)">Hapus</v-btn>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover focus:outline-hidden"
+              @click="openEdit(r)"
+            >
+              <Pencil class="shrink-0 size-3.5" aria-hidden="true" /> Edit
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-layer-hover focus:outline-hidden dark:text-red-400"
+              @click="confirmDelete(r)"
+            >
+              <Trash2 class="shrink-0 size-3.5" aria-hidden="true" /> Hapus
+            </button>
           </template>
         </RecordCard>
       </div>
 
-      <div v-else class="pa-2">
-        <div v-if="loading" class="text-center py-6">Memuat...</div>
-        <div v-else-if="!filtered.length" class="text-center py-6 text-medium-emphasis">Belum ada target untuk tahun ini</div>
-        <v-list v-else density="compact" lines="one">
-          <v-list-item v-for="r in paginated" :key="r.id" :title="`${r.kode || '-'} — ${r.nama}`" :subtitle="`${r.kawasan_kode} — ${r.tahun}`">
-            <template #append>
-              <span class="text-body-2 font-weight-medium mr-2">{{ fmt(r.nilai) }}</span>
-              <v-menu v-if="isAdmin" location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
-                </template>
-                <v-list density="compact" min-width="160">
-                  <v-list-item prepend-icon="mdi-pencil" title="Edit" @click="openEdit(r)" />
-                  <v-list-item prepend-icon="mdi-delete" title="Hapus" base-color="error" @click="confirmDelete(r)" />
-                </v-list>
-              </v-menu>
-            </template>
-          </v-list-item>
-        </v-list>
+      <!-- Mode compact -->
+      <div v-else class="p-2">
+        <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Belum ada target untuk tahun ini</div>
+        <ul v-else class="divide-y divide-table-line">
+          <li v-for="r in paginated" :key="r.id" class="flex items-center gap-2 py-2">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
+              <span class="block truncate text-xs text-muted-foreground-1">{{ r.kawasan_kode }} — {{ r.tahun }}</span>
+            </span>
+            <span class="shrink-0 text-sm font-medium text-foreground">{{ fmt(r.nilai) }}</span>
+            <AppMenu
+              v-if="isAdmin"
+              :items="[
+                { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
+                { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
+              ]"
+            />
+          </li>
+        </ul>
       </div>
-      <v-divider v-if="total" />
-      <div v-if="total" class="d-flex align-center justify-space-between flex-wrap ga-3 px-4 py-3">
-        <div class="d-flex align-center ga-2 text-body-2 text-medium-emphasis">
+
+      <hr v-if="total" class="border-card-divider" />
+      <div v-if="total" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground-1">
           <span>Menampilkan {{ from }}–{{ to }} dari {{ total }} data</span>
-          <v-select v-model="perPage" :items="[5, 10, 25, 50]" density="compact" variant="outlined" hide-details style="max-width: 90px" />
+          <div class="w-[90px]"><AppSelect v-model="perPage" :items="[5, 10, 25, 50]" :search="false" /></div>
           <span>per halaman</span>
         </div>
-        <v-pagination v-if="pageCount > 1" v-model="currentPage" :length="pageCount" :total-visible="5" density="compact" />
+        <AppPagination v-model="currentPage" :length="pageCount" :total-visible="5" />
       </div>
-    </v-card>
+    </div>
 
-    <AppDialog v-model="dialog" :title="editing ? 'Edit Target' : 'Tambah Target'" :max-width="520" :icon="editing ? 'mdi-target-account' : 'mdi-bullseye-arrow'">
-      <v-select v-model="form.jenis_retribusi_id" :items="jenisOpts" item-title="label" item-value="value" label="Jenis Retribusi *" variant="outlined" density="compact" :error-messages="err.jenis" class="mb-2" />
-      <v-text-field v-model.number="form.tahun" label="Tahun *" type="number" variant="outlined" density="compact" :error-messages="err.tahun" class="mb-2" />
-      <v-text-field :model-value="nilaiDisplay" label="Nilai Target *" variant="outlined" density="compact" prefix="Rp" inputmode="numeric" :error-messages="err.nilai" class="mb-2" @input="onNilaiInput" />
+    <!-- Dialog tambah/edit -->
+    <AppDialog
+      v-model="dialog"
+      :title="editing ? 'Edit Target' : 'Tambah Target'"
+      :max-width="520"
+      :icon="editing ? Target : Plus"
+    >
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Jenis Retribusi *</label>
+        <AppSelect v-model="form.jenis_retribusi_id" :items="jenisOpts" placeholder="Pilih jenis retribusi" in-modal />
+        <p v-if="err.jenis" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.jenis }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Tahun *</label>
+        <input
+          v-model.number="form.tahun"
+          type="number"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        />
+        <p v-if="err.tahun" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.tahun }}</p>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Nilai Target *</label>
+        <div class="relative">
+          <span class="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2.5 text-xs text-muted-foreground-1">Rp</span>
+          <input
+            :value="nilaiDisplay"
+            type="text"
+            inputmode="numeric"
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-9 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+            @input="onNilaiInput"
+          />
+        </div>
+        <p v-if="err.nilai" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ err.nilai }}</p>
+      </div>
+
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Batal</v-btn>
-        <v-btn color="primary" :loading="saving" @click="save">Simpan</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="dialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="saving"
+          @click="save"
+        >
+          <LoaderCircle v-if="saving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Simpan
+        </button>
       </template>
     </AppDialog>
 
-    <AppDialog v-model="delDialog" title="Hapus target?" :max-width="420" icon="mdi-delete">
+    <!-- Dialog hapus -->
+    <AppDialog v-model="delDialog" title="Hapus target?" :max-width="420" :icon="Trash2">
       Yakin hapus target <b>{{ delTarget?.nama }}</b> tahun {{ delTarget?.tahun }}?
       <template #actions>
-        <v-spacer />
-        <v-btn variant="text" @click="delDialog = false">Batal</v-btn>
-        <v-btn color="error" :loading="deleting" @click="doDelete">Hapus</v-btn>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="delDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white
+                 hover:bg-red-700 focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="deleting"
+          @click="doDelete"
+        >
+          <LoaderCircle v-if="deleting" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Hapus
+        </button>
       </template>
     </AppDialog>
 
-    <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000">{{ snack.msg }}</v-snackbar>
+    <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { LoaderCircle, Pencil, Plus, Search, Target, Trash2, TriangleAlert } from 'lucide-vue-next'
+
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode } = useViewMode('target')
@@ -146,7 +290,7 @@ type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number }
 
 const session = useUserSession()
-const isAdmin = computed(() => String(session.user.value?.role) === 'admin')
+const isAdmin = computed(() => String(session.user.value?.role || '') === 'admin')
 
 const kawasan = ref<Kawasan[]>([])
 const jenisList = ref<Jenis[]>([])
