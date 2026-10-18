@@ -1,54 +1,43 @@
 <template>
   <div>
-    <div class="mb-6 flex items-center gap-3">
-      <ClipboardList class="shrink-0 size-9 text-primary" aria-hidden="true" />
-      <h1 class="text-2xl font-medium text-foreground">Catatan Temuan</h1>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <ClipboardList class="shrink-0 size-9 text-primary" aria-hidden="true" />
+        <h1 class="text-2xl font-medium text-foreground">Catatan Temuan</h1>
+      </div>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+               text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
+        @click="openCatDialog"
+      >
+        <Plus class="shrink-0 size-4" aria-hidden="true" />
+        Tambah Catatan
+      </button>
     </div>
 
     <VerifikasiNav />
 
-    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-      <div class="mb-3 flex flex-wrap items-center gap-3">
-        <div class="w-full max-w-[220px]">
-          <AppSelect v-model="catKawasan" :items="kawasanOpts" placeholder="Kawasan *" />
+    <div class="rounded-lg border border-card-line bg-card">
+      <!-- Toolbar: search + filter status + toggle view — satu baris di dalam card -->
+      <div class="flex flex-wrap items-center gap-3 p-4">
+        <div class="relative w-full max-w-[320px]">
+          <Search
+            class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+            aria-hidden="true"
+          />
+          <input
+            v-model="q"
+            type="text"
+            placeholder="Cari catatan / kawasan / pos / oleh..."
+            class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                   focus:border-primary-focus focus:ring-primary-focus"
+          />
         </div>
-        <div class="w-full max-w-[110px]">
-          <AppSelect v-model="catTahun" :items="[2024, 2025, 2026, 2027]" :search="false" />
-        </div>
-        <div class="w-full max-w-[150px]">
-          <AppSelect v-model="catBulan" :items="bulanOpts" />
-        </div>
-        <input
-          v-model="catIsi"
-          type="text"
-          placeholder="Catatan / temuan *"
-          class="min-w-[280px] flex-1 rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
-                 focus:border-primary-focus focus:ring-primary-focus"
-        />
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
-                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus
-                 disabled:opacity-50 disabled:pointer-events-none"
-          :disabled="catSaving"
-          @click="simpanCatatan"
-        >
-          <LoaderCircle v-if="catSaving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
-          <Plus v-else class="shrink-0 size-4" aria-hidden="true" />
-          Tambah
-        </button>
-      </div>
-
-      <div class="flex flex-wrap gap-3">
         <div class="w-full max-w-[160px]">
           <AppSelect v-model="catFilterStatus" :items="['terbuka', 'selesai']" placeholder="Semua" clearable @update:model-value="loadCatatan" />
         </div>
-      </div>
-    </div>
-
-    <div class="rounded-lg border border-card-line bg-card">
-      <div class="flex justify-end px-4 pt-3">
-        <ViewModeToggle v-model="modeCatatan" />
+        <div class="ms-auto"><ViewModeToggle v-model="modeCatatan" /></div>
       </div>
 
       <!-- Mode tabel -->
@@ -72,7 +61,10 @@
             <tr v-else-if="!catatan.length">
               <td colspan="7" class="py-6 text-center text-muted-foreground-1">Belum ada catatan</td>
             </tr>
-            <tr v-for="c in catatan" v-else :key="c.id" class="hover:bg-layer-hover">
+            <tr v-else-if="!filtered.length">
+              <td colspan="7" class="py-6 text-center text-muted-foreground-1">Tidak ada catatan yang cocok dengan pencarian</td>
+            </tr>
+            <tr v-for="c in filtered" v-else :key="c.id" class="hover:bg-layer-hover">
               <td class="px-3 py-2.5 text-foreground">{{ bulanLabel(c.bulan) }} {{ c.tahun }}</td>
               <td class="px-3 py-2.5">
                 <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
@@ -118,8 +110,9 @@
       <div v-else-if="modeCatatan === 'list'" class="p-3">
         <div v-if="catLoading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
         <div v-else-if="!catatan.length" class="py-6 text-center text-muted-foreground-1">Belum ada catatan</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Tidak ada catatan yang cocok dengan pencarian</div>
         <RecordCard
-          v-for="c in catatan"
+          v-for="c in filtered"
           v-else
           :key="c.id"
           :title="bulanLabel(c.bulan) + ' ' + c.tahun + ' — ' + c.kawasan_kode"
@@ -160,8 +153,9 @@
       <div v-else class="p-2">
         <div v-if="catLoading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
         <div v-else-if="!catatan.length" class="py-6 text-center text-muted-foreground-1">Belum ada catatan</div>
+        <div v-else-if="!filtered.length" class="py-6 text-center text-muted-foreground-1">Tidak ada catatan yang cocok dengan pencarian</div>
         <ul v-else class="divide-y divide-table-line">
-          <li v-for="c in catatan" :key="c.id" class="flex items-start gap-2 py-2">
+          <li v-for="c in filtered" :key="c.id" class="flex items-start gap-2 py-2">
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm text-foreground">
                 {{ bulanLabel(c.bulan) }} {{ c.tahun }} — {{ c.kawasan_kode }}
@@ -177,19 +171,75 @@
       </div>
     </div>
 
+    <!-- Dialog tambah catatan -->
+    <AppDialog v-model="catDialog" title="Tambah Catatan Temuan" :max-width="520" :icon="ClipboardList">
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Kawasan *</label>
+        <AppSelect v-model="catKawasan" :items="kawasanOpts" placeholder="Pilih kawasan" in-modal />
+      </div>
+
+      <div class="mb-2 flex gap-2">
+        <div class="w-full max-w-[110px]">
+          <label class="mb-1.5 block text-sm font-medium text-foreground">Tahun *</label>
+          <AppSelect v-model="catTahun" :items="[2024, 2025, 2026, 2027]" :search="false" in-modal />
+        </div>
+        <div class="w-full max-w-[150px]">
+          <label class="mb-1.5 block text-sm font-medium text-foreground">Bulan *</label>
+          <AppSelect v-model="catBulan" :items="bulanOpts" in-modal />
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Pos / Jenis Retribusi (opsional)</label>
+        <AppSelect v-model="catJenis" :items="catJenisOpts" placeholder="— Tanpa pos tertentu —" clearable in-modal />
+      </div>
+
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Catatan / temuan *</label>
+        <textarea
+          v-model="catIsi"
+          rows="4"
+          placeholder="Uraikan temuan…"
+          class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground
+                 focus:border-primary-focus focus:ring-primary-focus"
+        ></textarea>
+      </div>
+
+      <template #actions>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="catDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="catSaving"
+          @click="simpanCatatan"
+        >
+          <LoaderCircle v-if="catSaving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Simpan
+        </button>
+      </template>
+    </AppDialog>
+
     <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
 
 
 <script setup lang="ts">
-import { ClipboardList, LoaderCircle, Plus, Trash2, Undo2, Check } from 'lucide-vue-next'
+import { ClipboardList, LoaderCircle, Plus, Search, Trash2, Undo2, Check } from 'lucide-vue-next'
 import type { MenuItem } from '~/components/AppMenu.vue'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeCatatan } = useViewMode('verifikasi-catatan')
-const { isAdmin, kawasanOpts, snack, toast, bulanOpts, bulanLabel, loadMaster } = useVerifikasiMaster()
+const { isAdmin, kawasan, kawasanOpts, jenisList, snack, toast, bulanOpts, bulanLabel, loadMaster } = useVerifikasiMaster()
 
 type CatRow = { id: number; tahun: number; bulan: number; kawasan_kode: string; jenis_nama: string | null; isi: string; status: string; created_by_nama: string | null }
 
@@ -201,6 +251,33 @@ const catTahun = ref(new Date().getFullYear())
 const catBulan = ref(new Date().getMonth() + 1)
 const catIsi = ref('')
 const catFilterStatus = ref<string | null>(null)
+const catJenis = ref<number | null>(null)
+const catDialog = ref(false)
+const q = ref('')
+
+// Pos mengikuti kawasan terpilih (cascading, sama seperti pad.vue).
+const catJenisOpts = computed(() => {
+  const pool = catKawasan.value
+    ? jenisList.value.filter((j) => j.kawasan_id === catKawasan.value)
+    : jenisList.value
+  return pool.map((j) => ({ label: `${j.kode || '-'} — ${j.nama}`, value: j.id }))
+})
+
+const filtered = computed(() => {
+  const s = q.value.trim().toLowerCase()
+  if (!s) return catatan.value
+  return catatan.value.filter((c) =>
+    (c.isi || '').toLowerCase().includes(s) ||
+    (c.jenis_nama || '').toLowerCase().includes(s) ||
+    (c.kawasan_kode || '').toLowerCase().includes(s) ||
+    (c.created_by_nama || '').toLowerCase().includes(s) ||
+    c.status.toLowerCase().includes(s) ||
+    (bulanLabel(c.bulan) + ' ' + c.tahun).toLowerCase().includes(s),
+  )
+})
+
+// Ganti kawasan → reset pos agar tidak menyimpan jenis dari kawasan lain.
+watch(catKawasan, () => { catJenis.value = null })
 
 function statusChip(s: string) {
   return s === 'selesai'
@@ -232,14 +309,20 @@ async function loadCatatan() {
   } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat catatan', 'error') }
   finally { catLoading.value = false }
 }
+function openCatDialog() {
+  catIsi.value = ''
+  catJenis.value = null
+  catDialog.value = true
+}
 async function simpanCatatan() {
   if (!catKawasan.value) { toast('Pilih kawasan', 'error'); return }
   if (!catIsi.value.trim()) { toast('Isi catatan wajib', 'error'); return }
   catSaving.value = true
   try {
-    await $fetch('/api/catatan', { method: 'POST', body: { tahun: catTahun.value, bulan: catBulan.value, kawasan_id: catKawasan.value, isi: catIsi.value.trim() } })
+    await $fetch('/api/catatan', { method: 'POST', body: { tahun: catTahun.value, bulan: catBulan.value, kawasan_id: catKawasan.value, jenis_retribusi_id: catJenis.value, isi: catIsi.value.trim() } })
     toast('Catatan ditambahkan')
     catIsi.value = ''
+    catDialog.value = false
     await loadCatatan()
   } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
   finally { catSaving.value = false }
@@ -255,5 +338,10 @@ async function hapusCatatan(c: CatRow) {
   catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal', 'error') }
 }
 
-onMounted(async () => { await loadMaster(); await loadCatatan() })
+onMounted(async () => {
+  await loadMaster()
+  // Default ke kawasan pertama agar tombol langsung bisa dipakai.
+  if (catKawasan.value == null) catKawasan.value = kawasan.value[0]?.id ?? null
+  await loadCatatan()
+})
 </script>

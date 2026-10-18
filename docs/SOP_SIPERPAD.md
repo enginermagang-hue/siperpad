@@ -85,8 +85,9 @@ Buka **Pengguna** — tambah/edit (nama/nip/email/role/aktif/password), nonaktif
 
 ### 3.8 Catatan Temuan
 1. Buka **Verifikasi → Catatan Temuan** (`/verifikasi/catatan`).
-2. Pilih Kawasan/Tahun/Bulan, isi catatan → **Tambah** (`POST /api/catatan`).
-3. Tandai **Selesai**/**Buka** (`PUT /api/catatan/:id`); admin dapat menghapus (`DELETE /api/catatan/:id`).
+2. Klik **Tambah Catatan** → modal: pilih Kawasan/Tahun/Bulan, **Pos** (opsional, cascading per kawasan), isi catatan → **Simpan** (`POST /api/catatan`).
+3. Gunakan **search box** (catatan/kawasan/pos/oleh/status) dan filter status untuk menyaring daftar; toggle tabel/list/compact di kanan toolbar.
+4. Tandai **Selesai**/**Buka** (`PUT /api/catatan/:id`); admin dapat menghapus (`DELETE /api/catatan/:id`).
 
 ### 3.9 Pengaturan
 Buka **Pengaturan** (`/settings`):
