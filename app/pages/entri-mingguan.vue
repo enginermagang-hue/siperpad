@@ -102,7 +102,11 @@
               <td :colspan="colCount" class="py-6 text-center text-muted-foreground-1">Tidak ada pos penerimaan</td>
             </tr>
             <template v-for="r in rows" v-else :key="r.jenis_id">
-              <tr class="hover:bg-primary/5">
+              <tr
+                class="hover:bg-primary/5"
+                :class="isUser && !meta?.locked ? 'cursor-pointer' : ''"
+                @click="openRow(r)"
+              >
                 <td class="px-3 py-2.5 font-medium text-foreground">
                   {{ r.kode || '-' }}
                 </td>
@@ -152,7 +156,7 @@
                   </template>
                   <span v-else class="text-muted-foreground-1">-</span>
                 </td>
-                <td v-if="isUser" class="px-3 py-2.5">
+                <td v-if="isUser" class="px-3 py-2.5" @click.stop>
                   <AppMenu
                     v-if="cellOf(r).status === 'draft'"
                     :disabled="!!meta?.locked"
@@ -187,6 +191,8 @@
           <RecordCard
             v-for="r in rows"
             :key="r.jenis_id"
+            :class="isUser && !meta?.locked ? 'cursor-pointer' : ''"
+            @click="openRow(r)"
             :title="`${r.kode || '-'} — ${r.nama}`"
             :fields="[
               { label: 'Target', value: fmt(r.target), class: 'text-end' },
@@ -213,24 +219,26 @@
               {{ Number(cellOf(r).kuantitas).toLocaleString('id-ID') }} × {{ fmt(cellOf(r).tarif) }}
             </div>
             <template v-if="isUser && cellOf(r).status === 'draft'" #actions>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover
-                       focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
-                :disabled="!!meta?.locked"
-                @click="openEdit(r)"
-              >
-                <Pencil class="shrink-0 size-3.5" aria-hidden="true" /> Edit
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-layer-hover
-                       focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none dark:text-red-400"
-                :disabled="!!meta?.locked"
-                @click="confirmDelete(r)"
-              >
-                <Trash2 class="shrink-0 size-3.5" aria-hidden="true" /> Hapus
-              </button>
+              <div class="flex items-center gap-1" @click.stop>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-layer-hover
+                         focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+                  :disabled="!!meta?.locked"
+                  @click="openEdit(r)"
+                >
+                  <Pencil class="shrink-0 size-3.5" aria-hidden="true" /> Edit
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-layer-hover
+                         focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none dark:text-red-400"
+                  :disabled="!!meta?.locked"
+                  @click="confirmDelete(r)"
+                >
+                  <Trash2 class="shrink-0 size-3.5" aria-hidden="true" /> Hapus
+                </button>
+              </div>
             </template>
           </RecordCard>
         </template>
@@ -241,7 +249,7 @@
         <div v-if="loading" class="py-6 text-center text-muted-foreground-1">Memuat...</div>
         <div v-else-if="!rows.length" class="py-6 text-center text-muted-foreground-1">Tidak ada pos penerimaan</div>
         <ul v-else class="divide-y divide-table-line">
-          <li v-for="r in rows" :key="r.jenis_id" class="flex items-center gap-2 py-2">
+           <li v-for="r in rows" :key="r.jenis_id" class="flex items-center gap-2 py-2" :class="isUser && !meta?.locked ? 'cursor-pointer' : ''" @click="openRow(r)">
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
             </span>
@@ -254,14 +262,16 @@
               <Lock v-if="isCellLocked(r)" class="shrink-0 size-3" aria-hidden="true" />
               {{ cellOf(r).status }}
             </span>
-            <AppMenu
-              v-if="isUser && cellOf(r).status === 'draft'"
-              :disabled="!!meta?.locked"
+            <span @click.stop>
+              <AppMenu
+                v-if="isUser && cellOf(r).status === 'draft'"
+                :disabled="!!meta?.locked"
               :items="[
                 { label: 'Edit', icon: Pencil, onClick: () => openEdit(r) },
                 { label: 'Hapus', icon: Trash2, variant: 'danger', onClick: () => confirmDelete(r) },
               ]"
             />
+            </span>
           </li>
         </ul>
       </div>
@@ -638,6 +648,21 @@ function openEdit(r: GridRow) {
   form.catatan = cell.catatan || ''
   err.jenis = ''; err.nilai = ''
   dialog.value = true
+}
+
+function openRow(r: GridRow) {
+  if (!isUser.value || meta.value?.locked) return
+  const cell = cellOf(r)
+  if (cell.status === 'draft') {
+    openEdit(r)
+    return
+  }
+  if (cell.status) {
+    toast(`Entri ${labelMingguAktif.value} untuk ${r.nama} sudah ${cell.status}, tidak bisa diubah`, 'warning')
+    return
+  }
+  openInput()
+  form.jenis_retribusi_id = r.jenis_id
 }
 
 async function saveEntri() {

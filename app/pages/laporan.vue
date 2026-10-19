@@ -67,36 +67,6 @@
 
     <!-- Tab Rekap -->
     <div v-show="tab === 'rekap'">
-      <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-        <div class="flex flex-wrap gap-3">
-          <div class="w-full max-w-[240px]">
-            <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
-          </div>
-          <div class="w-full max-w-[120px]">
-            <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
-          </div>
-          <div class="w-full max-w-[160px]">
-            <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
-          </div>
-          <div class="w-full max-w-[150px]">
-            <AppSelect v-model="periode" :items="periodeOpts" :search="false" />
-          </div>
-          <div class="relative w-full max-w-[300px]">
-            <Search
-              class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
-              aria-hidden="true"
-            />
-            <input
-              v-model="q"
-              type="text"
-              placeholder="Cari kode / nama..."
-              class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
-                     focus:border-primary-focus focus:ring-primary-focus"
-            />
-          </div>
-        </div>
-      </div>
-
       <div v-if="totals" class="mb-4 grid grid-cols-12 gap-4">
         <div class="col-span-12 sm:col-span-6 md:col-span-3">
           <div class="rounded-lg border border-card-line bg-card p-4 text-center">
@@ -130,8 +100,58 @@
       </div>
 
       <div class="rounded-lg border border-card-line bg-card">
-        <div class="flex justify-end px-4 pt-3">
-          <ViewModeToggle v-model="modeRekap" />
+        <div class="flex flex-wrap items-center gap-3 p-4">
+          <div class="relative w-full max-w-[300px]">
+            <Search
+              class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+              aria-hidden="true"
+            />
+            <input
+              v-model="q"
+              type="text"
+              placeholder="Cari kode / nama..."
+              class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                     focus:border-primary-focus focus:ring-primary-focus"
+            />
+          </div>
+
+          <!-- Desktop: filter inline -->
+          <div class="hidden md:contents">
+            <div class="w-full max-w-[240px]">
+              <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
+            </div>
+            <div class="w-full max-w-[120px]">
+              <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
+            </div>
+            <div class="w-full max-w-[160px]">
+              <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
+            </div>
+            <div class="w-full max-w-[150px]">
+              <AppSelect v-model="periode" :items="periodeOpts" :search="false" />
+            </div>
+          </div>
+
+          <!-- Mobile: filter dalam dropdown -->
+          <div class="md:hidden">
+            <AppMenu placement="bottom-start" root-class="[--auto-close:inside]" menu-class="w-72" toggle-class="inline-flex items-center gap-1.5 rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground hover:bg-layer-hover focus:outline-hidden" aria-label="Filter">
+              <template #toggle>
+                <Filter class="shrink-0 size-4" aria-hidden="true" />
+                <span>Filter</span>
+              </template>
+              <template #content>
+                <div class="space-y-2 p-2">
+                  <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
+                  <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
+                  <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
+                  <AppSelect v-model="periode" :items="periodeOpts" :search="false" />
+                </div>
+              </template>
+            </AppMenu>
+          </div>
+
+          <div class="ms-auto">
+            <ViewModeToggle v-model="modeRekap" />
+          </div>
         </div>
 
         <div v-if="modeRekap === 'table'" class="overflow-x-auto">
@@ -428,6 +448,7 @@ import {
   ChartColumnBig,
   FileSpreadsheet,
   FileText,
+  Filter,
   LoaderCircle,
   Rows3,
   Search,

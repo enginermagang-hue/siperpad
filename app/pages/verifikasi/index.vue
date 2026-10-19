@@ -7,8 +7,8 @@
 
     <VerifikasiNav />
 
-    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-      <div class="flex flex-wrap items-center gap-3">
+    <div class="rounded-lg border border-card-line bg-card">
+      <div class="flex flex-wrap items-center gap-3 p-4">
         <div class="w-full max-w-[200px]">
           <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua" clearable @update:model-value="load" />
         </div>
@@ -28,25 +28,22 @@
                    focus:border-primary-focus focus:ring-primary-focus"
           />
         </div>
-        <button
-          v-if="canVerif && filtered.length"
-          type="button"
-          class="ms-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium
-                 text-emerald-800 hover:bg-emerald-200 focus:outline-hidden
-                 disabled:opacity-50 disabled:pointer-events-none dark:bg-emerald-950/60 dark:text-emerald-300"
-          :disabled="bulkLoading"
-          @click="verifMassal('disetujui')"
-        >
-          <LoaderCircle v-if="bulkLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
-          <CheckCheck v-else class="shrink-0 size-4" aria-hidden="true" />
-          Setujui Semua ({{ filtered.length }})
-        </button>
-      </div>
-    </div>
-
-    <div class="rounded-lg border border-card-line bg-card">
-      <div class="flex justify-end px-4 pt-3">
-        <ViewModeToggle v-model="modeRealisasi" />
+        <div class="ms-auto flex items-center gap-3">
+          <button
+            v-if="canVerif && filtered.length"
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium
+                   text-emerald-800 hover:bg-emerald-200 focus:outline-hidden
+                   disabled:opacity-50 disabled:pointer-events-none dark:bg-emerald-950/60 dark:text-emerald-300"
+            :disabled="bulkLoading"
+            @click="verifMassal('disetujui')"
+          >
+            <LoaderCircle v-if="bulkLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+            <CheckCheck v-else class="shrink-0 size-4" aria-hidden="true" />
+            Setujui Semua ({{ filtered.length }})
+          </button>
+          <ViewModeToggle v-model="modeRealisasi" />
+        </div>
       </div>
 
       <!-- Mode tabel -->

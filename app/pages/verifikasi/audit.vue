@@ -7,8 +7,8 @@
 
     <VerifikasiNav />
 
-    <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-      <div class="flex flex-wrap items-center gap-3">
+    <div class="rounded-lg border border-card-line bg-card">
+      <div class="flex flex-wrap items-center gap-3 p-4">
         <div class="w-full max-w-[200px]">
           <AppSelect v-model="auditEntitas" :items="entitasOpts" placeholder="Semua" clearable :search="false" @update:model-value="loadAudit" />
         </div>
@@ -29,12 +29,9 @@
           <Search class="shrink-0 size-4" aria-hidden="true" />
           Cari
         </button>
-      </div>
-    </div>
-
-    <div class="rounded-lg border border-card-line bg-card">
-      <div class="flex justify-end px-4 pt-3">
-        <ViewModeToggle v-model="modeAudit" />
+        <div class="ms-auto">
+          <ViewModeToggle v-model="modeAudit" />
+        </div>
       </div>
 
       <!-- Mode tabel -->

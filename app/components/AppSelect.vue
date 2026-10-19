@@ -75,14 +75,17 @@ const CHEVRON =
 const hsConfig = computed(() =>
   JSON.stringify({
     placeholder: props.placeholder ?? 'Semua',
-    // Scope 'parent' menempelkan dropdown di dalam wrapper (position:absolute
-    // terhadap wrapper .hs-select) sehingga tidak menambah tinggi layout.
-    dropdownScope: 'parent',
+    // Di modal: scope 'window' menempelkan dropdown ke document.body dan
+    // memposisikannya `fixed` (Floating UI), sehingga tidak ter-clip oleh
+    // scroll container dialog dan tidak memicu scrollbar pada dialog.
+    // Di luar modal: scope 'parent' (position:absolute) agar tidak menambah tinggi layout.
+    dropdownScope: props.inModal ? 'window' : 'parent',
+    ...(props.inModal ? { dropdownAutoPlacement: true } : {}),
     toggleTag: '<button type="button" aria-expanded="false"></button>',
     toggleClasses:
       'hs-select-disabled:pointer-events-none hs-select-disabled:opacity-50 relative py-2 ps-3 pe-9 flex text-nowrap w-full cursor-pointer bg-layer border border-layer-line text-layer-foreground rounded-lg text-start text-sm hover:bg-layer-hover focus:outline-hidden focus:bg-layer-focus',
     dropdownClasses:
-      'absolute top-full mt-2 z-[100] w-full max-h-72 pb-1 px-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto overflow-x-hidden siperpad-select-scroll',
+      props.inModal ? 'z-[100] w-full max-h-72 pb-1 px-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto overflow-x-hidden siperpad-select-scroll' : 'absolute top-full mt-2 z-[100] w-full max-h-72 pb-1 px-1 space-y-0.5 bg-select border border-select-line rounded-lg shadow-xl overflow-y-auto overflow-x-hidden siperpad-select-scroll',
     optionClasses:
       'hs-selected:bg-select-item-active py-2 px-3 w-full text-sm text-select-item-foreground cursor-pointer hover:bg-select-item-hover rounded-lg focus:outline-hidden focus:bg-select-item-focus',
     optionAllowEmptyOption: props.clearable,
@@ -111,6 +114,10 @@ function onNativeChange(e: Event) {
 
 async function init() {
   if (!import.meta.client || !selectEl.value) return
+  if (props.inModal && !(window as unknown as { FloatingUIDOM?: unknown }).FloatingUIDOM) {
+    const floating = await import('@floating-ui/dom')
+    ;(window as unknown as { FloatingUIDOM: unknown }).FloatingUIDOM = floating
+  }
   const { HSSelect } = await import('preline/non-auto')
   try {
     hsSelect.value?.destroy()
