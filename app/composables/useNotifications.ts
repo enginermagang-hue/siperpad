@@ -18,8 +18,11 @@ export const useNotifications = () => {
   }))
   const loading = useState<boolean>('notif-loading', () => false)
   const loaded = useState<boolean>('notif-loaded', () => false)
+  // State tampilan: "bersihkan" hanya menyembunyikan notifikasi saat ini,
+  // tidak mengubah data sumber. Memuat ulang / reload akan menampilkan lagi.
+  const cleared = useState<boolean>('notif-cleared', () => false)
 
-  const pendingCount = computed(() => data.value.total)
+  const pendingCount = computed(() => (cleared.value ? 0 : data.value.total))
 
   async function fetchNotifications(force = false) {
     if (loading.value) return
@@ -28,6 +31,8 @@ export const useNotifications = () => {
     try {
       data.value = await $fetch<NotifSummary>('/api/notifikasi')
       loaded.value = true
+      // Data baru dari server: tampilkan kembali notifikasi.
+      cleared.value = false
     } catch {
       // biarkan nilai terakhir bila gagal — notifikasi bukan critical path
     } finally {
@@ -35,5 +40,10 @@ export const useNotifications = () => {
     }
   }
 
-  return { data, loading, loaded, pendingCount, fetchNotifications }
+  function clearNotifications() {
+    cleared.value = true
+    loaded.value = true
+  }
+
+  return { data, loading, loaded, cleared, pendingCount, fetchNotifications, clearNotifications }
 }

@@ -324,16 +324,30 @@
             <template #content>
               <div class="flex items-center px-3 py-2.5 border-b border-dropdown-divider">
                 <span class="text-sm font-semibold text-foreground">Notifikasi</span>
-                <button
-                  type="button"
-                  class="ms-auto p-1 rounded-md text-muted-foreground-1 hover:bg-dropdown-item-hover
-                         focus:outline-hidden"
-                  :disabled="notifLoading"
-                  aria-label="Muat ulang notifikasi"
-                  @click="loadNotif(true)"
-                >
-                  <RefreshCw class="shrink-0 size-3.5" :class="notifLoading ? 'animate-spin' : ''" aria-hidden="true" />
-                </button>
+                <div class="ms-auto flex items-center gap-1">
+                  <button
+                    type="button"
+                    class="p-1 rounded-md text-muted-foreground-1 hover:bg-dropdown-item-hover
+                           focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+                    :disabled="notifLoading || !notifItems.length || notifCleared"
+                    aria-label="Bersihkan notifikasi"
+                    title="Bersihkan notifikasi"
+                    @click="clearNotif()"
+                  >
+                    <Trash2 class="shrink-0 size-3.5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1 rounded-md text-muted-foreground-1 hover:bg-dropdown-item-hover
+                           focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none"
+                    :disabled="notifLoading"
+                    aria-label="Muat ulang notifikasi"
+                    title="Muat ulang notifikasi"
+                    @click="loadNotif(true)"
+                  >
+                    <RefreshCw class="shrink-0 size-3.5" :class="notifLoading ? 'animate-spin' : ''" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
 
               <div v-if="notifItems.length" class="py-1">
@@ -480,6 +494,7 @@ import {
   Send,
   Settings,
   Sun,
+  Trash2,
   TriangleAlert,
   User,
   UserCog,
@@ -588,9 +603,10 @@ const masterLinks = [
   { to: '/master/target', label: 'Target Tahunan PAD' },
 ]
 
-const { data: notifData, loading: notifLoading, pendingCount: notifPending, fetchNotifications } = useNotifications()
+const { data: notifData, loading: notifLoading, cleared: notifCleared, pendingCount: notifPending, fetchNotifications, clearNotifications: clearNotif } = useNotifications()
 
 const notifItems = computed(() => {
+  if (notifCleared.value) return []
   const d = notifData.value
   const items: {
     key: string
