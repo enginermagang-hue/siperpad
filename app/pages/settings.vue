@@ -134,6 +134,77 @@
       </div>
     </div>
 
+    <div v-if="isAdmin" class="mt-4 rounded-lg border border-card-line bg-card">
+      <div class="border-b border-card-divider px-4 py-3">
+        <h2 class="text-base font-medium text-foreground">Penanda Tangan Laporan</h2>
+        <p class="mt-0.5 text-xs text-muted-foreground-1">Nama, NIP, dan jabatan yang tampil pada blok tanda tangan PDF laporan realisasi.</p>
+      </div>
+      <div class="p-4">
+        <div v-if="pejabatLoading" class="py-4 text-muted-foreground-1">Memuat...</div>
+        <template v-else>
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <h3 class="mb-3 text-sm font-semibold text-foreground">Kiri — Mengetahui</h3>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Pembuka</label>
+                <input v-model="pejabatForm.kiri.pembuka" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Nama *</label>
+                <input v-model="pejabatForm.kiri.nama" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">NIP *</label>
+                <input v-model="pejabatForm.kiri.nip" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Jabatan (satu baris per baris)</label>
+                <textarea v-model="pejabatForm.kiri.jabatan" rows="3" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Pangkat / Golongan</label>
+                <input v-model="pejabatForm.kiri.pangkat" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+            </div>
+            <div>
+              <h3 class="mb-3 text-sm font-semibold text-foreground">Kanan — Bendahara Penerimaan</h3>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Pembuka</label>
+                <input v-model="pejabatForm.kanan.pembuka" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Nama *</label>
+                <input v-model="pejabatForm.kanan.nama" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">NIP *</label>
+                <input v-model="pejabatForm.kanan.nip" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Jabatan (satu baris per baris)</label>
+                <textarea v-model="pejabatForm.kanan.jabatan" rows="3" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Pangkat / Golongan</label>
+                <input v-model="pejabatForm.kanan.pangkat" type="text" class="w-full rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus" />
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus disabled:opacity-50 disabled:pointer-events-none"
+              :disabled="pejabatSaving"
+              @click="savePejabat"
+            >
+              <LoaderCircle v-if="pejabatSaving" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+              Simpan Penanda Tangan
+            </button>
+          </div>
+        </template>
+      </div>
+    </div>
+
     <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
@@ -173,6 +244,14 @@ async function changePw() {
 const info = ref<{ user: { nama: string; email: string; role: string }; counts: Record<string, number>; dropbox: { ready: boolean; folder: string } } | null>(null)
 const infoLoading = ref(false)
 
+interface PejabatBlockForm { pembuka: string; nama: string; nip: string; jabatan: string; pangkat: string }
+const pejabatForm = reactive<{ kiri: PejabatBlockForm; kanan: PejabatBlockForm }>({
+  kiri: { pembuka: '', nama: '', nip: '', jabatan: '', pangkat: '' },
+  kanan: { pembuka: '', nama: '', nip: '', jabatan: '', pangkat: '' },
+})
+const pejabatLoading = ref(false)
+const pejabatSaving = ref(false)
+
 const counts = computed(() => {
   const c = info.value?.counts || {}
   return [
@@ -208,5 +287,65 @@ async function syncDropbox() {
   } finally { syncing.value = false }
 }
 
-onMounted(loadInfo)
+async function loadPejabat() {
+  if (!isAdmin.value) return
+  pejabatLoading.value = true
+  try {
+    const p = await $fetch<any>('/api/settings/pejabat')
+    pejabatForm.kiri.pembuka = String(p?.kiri?.pembuka || '')
+    pejabatForm.kiri.nama = String(p?.kiri?.nama || '')
+    pejabatForm.kiri.nip = String(p?.kiri?.nip || '')
+    pejabatForm.kiri.jabatan = Array.isArray(p?.kiri?.jabatan) ? p.kiri.jabatan.join('\n') : String(p?.kiri?.jabatan || '')
+    pejabatForm.kiri.pangkat = String(p?.kiri?.pangkat || '')
+    pejabatForm.kanan.pembuka = String(p?.kanan?.pembuka || '')
+    pejabatForm.kanan.nama = String(p?.kanan?.nama || '')
+    pejabatForm.kanan.nip = String(p?.kanan?.nip || '')
+    pejabatForm.kanan.jabatan = Array.isArray(p?.kanan?.jabatan) ? p.kanan.jabatan.join('\n') : String(p?.kanan?.jabatan || '')
+    pejabatForm.kanan.pangkat = String(p?.kanan?.pangkat || '')
+  } catch (e: unknown) {
+    toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat penanda tangan', 'error')
+  } finally {
+    pejabatLoading.value = false
+  }
+}
+
+async function savePejabat() {
+  if (!pejabatForm.kiri.nama || !pejabatForm.kiri.nip || !pejabatForm.kanan.nama || !pejabatForm.kanan.nip) {
+    toast('Nama dan NIP wajib diisi', 'error')
+    return
+  }
+  pejabatSaving.value = true
+  try {
+    await $fetch('/api/settings/pejabat', {
+      method: 'PUT',
+      body: {
+        kiri: {
+          pembuka: pejabatForm.kiri.pembuka,
+          nama: pejabatForm.kiri.nama,
+          nip: pejabatForm.kiri.nip,
+          jabatan: pejabatForm.kiri.jabatan,
+          pangkat: pejabatForm.kiri.pangkat,
+        },
+        kanan: {
+          pembuka: pejabatForm.kanan.pembuka,
+          nama: pejabatForm.kanan.nama,
+          nip: pejabatForm.kanan.nip,
+          jabatan: pejabatForm.kanan.jabatan,
+          pangkat: pejabatForm.kanan.pangkat,
+        },
+      },
+    })
+    toast('Penanda tangan diperbarui')
+    await loadPejabat()
+  } catch (e: unknown) {
+    toast((e as { data?: { message?: string } })?.data?.message || 'Gagal menyimpan', 'error')
+  } finally {
+    pejabatSaving.value = false
+  }
+}
+
+onMounted(() => {
+  loadInfo()
+  if (isAdmin.value) loadPejabat()
+})
 </script>

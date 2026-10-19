@@ -24,8 +24,9 @@ const props = withDefaults(
     colors?: string[]
     stacked?: boolean
     horizontal?: boolean
+    rupiah?: boolean
   }>(),
-  { height: 320, type: 'line', stacked: false, horizontal: false },
+  { height: 320, type: 'line', stacked: false, horizontal: false, rupiah: false },
 )
 
 const VueApexCharts = shallowRef<unknown>(null)
@@ -67,11 +68,13 @@ const chartOptions = computed(() => {
       stacked: props.stacked,
       toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } },
       zoom: { enabled: false },
-      fontFamily: 'Inter, sans-serif',
+      fontFamily: 'Fira Sans, sans-serif',
       foreColor: t.foreColor,
     },
-    stroke: { width: props.type === 'bar' ? 0 : [3, 3], curve: 'smooth' as const },
-    markers: { size: props.type === 'bar' ? 0 : 4 },
+    // Pie/donut: stroke width must be a single number — an array (e.g. [3,3]
+    // meant for multi-series line/bar charts) makes ApexCharts render empty slices.
+    stroke: { width: props.type === 'bar' ? 0 : (isPie.value ? 2 : [3, 3]), curve: 'smooth' as const },
+    markers: { size: props.type === 'bar' || isPie.value ? 0 : 4 },
     dataLabels: { enabled: false },
     grid: { borderColor: t.grid, strokeDashArray: 4 },
     plotOptions: {
@@ -82,7 +85,19 @@ const chartOptions = computed(() => {
     colors: props.colors || ['#1976D2', '#43A047', '#F9A825', '#E53935', '#8E24AA', '#00897B', '#6D4C41', '#546E7A'],
   }
   if (isPie.value) {
-    return { ...base, labels: props.categories }
+    return {
+      ...base,
+      labels: props.categories,
+      tooltip: {
+        ...base.tooltip,
+        y: {
+          formatter: (v: number) =>
+            props.rupiah
+              ? `Rp ${Number(v).toLocaleString('id-ID')}`
+              : Number(v).toLocaleString('id-ID'),
+        },
+      },
+    }
   }
   return {
     ...base,

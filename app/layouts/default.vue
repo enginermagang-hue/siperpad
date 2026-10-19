@@ -26,10 +26,8 @@
       >
         <img src="/ntt.png" width="44" height="44" alt="Logo NTT" class="shrink-0 rounded-md" />
         <div v-if="!isRail" class="leading-tight">
-          <div class="text-[11px] font-bold tracking-wide text-white whitespace-nowrap">DINAS PARIWISATA DAN</div>
-          <div class="text-[11px] font-bold tracking-wide text-white whitespace-nowrap">EKONOMI KREATIF</div>
-          <div class="text-[11px] font-bold tracking-wide text-white whitespace-nowrap">PROVINSI NTT</div>
-          <div class="text-[10px] text-white/70 whitespace-nowrap">PAD Lasiana &amp; Kampung Seni</div>
+          <div class="text-[18px] font-bold tracking-wide text-white whitespace-nowrap">SIPERPAD</div>
+          <div class="text-[10px] text-white/70 whitespace-nowrap">Sistem Informasi Perhitungan PAD</div>
         </div>
       </div>
 
@@ -248,6 +246,17 @@
         </div>
         </nav>
       </div>
+
+      <!-- Footer info dinas -->
+      <div
+        v-if="!isRail"
+        class="border-t border-white/20 px-3 py-2.5 text-[13px] leading-tight text-white/70"
+      >
+        <div class="font-semibold text-white/90">Dinas Pariwisata dan Ekonomi Kreatif</div>
+        <div>Provinsi Nusa Tenggara Timur</div>
+        <div class="mt-1 text-white/60">Jl. Frans Seda No.72, Kayu Putih, Kec. Oebobo, Kota Kupang, Nusa Tenggara Timur 85228</div>
+        <div class="mt-1 text-white/50">v1.0.0</div>
+      </div>
     </aside>
 
     <!-- Overlay sidebar (mobile) -->
@@ -262,7 +271,7 @@
     <!-- Padding kiri mengikuti lebar sidebar; memakai varian `md:` agar tidak
          bergantung pada JavaScript saat hydration. -->
     <div
-      class="transition-[padding] duration-200"
+      class="transition-[padding] duration-200 min-h-screen flex flex-col"
       :class="collapsed ? 'md:ps-[72px]' : 'md:ps-[272px]'"
     >
       <header
@@ -437,11 +446,15 @@
         </div>
       </header>
 
-      <main class="min-h-[calc(100vh-4.5rem)]">
+      <main class="flex-1">
         <div class="p-6">
           <slot />
         </div>
       </main>
+
+      <footer class="border-t border-layer-line bg-background-1 px-6 py-3 text-center text-xs text-muted-foreground-1">
+        © {{ new Date().getFullYear() }} Dinas Pariwisata dan Ekonomi Kreatif Provinsi NTT — SiperPAD
+      </footer>
     </div>
   </div>
 </template>

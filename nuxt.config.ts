@@ -7,11 +7,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // Inter via @nuxt/fonts
+  // Fira Sans via @nuxt/fonts
   modules: ['@nuxt/fonts', 'nuxt-auth-utils'],
 
   fonts: {
-    families: [{ name: 'Inter', provider: 'google' }],
+    families: [{ name: 'Fira Sans', provider: 'google' }],
     defaults: {
       weights: [400, 500, 600, 700],
       styles: ['normal'],

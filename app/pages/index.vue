@@ -260,6 +260,7 @@
               :categories="topKontributor.map((t) => t.nama)"
               :height="300"
               type="donut"
+              rupiah
             />
             <div v-else class="py-4 text-center text-muted-foreground-1">Tidak ada data</div>
           </div>

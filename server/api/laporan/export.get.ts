@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import { getRekapPerJenis, getTargetAnomali } from '../../utils/rekap'
 import { getRekapMingguan } from '../../utils/rekapMingguan'
 import { query } from '../../utils/db'
+import { getPejabat } from '../../utils/pejabat'
 
 const _require = createRequire(import.meta.url)
 
@@ -492,26 +493,8 @@ const PAGE_W = 1008
 const PAGE_H = 612
 const MARGIN = 20
 
-// Blok tanda tangan (statis; mudah diganti bila pejabat berubah).
-// Sesuai struktur organisasi pada percakapan: pimpinan pemantau PAD adalah
-// Kasubag Keuangan (bukan Kepala Dinas), bendahara penerimaan sebagai validator.
-const PEJABAT = {
-  tempatTanggal: (tgl: number, bulanLabel: string, tahun: number) => `Kupang, ${tgl} ${bulanLabel} ${tahun}`,
-  kiri: {
-    pembuka: 'Mengetahui',
-    jabatan: ['Kasubag Keuangan', 'Dinas Pariwisata dan Ekonomi Kreatif Provinsi NTT'],
-    nama: '......................................',
-    pangkat: '',
-    nip: 'NIP ......................................',
-  },
-  kanan: {
-    pembuka: 'Bendahara Penerimaan,',
-    jabatan: [] as string[],
-    nama: 'B. Agustin Da Costa, S.Sos',
-    pangkat: 'Penata Tingkat I (III/d)',
-    nip: 'NIP.198008302009012002',
-  },
-}
+// Blok tanda tangan: dimuat dinamis dari settings (admin dapat mengubah).
+// Default disediakan oleh getPejabat() (server/utils/pejabat.ts).
 
 type PdfRow = {
   kode: string
@@ -529,7 +512,7 @@ type PdfRow = {
   keterangan: string
 }
 
-function buildPdfLaporan(opts: {
+async function buildPdfLaporan(opts: {
   rows: PdfRow[]
   bulanLabel: string
   tahun: number
@@ -537,6 +520,8 @@ function buildPdfLaporan(opts: {
   tanggalAngka: number
   tanggalLabel: string
 }): Promise<Buffer> {
+  const PEJABAT = await getPejabat()
+  const tempatTanggal = (tgl: number, bulanLabel: string, tahun: number) => `Kupang, ${tgl} ${bulanLabel} ${tahun}`
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const PDFDocument = _require('pdfkit') as unknown as new (o: unknown) => any
   // PAGE_W x PAGE_H adalah dimensi sebenarnya (1008 x 612 pt = landscape 14"x8.5").
@@ -651,7 +636,7 @@ function buildPdfLaporan(opts: {
     doc.x = tableLeft
   }
 
-  function drawRow(row: { cells: string[]; bold?: boolean; align?: ('left' | 'center' | 'right')[]; height?: number }) {
+  function drawRow(row: { cells: string[]; bold?: boolean; align?: ('left' | 'center' | 'right')[]; height?: number }, reserveBottom = 0) {
     // Kolom yang boleh dibungkus ke beberapa baris (word-wrap).
     const WRAP_KEYS = new Set(['nama', 'ket'])
     const font = row.bold ? 'Helvetica-Bold' : 'Helvetica'
@@ -671,10 +656,9 @@ function buildPdfLaporan(opts: {
     // Tinggi baris = maksimum konten + padding, minimal ROW_H.
     const h = row.height ?? Math.max(ROW_H, Math.ceil(maxContentH) + 8)
 
-    if (doc.y + h > bottomLimit) {
+    if (doc.y + h + reserveBottom > bottomLimit) {
       doc.addPage()
       doc.y = MARGIN
-      drawTitle()
       drawHeader()
     }
     const y = doc.y
@@ -699,7 +683,7 @@ function buildPdfLaporan(opts: {
   }
 
   function indentName(nama: string, level: number, nomor: string): string {
-    if (level <= 0) return nama
+    if (level <= 0 || level >= 10) return nama
     const pad = ' '.repeat(Math.max(0, (level - 1) * 3))
     const prefix = nomor ? `${nomor} ` : ''
     return `${pad}${prefix}${nama}`
@@ -710,7 +694,8 @@ function buildPdfLaporan(opts: {
   drawTitle()
   drawHeader()
 
-  for (const r of opts.rows) {
+  for (let i = 0; i < opts.rows.length; i++) {
+    const r = opts.rows[i]!
     const cells = [
       r.kode,
       indentName(r.nama, r.level, r.nomor),
@@ -722,16 +707,17 @@ function buildPdfLaporan(opts: {
       fmtPersen(r.capaian, r.target),
       r.keterangan,
     ]
+    const remaining = opts.rows.length - i
     drawRow({
       cells,
       bold: r.isKawasan || r.isTotal,
       align: ['left', 'left', 'center', 'right', 'right', 'right', 'right', 'right', 'left'],
-    })
+    }, remaining <= 3 ? 178 : 0)
   }
 
   // ===== tanda tangan =====
   let y = doc.y + 18
-  if (y + 110 > PAGE_H - MARGIN) {
+  if (y + 160 > PAGE_H - MARGIN) {
     doc.addPage()
     y = MARGIN + 10
   }
@@ -741,19 +727,24 @@ function buildPdfLaporan(opts: {
   doc.font('Helvetica').fontSize(FONT_SIGN).fillColor('#000000')
   // kiri
   let ly = y
-  doc.text(PEJABAT.kiri.pembuka, leftX, ly, { width: colW - 20 }); ly += 14
+  if (PEJABAT.kiri.pembuka) { doc.text(PEJABAT.kiri.pembuka, leftX, ly, { width: colW - 20 }) }
+  ly += 14
   PEJABAT.kiri.jabatan.forEach((l) => { doc.text(l, leftX, ly, { width: colW - 20 }); ly += 12 })
   ly += 42 // ruang tanda tangan
   doc.font('Helvetica-Bold').fontSize(FONT_SIGN + 0.5).text(PEJABAT.kiri.nama, leftX, ly, { width: colW - 20 }); ly += 13
-  doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kiri.pangkat, leftX, ly, { width: colW - 20 }); ly += 12
-  doc.text(PEJABAT.kiri.nip, leftX, ly, { width: colW - 20 })
+  if (PEJABAT.kiri.pangkat) { doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kiri.pangkat, leftX, ly, { width: colW - 20 }); ly += 12 }
+  doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kiri.nip, leftX, ly, { width: colW - 20 })
   // kanan
   let ry = y
-  doc.text(PEJABAT.tempatTanggal(opts.tanggalAngka, opts.bulanLabel, opts.tahun), rightX, ry, { width: colW - 20 }); ry += 14
-  doc.text(PEJABAT.kanan.pembuka, rightX, ry, { width: colW - 20 }); ry += 54
+  doc.text(tempatTanggal(opts.tanggalAngka, opts.bulanLabel, opts.tahun), rightX, ry, { width: colW - 20 }); ry += 14
+  if (PEJABAT.kanan.pembuka) { doc.text(PEJABAT.kanan.pembuka, rightX, ry, { width: colW - 20 }) }
+  ry += 14
+  PEJABAT.kanan.jabatan.forEach((l) => { doc.text(l, rightX, ry, { width: colW - 20 }); ry += 12 })
+  const kananSpace = PEJABAT.kanan.jabatan.length ? 42 : 40
+  ry += kananSpace
   doc.font('Helvetica-Bold').fontSize(FONT_SIGN + 0.5).text(PEJABAT.kanan.nama, rightX, ry, { width: colW - 20 }); ry += 13
-  doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kanan.pangkat, rightX, ry, { width: colW - 20 }); ry += 12
-  doc.text(PEJABAT.kanan.nip, rightX, ry, { width: colW - 20 })
+  if (PEJABAT.kanan.pangkat) { doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kanan.pangkat, rightX, ry, { width: colW - 20 }); ry += 12 }
+  doc.font('Helvetica').fontSize(FONT_SIGN).text(PEJABAT.kanan.nip, rightX, ry, { width: colW - 20 })
 
   doc.end()
   return done
@@ -796,7 +787,7 @@ async function buildPdfRows(opts: { kawasanId?: number; tahun: number; bulan: nu
       kode: kodeRek,
       nomor: isKawasan || isTotal ? '' : r.nomor,
       nama: isKawasan ? `Kawasan Wisata ${r.kawasan_nama}` : r.nama,
-      level: isKawasan ? 0 : r.level,
+      level: isKawasan || isTotal ? 0 : r.level,
       isKawasan,
       isTotal,
       volume,

@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Override font sans default Tailwind (ui-sans-serif/Inter-ish) dengan Fira Sans.
+   @nuxt/fonts akan mendeteksi deklarasi --font-* ini dan menyuntikkan @font-face. */
+@theme {
+  --font-sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 /* ---------------------------------------------------------------------------
    Preline UI
    @source mendaftarkan JS bundle Preline agar Tailwind memindai class yang
