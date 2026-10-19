@@ -75,6 +75,14 @@
               <td class="px-3 py-2.5">
                 <div class="flex flex-wrap gap-1">
                   <button
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-md bg-surface px-2 py-1 text-xs font-medium
+                           text-foreground hover:bg-layer-hover focus:outline-hidden"
+                    @click="navigateTo(`/verifikasi/batch/${b.id}`)"
+                  >
+                    <Eye class="shrink-0 size-3.5" aria-hidden="true" /> Detail
+                  </button>
+                  <button
                     v-if="b.status === 'draft' && isUser"
                     type="button"
                     class="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium
@@ -130,7 +138,14 @@
               {{ b.status }}
             </span>
           </template>
-          <template v-if="(b.status === 'draft' && isUser) || (b.status === 'diajukan' && canVerif)" #actions>
+          <template #actions>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-foreground hover:bg-layer-hover focus:outline-hidden"
+              @click="navigateTo(`/verifikasi/batch/${b.id}`)"
+            >
+              <Eye class="shrink-0 size-3.5" aria-hidden="true" /> Detail
+            </button>
             <button
               v-if="b.status === 'draft' && isUser"
               type="button"
@@ -264,7 +279,7 @@
 
 
 <script setup lang="ts">
-import { Check, FilePlus, LoaderCircle, Plus, Send, X } from 'lucide-vue-next'
+import { Check, Eye, FilePlus, LoaderCircle, Plus, Send, X } from 'lucide-vue-next'
 import type { MenuItem } from '~/components/AppMenu.vue'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
@@ -301,6 +316,7 @@ function statusChip(s: string) {
 // Aksi yang tersedia per status/role, untuk mode compact (AppMenu).
 function menuItems(b: Batch): MenuItem[] {
   const items: MenuItem[] = []
+  items.push({ label: 'Detail', icon: Eye, onClick: () => navigateTo(`/verifikasi/batch/${b.id}`) })
   if (b.status === 'draft' && isUser.value) {
     items.push({ label: 'Ajukan', icon: Send, onClick: () => ajukanBatch(b) })
   }
