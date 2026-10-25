@@ -1,10 +1,7 @@
-import { createRequire } from 'node:module'
 import { getRekapPerJenis, getTargetAnomali } from '../../utils/rekap'
 import { getRekapMingguan } from '../../utils/rekapMingguan'
 import { query } from '../../utils/db'
 import { getPejabat } from '../../utils/pejabat'
-
-const _require = createRequire(import.meta.url)
 
 const NAVY = 'FF1F4E79'
 const LIGHT_BLUE = 'FFD9E2F3'
@@ -522,8 +519,8 @@ async function buildPdfLaporan(opts: {
 }): Promise<Buffer> {
   const PEJABAT = await getPejabat()
   const tempatTanggal = (tgl: number, bulanLabel: string, tahun: number) => `Kupang, ${tgl} ${bulanLabel} ${tahun}`
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const PDFDocument = _require('pdfkit') as unknown as new (o: unknown) => any
+  // pdfkit ESM: import sebagai default.
+  const PDFDocument = (await import('pdfkit')).default as unknown as new (o: unknown) => any
   // PAGE_W x PAGE_H adalah dimensi sebenarnya (1008 x 612 pt = landscape 14"x8.5").
   // pdfkit menukar width/height saat layout:landscape, maka pakai layout portrait.
   const doc = new PDFDocument({ size: [PAGE_W, PAGE_H], margin: MARGIN, layout: 'portrait' })
@@ -988,17 +985,22 @@ export default defineEventHandler(async (event) => {
 
   // pdf — LAPORAN REALISASI PENERIMAAN (landscape 14"x8.5", struktur referensi)
   if (format === 'pdf') {
-    const { rows, bulanLabel, tanggalAngka, tanggalLabel } = await buildPdfRows({ kawasanId, tahun, bulan })
-    const pdfBuf = await buildPdfLaporan({ rows, bulanLabel, tahun, bulan, tanggalAngka, tanggalLabel })
-    let kawasanSlug = 'Semua-Kawasan'
-    if (kawasanId) {
-      const r = await query<{ nama: string; kode: string }>('SELECT nama, kode FROM kawasan WHERE id = ?', [kawasanId])
-      if (r.length) kawasanSlug = `${r[0]!.kode}-${r[0]!.nama.replace(/[^A-Za-z0-9]+/g, '_')}`
+    try {
+      const { rows, bulanLabel, tanggalAngka, tanggalLabel } = await buildPdfRows({ kawasanId, tahun, bulan })
+      const pdfBuf = await buildPdfLaporan({ rows, bulanLabel, tahun, bulan, tanggalAngka, tanggalLabel })
+      let kawasanSlug = 'Semua-Kawasan'
+      if (kawasanId) {
+        const r = await query<{ nama: string; kode: string }>('SELECT nama, kode FROM kawasan WHERE id = ?', [kawasanId])
+        if (r.length) kawasanSlug = `${r[0]!.kode}-${r[0]!.nama.replace(/[^A-Za-z0-9]+/g, '_')}`
+      }
+      const bulanPadded = String(bulan).padStart(2, '0')
+      setHeader(event, 'Content-Type', 'application/pdf')
+      setHeader(event, 'Content-Disposition', `attachment; filename="laporan-realisasi-${kawasanSlug}-${tahun}-${bulanPadded}.pdf"`)
+      return pdfBuf
+    } catch (err) {
+      console.error('PDF generation error:', err)
+      throw createError({ statusCode: 500, message: `PDF generation failed: ${err instanceof Error ? err.message : String(err)}` })
     }
-    const bulanPadded = String(bulan).padStart(2, '0')
-    setHeader(event, 'Content-Type', 'application/pdf')
-    setHeader(event, 'Content-Disposition', `attachment; filename="laporan-realisasi-${kawasanSlug}-${tahun}-${bulanPadded}.pdf"`)
-    return pdfBuf
   }
 
   // xlsx — Laporan Mingguan berstruktur referensi via exceljs

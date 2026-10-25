@@ -547,17 +547,23 @@ const labelMingguAktif = computed(() => mingguTabs.find((w) => w.value === tabMi
 
 const colCount = computed(() => (isUser.value ? 8 : 7))
 
-const jenisOpts = computed(() => jenisList.value
-  .filter((j) => !j.has_child)
-  .map((j) => {
-    const st = cellStatusOf(j.id)
-    const locked = isStatusLocked(st)
-    return {
-      label: `${j.kode || '-'} — ${j.nama}${locked ? ` (${st})` : ''}`,
-      value: j.id,
-      props: { disabled: locked },
-    }
-  }))
+const jenisOpts = computed(() => {
+  // Petugas dengan penugasan kawasan: hanya jenis dari kawasan tersebut
+  const filtered = scopedKawasanId.value 
+    ? jenisList.value.filter((j) => j.kawasan_id === scopedKawasanId.value)
+    : jenisList.value
+  return filtered
+    .filter((j) => !j.has_child)
+    .map((j) => {
+      const st = cellStatusOf(j.id)
+      const locked = isStatusLocked(st)
+      return {
+        label: `${j.kode || '-'} — ${j.nama}${locked ? ` (${st})` : ''}`,
+        value: j.id,
+        props: { disabled: locked },
+      }
+    })
+})
 
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
 

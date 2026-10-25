@@ -491,11 +491,17 @@ const jenisFilterOpts = computed(() => {
   const pool = filterKawasan.value ? jenisList.value.filter((j) => j.kawasan_id === filterKawasan.value) : jenisList.value
   return pool.map((j) => ({ label: `${j.kode || '-'} — ${j.nama}`, value: j.id }))
 })
-const jenisOpts = computed(() => jenisList.value.filter((j) => !j.has_child).map((j) => {
-  const kw = kawasan.value.find((k) => k.id === j.kawasan_id)
-  const kwLabel = kw ? `${kw.kode} — ` : ''
-  return { label: `${kwLabel}${j.kode || '-'} — ${j.nama}`, value: j.id }
-}))
+const jenisOpts = computed(() => {
+  // Petugas dengan penugasan kawasan: hanya jenis dari kawasan tersebut
+  const filtered = scopedKawasanId.value 
+    ? jenisList.value.filter((j) => j.kawasan_id === scopedKawasanId.value)
+    : jenisList.value
+  return filtered.filter((j) => !j.has_child).map((j) => {
+    const kw = kawasan.value.find((k) => k.id === j.kawasan_id)
+    const kwLabel = kw ? `${kw.kode} — ` : ''
+    return { label: `${kwLabel}${j.kode || '-'} — ${j.nama}`, value: j.id }
+  })
+})
 
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase()
