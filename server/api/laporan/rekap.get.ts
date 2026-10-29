@@ -7,10 +7,16 @@ export default defineEventHandler(async (event) => {
 
   const q = getQuery(event) as { kawasan_id?: string; tahun?: string; scope?: string; bulan?: string }
   const tahun = Number(q.tahun) || new Date().getFullYear()
-  const kawasanId = q.kawasan_id ? Number(q.kawasan_id) : undefined
   const bulan = q.bulan ? Number(q.bulan) : new Date().getMonth() + 1
   const scope = (q.scope as 'bulanan' | 'triwulan' | 'tahunan') || 'bulanan'
   if (!['bulanan', 'triwulan', 'tahunan'].includes(scope)) throw createError({ statusCode: 400, message: 'Scope harus bulanan/triwulan/tahunan' })
+
+  // Scope petugas kawasan wisata ke kawasannya saja.
+  let kawasanId: number | undefined = q.kawasan_id ? Number(q.kawasan_id) : undefined
+  const scoped = session.user.kawasan_id
+  if (scoped != null) {
+    kawasanId = scoped
+  }
 
   // Rekap per jenis dihitung kumulatif s/d bulan terpilih, agar kolom
   // "Capaian" sejajar dengan laporan Excel (Realisasi s/d Bulan Ini).

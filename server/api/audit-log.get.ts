@@ -3,6 +3,7 @@ import { query } from '../utils/db'
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
+  if (!['admin', 'kepala'].includes(String(session.user.role))) throw createError({ statusCode: 403, message: 'Hanya admin/kepala yang dapat melihat audit log' })
   const q = getQuery(event) as { entitas?: string; entitas_id?: string; aksi?: string; limit?: string }
   const where: string[] = []
   const params: unknown[] = []

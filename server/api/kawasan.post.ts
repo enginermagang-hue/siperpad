@@ -3,7 +3,7 @@ import { query } from '../utils/db'
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
-  if (session.user.role !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin' })
+  if (String(session.user.role) !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin' })
 
   const body = await readBody(event) as { kode?: string; nama?: string; urutan?: number; aktif?: number }
   const kode = (body.kode || '').trim()

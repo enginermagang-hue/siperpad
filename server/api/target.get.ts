@@ -1,4 +1,5 @@
 import { query } from '../utils/db'
+import { sessionKawasanId } from '../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -6,7 +7,11 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event) as { jenis_retribusi_id?: string; tahun?: string; kawasan_id?: string }
   const jenisId = q.jenis_retribusi_id ? Number(q.jenis_retribusi_id) : 0
   const tahun = q.tahun ? Number(q.tahun) : 0
-  const kawasanId = q.kawasan_id ? Number(q.kawasan_id) : 0
+  let kawasanId = q.kawasan_id ? Number(q.kawasan_id) : 0
+
+  // Scope petugas kawasan ke kawasannya saja.
+  const scoped = sessionKawasanId(session.user)
+  if (scoped != null) kawasanId = scoped
 
   // Single lookup — backward compat for pad.vue preview
   if (jenisId && tahun) {

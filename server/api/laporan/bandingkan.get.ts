@@ -15,7 +15,13 @@ export default defineEventHandler(async (event) => {
     a_label?: string; b_label?: string
   }
   const tahun = Number(q.tahun) || new Date().getFullYear()
-  const kawasanId = q.kawasan_id ? Number(q.kawasan_id) : undefined
+
+  // Scope petugas kawasan wisata ke kawasannya saja.
+  let kawasanId: number | undefined = q.kawasan_id ? Number(q.kawasan_id) : undefined
+  const scoped = session.user.kawasan_id
+  if (scoped != null) {
+    kawasanId = scoped
+  }
 
   let a: { from: string; to: string; label: string }
   let b: { from: string; to: string; label: string }

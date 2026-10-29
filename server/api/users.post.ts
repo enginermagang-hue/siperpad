@@ -33,7 +33,8 @@ export default defineEventHandler(async (event) => {
     return { ok: true, id: rows[0]!.id }
   } catch (e: unknown) {
     const m = e instanceof Error ? e.message : String(e)
+    console.error('users.post gagal:', m)
     if (m.includes('UNIQUE') || m.includes('unique')) throw createError({ statusCode: 409, message: 'Email sudah dipakai' })
-    throw createError({ statusCode: 500, message: m })
+    throw createError({ statusCode: 500, message: 'Gagal menyimpan pengguna' })
   }
 })

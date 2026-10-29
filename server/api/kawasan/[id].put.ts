@@ -3,10 +3,10 @@ import { query, execute } from '../../utils/db'
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
-  if (session.user.role !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin' })
+  if (String(session.user.role) !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin' })
 
   const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
+  if (!Number.isInteger(id) || id <= 0) throw createError({ statusCode: 400, message: 'ID tidak valid' })
 
   const body = await readBody(event) as { kode?: string; nama?: string; urutan?: number; aktif?: number }
   const kode = (body.kode || '').trim()

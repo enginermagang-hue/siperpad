@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
       'INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, after) VALUES (?, ?, ?, ?, ?)',
       [Number((session.user as { id: number }).id), 'COPY', 'target', `${fromTahun}->${toTahun}`, `Salin target ${fromTahun} -> ${toTahun}: ${copied} disalin, ${skipped} dilewati`],
     )
-  } catch {}
+  } catch (e: unknown) { console.error('audit log gagal:', e instanceof Error ? e.message : String(e)) }
 
   return { ok: true, fromTahun, toTahun, total_source: source.length, copied, skipped }
 })

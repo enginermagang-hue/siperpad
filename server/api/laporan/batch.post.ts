@@ -1,4 +1,5 @@
 import { query } from '../../utils/db'
+import { assertKawasanAllowed } from '../../utils/lock'
 
 
 export default defineEventHandler(async (event) => {
@@ -16,6 +17,10 @@ export default defineEventHandler(async (event) => {
   if (!['mingguan','bulanan','semester','tahunan'].includes(periode_type)) throw createError({ statusCode: 400, message: 'periode_type tidak valid' })
   if (!periode_start || !periode_end) throw createError({ statusCode: 400, message: 'periode_start/end wajib' })
   if (!tahun) throw createError({ statusCode: 400, message: 'tahun wajib' })
+
+  // Scope petugas kawasan ke kawasannya saja.
+  assertKawasanAllowed(session.user, kawasan_id)
+
   const k = await query('SELECT id FROM kawasan WHERE id = ?', [kawasan_id])
   if (!k.length) throw createError({ statusCode: 404, message: 'Kawasan tidak ditemukan' })
   const rows = await query<{ id: number }>('INSERT INTO laporan_batch (kawasan_id, periode_type, periode_start, periode_end, tahun, status, catatan) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id', [kawasan_id, periode_type, periode_start, periode_end, tahun, 'draft', catatan])

@@ -36,33 +36,6 @@ export async function execute(sql: string, params: unknown[] = []): Promise<{ ro
   return { rowsChanged: result.rowsAffected ?? 0 }
 }
 
-export async function transaction(
-  fn: (tx: {
-    query: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
-    execute: (sql: string, params?: unknown[]) => Promise<{ rowsChanged: number }>
-  }) => Promise<void>
-): Promise<void> {
-  const client = getTursoClient()
-  const batch: { sql: string; args?: unknown[] }[] = []
-  const batchExecute = fn({
-    query: (sql, params) => {
-      batch.push({ sql, args: params })
-      return Promise.resolve([])
-    },
-    execute: (sql, params) => {
-      batch.push({ sql, args: params })
-      return Promise.resolve({ rowsChanged: 0 })
-    },
-  })
-  await batchExecute
-  try {
-    await client.batch(batch)
-  } catch {
-    // batch is all-or-nothing on libSQL remote; local also rolls back
-    throw new Error('Transaction failed — semua perubahan telah dibatalkan')
-  }
-}
-
 function readMigrationFile(filename: string): string {
   const filePath = join(getMigrationsDir(), filename)
   return readFileSync(filePath, 'utf8')

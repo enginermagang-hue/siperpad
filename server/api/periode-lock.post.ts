@@ -1,5 +1,4 @@
 import { query, execute } from '../utils/db'
-import { APPROVED_STATUS } from '../utils/periode'
 
 // Kunci periode (tahun, bulan, kawasan). Admin only.
 // Syarat: tidak ada realisasi berstatus draft/diajukan pada periode tsb.
@@ -20,8 +19,8 @@ export default defineEventHandler(async (event) => {
     `SELECT COUNT(*) AS n FROM realisasi r
      JOIN jenis_retribusi jr ON jr.id = r.jenis_retribusi_id
      WHERE jr.kawasan_id = ? AND substr(r.tanggal, 1, 4) = ? AND substr(r.tanggal, 6, 2) = ?
-       AND r.status != ?`,
-    [kawasanId, String(tahun), String(bulan).padStart(2, '0'), APPROVED_STATUS],
+       AND r.status IN ('draft', 'diajukan')`,
+    [kawasanId, String(tahun), String(bulan).padStart(2, '0')],
   )
   if (Number(pending[0]?.n) > 0) {
     throw createError({ statusCode: 409, message: 'Masih ada realisasi draft/diajukan pada periode ini. Verifikasi dahulu sebelum mengunci.' })
@@ -37,6 +36,6 @@ export default defineEventHandler(async (event) => {
   try {
     await execute('INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, after) VALUES (?, ?, ?, ?, ?)',
       [userId, 'KUNCI_PERIODE', 'periode_lock', `${tahun}-${bulan}-${kawasanId}`, `Kunci periode ${bulan}/${tahun} kawasan ${kawasanId}`])
-  } catch {}
+  } catch (e: unknown) { console.error('audit log gagal:', e instanceof Error ? e.message : String(e)) }
   return { ok: true }
 })

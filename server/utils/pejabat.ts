@@ -71,7 +71,9 @@ export async function getPejabat(): Promise<PejabatConfig> {
       kiri: normalizeBlock(parsed?.kiri, DEFAULT_PEJABAT.kiri),
       kanan: normalizeBlock(parsed?.kanan, DEFAULT_PEJABAT.kanan),
     }
-  } catch {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('getPejabat gagal, pakai default:', msg)
     return DEFAULT_PEJABAT
   }
 }

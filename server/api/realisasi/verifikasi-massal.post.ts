@@ -21,12 +21,12 @@ export default defineEventHandler(async (event) => {
   if (!eligible.length) return { ok: true, count: 0 }
   const eligibleIds = eligible.map((r) => r.id)
   await execute(
-    `UPDATE realisasi SET status = ?, updated_at = datetime('now') WHERE id IN (${eligibleIds.map(() => '?').join(',')})`,
+    `UPDATE realisasi SET status = ?, updated_at = datetime('now') WHERE id IN (${eligibleIds.map(() => '?').join(',')}) AND status = 'diajukan'`,
     [aksi, ...eligibleIds],
   )
   try {
     await execute('INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, before, after) VALUES (?, ?, ?, ?, ?, ?)',
       [Number(session.user.id), aksi === 'disetujui' ? 'VERIFIKASI_MASSAL_SETUJU' : 'VERIFIKASI_MASSAL_TOLAK', 'realisasi', eligibleIds.join(','), 'diajukan', aksi])
-  } catch {}
+  } catch (e: unknown) { console.error('audit log gagal:', e instanceof Error ? e.message : String(e)) }
   return { ok: true, count: eligibleIds.length }
 })

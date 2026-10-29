@@ -8,6 +8,7 @@ export default defineEventHandler(async () => {
     return { status: 'ok', db: 'connected', probe: row ?? null }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e)
-    throw createError({ statusCode: 500, statusMessage: 'DB health check failed', message })
+    console.error('DB health check failed:', message)
+    throw createError({ statusCode: 500, statusMessage: 'DB health check failed', message: 'DB health check failed' })
   }
 })

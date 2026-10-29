@@ -41,12 +41,12 @@ export default defineEventHandler(async (event) => {
   if (!drafts.length) return { ok: true, count: 0 }
   await execute(
     `UPDATE realisasi SET status = 'diajukan', updated_at = datetime('now')
-     WHERE id IN (${drafts.map(() => '?').join(',')})`,
+     WHERE id IN (${drafts.map(() => '?').join(',')}) AND status = 'draft'`,
     drafts.map((d) => d.id),
   )
   try {
     await execute('INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, after) VALUES (?, ?, ?, ?, ?)',
       [Number(session.user.id), 'AJUKAN_MASSAL', 'realisasi', `${tahun}-${bulan}-${kawasanId}`, minggu != null ? `Ajukan ${drafts.length} realisasi Minggu ${minggu}` : `Ajukan ${drafts.length} realisasi`])
-  } catch {}
+  } catch (e: unknown) { console.error('audit log gagal:', e instanceof Error ? e.message : String(e)) }
   return { ok: true, count: drafts.length }
 })

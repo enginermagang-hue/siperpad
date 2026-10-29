@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
   if (String(session.user.role) !== 'user') throw createError({ statusCode: 403, message: 'Hanya petugas input' })
   const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
+  if (!Number.isInteger(id) || id <= 0) throw createError({ statusCode: 400, message: 'ID tidak valid' })
 
   const existing = await query<{ status: string; tanggal: string; jenis_retribusi_id: number }>('SELECT status, tanggal, jenis_retribusi_id FROM realisasi WHERE id = ?', [id])
   if (!existing.length) throw createError({ statusCode: 404, message: 'Realisasi tidak ditemukan' })
@@ -36,6 +36,10 @@ export default defineEventHandler(async (event) => {
   if (jenisId != null) {
     const newKawasan = await kawasanIdOfJenis(jenisId)
     assertKawasanAllowed(session.user, newKawasan)
+    // Jika tanggal tidak berubah, cek periode kawasan target.
+    if (newKawasan != null && newKawasan !== curKawasan) {
+      await assertPeriodeOpen(String(existing[0]!.tanggal), newKawasan)
+    }
   }
 
   // Hitung jumlah (Rupiah) + metadata sesuai mode tarif jenis.
@@ -64,7 +68,14 @@ export default defineEventHandler(async (event) => {
     jumlah = Math.round(j)
   }
 
-  if (tanggal != null && !/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) throw createError({ statusCode: 400, message: 'Tanggal harus YYYY-MM-DD' })
+  // Validasi batch_id jika disediakan (bukan null/undefined).
+  if (batch_id != null && batch_id !== undefined) {
+    const b = await query<{ id: number; kawasan_id: number; status: string }>('SELECT id, kawasan_id, status FROM laporan_batch WHERE id = ?', [batch_id])
+    if (!b.length) throw createError({ statusCode: 404, message: 'Batch tidak ditemukan' })
+    const targetKawasan = await kawasanIdOfJenis(effectiveJenisId)
+    if (targetKawasan != null && Number(b[0]!.kawasan_id) !== targetKawasan) throw createError({ statusCode: 400, message: 'Batch tidak sesuai kawasan realisasi' })
+    if (b[0]!.status !== 'draft') throw createError({ statusCode: 409, message: 'Batch sudah diajukan/diverifikasi, tidak bisa diubah' })
+  }
 
   // Jika tanggal dipindah ke periode lain, pastikan periode tujuan tidak terkunci.
   if (tanggal != null && curKawasan != null) await assertPeriodeOpen(tanggal, curKawasan)

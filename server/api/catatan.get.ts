@@ -1,4 +1,5 @@
 import { query } from '../utils/db'
+import { sessionKawasanId } from '../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -8,7 +9,12 @@ export default defineEventHandler(async (event) => {
   const params: unknown[] = []
   if (q.tahun) { where.push('ct.tahun = ?'); params.push(Number(q.tahun)) }
   if (q.bulan) { where.push('ct.bulan = ?'); params.push(Number(q.bulan)) }
-  if (q.kawasan_id) { where.push('ct.kawasan_id = ?'); params.push(Number(q.kawasan_id)) }
+  let kawasanId = q.kawasan_id ? Number(q.kawasan_id) : undefined
+
+  // Scope petugas kawasan ke kawasannya saja.
+  const scoped = sessionKawasanId(session.user)
+  if (scoped != null) kawasanId = scoped
+  if (kawasanId) { where.push('ct.kawasan_id = ?'); params.push(kawasanId) }
   if (q.status) { where.push('ct.status = ?'); params.push(String(q.status)) }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
   const data = await query(

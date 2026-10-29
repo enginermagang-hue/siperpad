@@ -21,23 +21,32 @@ export const useNotifications = () => {
   // State tampilan: "bersihkan" hanya menyembunyikan notifikasi saat ini,
   // tidak mengubah data sumber. Memuat ulang / reload akan menampilkan lagi.
   const cleared = useState<boolean>('notif-cleared', () => false)
+  // Track in-flight request promise to avoid race conditions.
+  const inFlight = useState<Promise<void> | null>('notif-inflight', () => null)
 
   const pendingCount = computed(() => (cleared.value ? 0 : data.value.total))
 
   async function fetchNotifications(force = false) {
-    if (loading.value) return
+    if (inFlight.value) {
+      await inFlight.value
+      if (!force) return
+    }
     if (loaded.value && !force) return
     loading.value = true
-    try {
-      data.value = await $fetch<NotifSummary>('/api/notifikasi')
-      loaded.value = true
-      // Data baru dari server: tampilkan kembali notifikasi.
-      cleared.value = false
-    } catch {
-      // biarkan nilai terakhir bila gagal — notifikasi bukan critical path
-    } finally {
-      loading.value = false
-    }
+    const p = (async () => {
+      try {
+        data.value = await $fetch<NotifSummary>('/api/notifikasi')
+        loaded.value = true
+        cleared.value = false
+      } catch {
+        // biarkan nilai terakhir bila gagal — notifikasi bukan critical path
+      } finally {
+        loading.value = false
+        inFlight.value = null
+      }
+    })()
+    inFlight.value = p
+    await p
   }
 
   function clearNotifications() {

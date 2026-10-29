@@ -116,7 +116,7 @@
           </div>
 
           <!-- Desktop: filter inline -->
-          <div class="hidden md:contents">
+          <div v-if="isAdminOrKepala" class="hidden md:contents">
             <div class="w-full max-w-[240px]">
               <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
             </div>
@@ -132,7 +132,7 @@
           </div>
 
           <!-- Mobile: filter dalam dropdown -->
-          <div class="md:hidden">
+          <div v-if="isAdminOrKepala" class="md:hidden">
             <AppMenu placement="bottom-start" root-class="[--auto-close:inside]" menu-class="w-72" toggle-class="inline-flex items-center gap-1.5 rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm text-layer-foreground hover:bg-layer-hover focus:outline-hidden" aria-label="Filter">
               <template #toggle>
                 <Filter class="shrink-0 size-4" aria-hidden="true" />
@@ -247,10 +247,10 @@
     <!-- Tab Perbandingan -->
     <div v-if="tab === 'banding'">
       <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="w-full max-w-[220px]">
-            <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="loadBanding" />
-          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <div v-if="isAdminOrKepala" class="w-full max-w-[220px]">
+              <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="loadBanding" />
+            </div>
           <div class="w-full max-w-[110px]">
             <AppSelect v-model="bandTahun" :items="tahunOpts" :search="false" @update:model-value="loadBanding" />
           </div>
@@ -464,6 +464,11 @@ type RekapRow = { id: number; kode: string; nama: string; level: number; urutan:
 const session = useUserSession()
 const role = computed(() => String(session.user.value?.role || ''))
 const isAdminOrKepala = computed(() => ['admin', 'kepala'].includes(role.value))
+// Petugas kawasan yang punya kawasan_id tidak boleh melihat data kawasan lain.
+const isScopedUser = computed(() => {
+  const kw = (session.user.value as Record<string, unknown>)?.kawasan_id
+  return kw != null
+})
 
 const kawasan = ref<{ id: number; kode: string; nama: string }[]>([])
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))

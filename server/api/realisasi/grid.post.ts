@@ -71,16 +71,38 @@ export default defineEventHandler(async (event) => {
 
   if (existing.length) {
     if (existing[0]!.status !== 'draft') throw createError({ statusCode: 409, message: 'Realisasi minggu ini sudah diajukan/disetujui, tidak bisa diubah' })
-    await execute(
-      "UPDATE realisasi SET jumlah = ?, kuantitas = ?, tarif = ?, catatan = ?, updated_at = datetime('now') WHERE id = ?",
+    // Atomic update: only update if still draft (prevents race).
+    const res = await execute(
+      "UPDATE realisasi SET jumlah = ?, kuantitas = ?, tarif = ?, catatan = ?, updated_at = datetime('now') WHERE id = ? AND status = 'draft'",
       [jumlah, kuantitas, tarif, catatan, existing[0]!.id],
     )
+    if (res.rowsChanged === 0) throw createError({ statusCode: 409, message: 'Realisasi minggu ini sudah diajukan/disetujui, tidak bisa diubah' })
     return { ok: true, id: existing[0]!.id, action: 'updated', jumlah, kuantitas, tarif }
   }
-  const rows = await query<{ id: number }>(
-    `INSERT INTO realisasi (jenis_retribusi_id, tanggal, jumlah, kuantitas, tarif, catatan, status, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?) RETURNING id`,
-    [jenisId, tanggal, jumlah, kuantitas, tarif, catatan, userId],
-  )
-  return { ok: true, id: rows[0]!.id, action: 'created', jumlah, kuantitas, tarif }
+
+  // Atomic insert with ON CONFLICT fallback (handles race between check and insert).
+  try {
+    const rows = await query<{ id: number }>(
+      `INSERT INTO realisasi (jenis_retribusi_id, tanggal, jumlah, kuantitas, tarif, catatan, status, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, 'draft', ?)
+       ON CONFLICT(jenis_retribusi_id, tanggal) DO UPDATE SET
+         jumlah = excluded.jumlah,
+         kuantitas = excluded.kuantitas,
+         tarif = excluded.tarif,
+         catatan = excluded.catatan,
+         updated_at = datetime('now')
+       WHERE realisasi.status = 'draft'
+       RETURNING id`,
+      [jenisId, tanggal, jumlah, kuantitas, tarif, catatan, userId],
+    )
+    if (!rows.length) throw createError({ statusCode: 409, message: 'Realisasi minggu ini sudah diajukan/disetujui, tidak bisa diubah' })
+    return { ok: true, id: rows[0]!.id, action: 'created', jumlah, kuantitas, tarif }
+  } catch (e: unknown) {
+    // If conflict happened and status is not draft, surface conflict.
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('UNIQUE') || msg.includes('constraint')) {
+      throw createError({ statusCode: 409, message: 'Realisasi minggu ini sudah diajukan/disetujui, tidak bisa diubah' })
+    }
+    throw e
+  }
 })

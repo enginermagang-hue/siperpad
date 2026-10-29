@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const role = String(session.user.role)
   if (role !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin (bendahara penerimaan) yang dapat memverifikasi' })
   const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
+  if (!Number.isInteger(id) || id <= 0) throw createError({ statusCode: 400, message: 'ID tidak valid' })
   const body = await readBody(event) as { aksi?: string; catatan?: string }
   const aksi = String(body.aksi || '').trim() // disetujui | ditolak
   if (!['disetujui', 'ditolak'].includes(aksi)) throw createError({ statusCode: 400, message: 'Aksi harus disetujui atau ditolak' })
@@ -16,9 +16,11 @@ export default defineEventHandler(async (event) => {
   if (rows[0]!.status !== 'diajukan') throw createError({ statusCode: 409, message: 'Hanya yang diajukan bisa diverifikasi' })
 
   const before = rows[0]!.status
-  await execute("UPDATE realisasi SET status = ?, updated_at = datetime('now') WHERE id = ?", [aksi, id])
+  // Atomic status transition: only update if still diajukan.
+  const res = await execute("UPDATE realisasi SET status = ?, updated_at = datetime('now') WHERE id = ? AND status = 'diajukan'", [aksi, id])
+  if (res.rowsChanged === 0) throw createError({ statusCode: 409, message: 'Hanya yang diajukan bisa diverifikasi' })
   try {
     await execute('INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, before, after) VALUES (?, ?, ?, ?, ?, ?)', [Number(session.user.id), aksi === 'disetujui' ? 'VERIFIKASI_SETUJU' : 'VERIFIKASI_TOLAK', 'realisasi', String(id), before, aksi])
-  } catch {}
+  } catch (e: unknown) { console.error('audit log gagal:', e instanceof Error ? e.message : String(e)) }
   return { ok: true }
 })

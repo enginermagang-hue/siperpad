@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
 
   const id = Number(getRouterParam(event, 'id'))
-  if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
+  if (!Number.isInteger(id) || id <= 0) throw createError({ statusCode: 400, message: 'ID tidak valid' })
 
   const rows = await query(
     `SELECT b.*, k.kode AS kawasan_kode, k.nama AS kawasan_nama,
@@ -30,8 +30,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: 'Anda hanya dapat mengakses batch kawasan penugasan Anda' })
   }
 
-  // Realisasi yang termasuk batch: yang eksplisit batch_id = id ATAU yang
-  // tanggalnya berada dalam periode batch & kawasan yang sama.
+  // Realisasi yang eksplisit ter-attach ke batch ini.
   const itemRows = await query(
     `SELECT r.id, r.jenis_retribusi_id, r.tanggal, r.jumlah, r.kuantitas, r.tarif, r.catatan,
             r.batch_id, r.status, r.created_by, r.created_at,
@@ -43,9 +42,9 @@ export default defineEventHandler(async (event) => {
      JOIN kawasan k ON k.id = jr.kawasan_id
      LEFT JOIN target t ON t.jenis_retribusi_id = r.jenis_retribusi_id
                         AND t.tahun = CAST(substr(r.tanggal, 1, 4) AS INTEGER)
-     WHERE (r.batch_id = ? OR (jr.kawasan_id = ? AND r.tanggal >= ? AND r.tanggal <= ?))
+     WHERE r.batch_id = ?
      ORDER BY r.tanggal ASC, r.id ASC`,
-    [id, Number(batch.kawasan_id), String(batch.periode_start), String(batch.periode_end)],
+    [id],
   )
 
   const items = itemRows.map((r) => {

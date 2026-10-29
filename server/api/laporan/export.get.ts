@@ -2,6 +2,7 @@ import { getRekapPerJenis, getTargetAnomali } from '../../utils/rekap'
 import { getRekapMingguan } from '../../utils/rekapMingguan'
 import { query } from '../../utils/db'
 import { getPejabat } from '../../utils/pejabat'
+import { sessionKawasanId } from '../../utils/lock'
 
 const NAVY = 'FF1F4E79'
 const LIGHT_BLUE = 'FFD9E2F3'
@@ -942,7 +943,10 @@ export default defineEventHandler(async (event) => {
   const tahun = Number(q.tahun) || new Date().getFullYear()
   let bulan = q.bulan ? Number(q.bulan) : new Date().getMonth() + 1
   if (!Number.isFinite(bulan) || bulan < 1 || bulan > 12) bulan = new Date().getMonth() + 1
-  const kawasanId = q.kawasan_id ? Number(q.kawasan_id) : undefined
+  let kawasanId = q.kawasan_id ? Number(q.kawasan_id) : undefined
+  // Scope petugas kawasan ke kawasannya saja.
+  const scoped = sessionKawasanId(session.user)
+  if (scoped != null) kawasanId = scoped
   const format = (q.format || 'csv').toLowerCase()
   // periode = 'tahun' → laporan tahunan (12 bulan + total); default 'bulan'.
   const periode = (q.periode || 'bulan').toLowerCase()

@@ -1,10 +1,16 @@
 import { query } from '../utils/db'
+import { sessionKawasanId } from '../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
   const q = getQuery(event) as { kawasan_id?: string }
-  const kawasanId = Number(q.kawasan_id)
+  let kawasanId = Number(q.kawasan_id)
+
+  // Scope petugas kawasan ke kawasannya saja.
+  const scoped = sessionKawasanId(session.user)
+  if (scoped != null) kawasanId = scoped
+
   const hasFilter = Number.isFinite(kawasanId) && kawasanId > 0
   const sql = hasFilter
     ? `SELECT jr.id, jr.kawasan_id, jr.parent_id, jr.kode, jr.kode_rekening, jr.nama, jr.level, jr.urutan, jr.aktif, jr.tarif, jr.mode_tarif, jr.satuan,

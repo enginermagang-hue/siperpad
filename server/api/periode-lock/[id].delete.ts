@@ -15,6 +15,6 @@ export default defineEventHandler(async (event) => {
   try {
     await execute('INSERT INTO audit_log (user_id, aksi, entitas, entitas_id, after) VALUES (?, ?, ?, ?, ?)',
       [Number(session.user.id), 'BUKA_PERIODE', 'periode_lock', String(id), `Buka kunci periode ${r.bulan}/${r.tahun} kawasan ${r.kawasan_id}`])
-  } catch {}
+  } catch (e: unknown) { console.error('audit log gagal:', e instanceof Error ? e.message : String(e)) }
   return { ok: true }
 })

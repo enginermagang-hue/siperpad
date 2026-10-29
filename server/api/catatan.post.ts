@@ -1,4 +1,5 @@
 import { query } from '../utils/db'
+import { assertKawasanAllowed, assertJenisAllowed } from '../utils/lock'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -11,6 +12,10 @@ export default defineEventHandler(async (event) => {
   const isi = (body.isi || '').trim()
   if (!tahun || !bulan || !kawasanId) throw createError({ statusCode: 400, message: 'tahun, bulan, kawasan_id wajib' })
   if (!isi) throw createError({ statusCode: 400, message: 'Isi catatan wajib' })
+
+  // Scope petugas kawasan ke kawasannya saja.
+  assertKawasanAllowed(session.user, kawasanId)
+  if (jenisId != null) await assertJenisAllowed(session.user, jenisId)
 
   const rows = await query<{ id: number }>(
     `INSERT INTO catatan_temuan (tahun, bulan, kawasan_id, jenis_retribusi_id, isi, status, created_by)
