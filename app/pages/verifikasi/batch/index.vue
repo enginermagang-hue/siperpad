@@ -3,10 +3,10 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <FilePlus class="shrink-0 size-9 text-primary" aria-hidden="true" />
-        <h1 class="text-2xl font-medium text-foreground">{{ isAdmin ? 'Pengajuan Batch' : 'Batch Laporan' }}</h1>
+        <h1 class="text-2xl font-medium text-foreground">{{ isUser ? 'Pengajuan Batch' : 'Batch Laporan' }}</h1>
       </div>
       <button
-        v-if="isAdmin"
+        v-if="isUser"
         type="button"
         class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
                text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
@@ -91,7 +91,7 @@
                   >
                     <Send class="shrink-0 size-3.5" aria-hidden="true" /> Ajukan
                   </button>
-                  <template v-if="b.status === 'diajukan' && isKepala">
+                  <template v-if="b.status === 'diajukan' && isAdmin">
                     <button
                       type="button"
                       class="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium
@@ -154,7 +154,7 @@
             >
               <Send class="shrink-0 size-3.5" aria-hidden="true" /> Ajukan
             </button>
-            <template v-if="b.status === 'diajukan' && isKepala">
+            <template v-if="b.status === 'diajukan' && isAdmin">
               <button
                 type="button"
                 class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-layer-hover focus:outline-hidden dark:text-emerald-400"
@@ -286,7 +286,7 @@ definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode: modeBatch } = useViewMode('verifikasi-batch')
 const session = useUserSession()
-const isKepala = computed(() => String(session.user.value?.role || '') === 'kepala')
+const isUser = computed(() => String(session.user.value?.role || '') === 'user')
 const { isAdmin, kawasanOptsScoped, scopedKawasanId, snack, toast, loadMaster } = useVerifikasiMaster()
 
 type Batch = { id: number; kawasan_kode: string; kawasan_nama: string; periode_start: string; periode_end: string; periode_type: string; tahun: number; status: string }
@@ -319,10 +319,10 @@ function statusChip(s: string) {
 function menuItems(b: Batch): MenuItem[] {
   const items: MenuItem[] = []
   items.push({ label: 'Detail', icon: Eye, onClick: () => navigateTo(`/verifikasi/batch/${b.id}`) })
-  if (b.status === 'draft' && isAdmin.value) {
+  if (b.status === 'draft' && isUser.value) {
     items.push({ label: 'Ajukan', icon: Send, onClick: () => ajukanBatch(b) })
   }
-  if (b.status === 'diajukan' && isKepala.value) {
+  if (b.status === 'diajukan' && isAdmin.value) {
     items.push({ label: 'Setujui', icon: Check, onClick: () => verifBatch(b, 'disetujui') })
     items.push({ label: 'Tolak', icon: X, variant: 'danger', onClick: () => verifBatch(b, 'ditolak') })
   }

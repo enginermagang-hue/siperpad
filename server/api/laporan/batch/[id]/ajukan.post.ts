@@ -4,7 +4,7 @@ import { execute, query } from '../../../../utils/db'
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
-  if (String(session.user.role) !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin (bendahara penerimaan) yang dapat mengajukan batch' })
+  if (String(session.user.role) !== 'user') throw createError({ statusCode: 403, message: 'Hanya operator kawasan yang dapat mengajukan batch' })
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
   const rows = await query<{ status: string; kawasan_id: number }>('SELECT status, kawasan_id FROM laporan_batch WHERE id = ?', [id])

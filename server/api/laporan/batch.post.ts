@@ -4,7 +4,7 @@ import { query } from '../../utils/db'
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) throw createError({ statusCode: 401, message: 'Tidak terautentikasi' })
-  if (String(session.user.role) !== 'admin') throw createError({ statusCode: 403, message: 'Hanya admin (bendahara penerimaan) yang dapat membuat batch' })
+  if (String(session.user.role) !== 'user') throw createError({ statusCode: 403, message: 'Hanya operator kawasan yang dapat membuat batch' })
   const body = await readBody(event) as { kawasan_id?: number; periode_type?: string; periode_start?: string; periode_end?: string; tahun?: number; catatan?: string }
   const kawasan_id = Number(body.kawasan_id)
   const periode_type = String(body.periode_type || 'bulanan').trim()
