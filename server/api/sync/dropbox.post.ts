@@ -15,7 +15,6 @@ export default defineEventHandler(async (event) => {
     jenis_retribusi: await query('SELECT * FROM jenis_retribusi ORDER BY kawasan_id, level, urutan'),
     target: await query('SELECT * FROM target ORDER BY tahun, jenis_retribusi_id'),
     realisasi: await query('SELECT * FROM realisasi ORDER BY tanggal DESC LIMIT 1000'),
-    laporan_batch: await query('SELECT * FROM laporan_batch ORDER BY tahun DESC LIMIT 100'),
   }
   const json = JSON.stringify(payload, null, 2)
   const filename = `siperpad-backup-${new Date().toISOString().slice(0, 10)}.json`

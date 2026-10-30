@@ -260,7 +260,6 @@ const counts = computed(() => {
     { label: 'Jenis', value: c.jenis ?? 0 },
     { label: 'Target', value: c.target ?? 0 },
     { label: 'Realisasi', value: c.realisasi ?? 0 },
-    { label: 'Batch', value: c.batch ?? 0 },
     { label: 'Audit', value: c.audit ?? 0 },
   ]
 })

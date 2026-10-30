@@ -9,15 +9,14 @@ export default defineEventHandler(async (event) => {
     query<{ c: number }>('SELECT COUNT(*) as c FROM jenis_retribusi').then((r) => Number(r[0]?.c || 0)),
     query<{ c: number }>('SELECT COUNT(*) as c FROM target').then((r) => Number(r[0]?.c || 0)),
     query<{ c: number }>('SELECT COUNT(*) as c FROM realisasi').then((r) => Number(r[0]?.c || 0)),
-    query<{ c: number }>('SELECT COUNT(*) as c FROM laporan_batch').then((r) => Number(r[0]?.c || 0)),
     query<{ c: number }>('SELECT COUNT(*) as c FROM audit_log').then((r) => Number(r[0]?.c || 0)),
   ])
-  const [users, kawasan, jenis, target, realisasi, batch, audit] = counts
+  const [users, kawasan, jenis, target, realisasi, audit] = counts
   const config = useRuntimeConfig()
   const dropboxReady = !!(config.dropboxAppKey && config.dropboxAppSecret)
   return {
     user: { id: Number(session.user.id), nama: String(session.user.nama), email: String(session.user.email), role: String(session.user.role) },
-    counts: { users, kawasan, jenis, target, realisasi, batch, audit },
+    counts: { users, kawasan, jenis, target, realisasi, audit },
     dropbox: { ready: dropboxReady, folder: String((config.dropboxFolder as string) || '/siperpad') },
   }
 })

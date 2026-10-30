@@ -60,45 +60,19 @@
         </NuxtLink>
 
         <!-- Data PAD (admin/kepala) / Input Realisasi (user) -->
-        <div class="mb-1">
-          <button
-            type="button"
-            :title="isUser ? 'Input Realisasi' : 'Data PAD'"
-            :aria-label="isUser ? 'Input Realisasi' : 'Data PAD'"
-            class="w-[calc(100%-1rem)] flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg text-sm text-start
-                   hover:bg-white/10 focus:outline-hidden"
-            :class="collapsed ? 'md:justify-center md:px-0' : ''"
-            :aria-expanded="openGroups.input"
-            @click="toggleGroup('input')"
-          >
-            <FileText class="shrink-0 size-[18px]" aria-hidden="true" />
-            <span v-if="!isRail" class="flex-1 whitespace-nowrap">{{ isUser ? 'Input Realisasi' : 'Data PAD' }}</span>
-            <ChevronDown
-              v-if="!isRail"
-              class="shrink-0 size-4 transition-transform"
-              :class="openGroups.input ? 'rotate-180' : ''"
-              aria-hidden="true"
-            />
-          </button>
-          <div v-if="!isRail && openGroups.input" class="mt-0.5">
-            <NuxtLink
-              to="/entri-mingguan"
-              class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
-                     opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="isActive('/entri-mingguan') ? 'bg-primary/90 text-white' : ''"
-            >
-              Entri Mingguan
-            </NuxtLink>
-            <NuxtLink
-              to="/pad"
-              class="block py-2 ps-10 pe-3 me-2 ms-6 mb-0.5 rounded-e-md border-s border-white/15 text-[13px]
-                     opacity-90 hover:bg-white/10 focus:outline-hidden"
-              :class="isActive('/pad') ? 'bg-primary/90 text-white' : ''"
-            >
-              Entri Harian
-            </NuxtLink>
-          </div>
-        </div>
+        <NuxtLink
+          to="/pad"
+          class="flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm
+                 hover:bg-white/10 focus:outline-hidden"
+          :class="[
+            collapsed ? 'md:justify-center md:px-0' : '',
+            isActive('/pad', true) ? 'bg-primary text-white font-medium' : '',
+          ]"
+          :title="isUser ? 'Input Realisasi' : 'Data PAD'"
+        >
+          <FileText class="shrink-0 size-[18px]" aria-hidden="true" />
+          <span v-if="!isRail" class="whitespace-nowrap">{{ isUser ? 'Input Realisasi' : 'Data PAD' }}</span>
+        </NuxtLink>
 
         <!-- Verifikasi (admin) — pimpinan hanya monitoring, tanpa verifikasi -->
         <div v-if="isAdmin" class="mb-1">
@@ -134,23 +108,6 @@
             </NuxtLink>
           </div>
         </div>
-
-        <!-- Pengajuan Batch (user) -->
-        <NuxtLink
-          v-if="isUser"
-          to="/verifikasi/batch"
-          title="Pengajuan Batch"
-          aria-label="Pengajuan Batch"
-          class="flex items-center gap-3 px-3 py-2.5 mx-2 mb-1 rounded-lg text-sm
-                 hover:bg-white/10 focus:outline-hidden"
-          :class="[
-            collapsed ? 'md:justify-center md:px-0' : '',
-            isActive('/verifikasi/batch') ? 'bg-primary text-white font-medium' : '',
-          ]"
-        >
-          <Send class="shrink-0 size-[18px]" aria-hidden="true" />
-          <span v-if="!isRail" class="whitespace-nowrap">Pengajuan Batch</span>
-        </NuxtLink>
 
         <!-- Data Master (admin) -->
         <div v-if="isAdmin" class="mb-1">
@@ -480,7 +437,6 @@ import {
   ClipboardCheck,
   FileChartColumn,
   FileCheck,
-  FileClock,
   FileText,
   Folder,
   House,
@@ -491,7 +447,6 @@ import {
   PanelLeftOpen,
   Moon,
   RefreshCw,
-  Send,
   Settings,
   Sun,
   Trash2,
@@ -513,8 +468,7 @@ const router = useRouter()
  * Apakah `href` adalah rute yang sedang aktif.
  *
  * `exact: true` untuk rute yang SEKALIGUS menjadi prefix rute lain — kasusnya
- * `/verifikasi`, yang juga induk dari `/verifikasi/audit`, `/verifikasi/batch`,
- * dst. Tanpa `exact`, item "Realisasi Diajukan" tetap menyala di semua sub-route.
+ * `/verifikasi`, yang juga induk dari `/verifikasi/audit`, dst. Tanpa `exact`, item "Realisasi Diajukan" tetap menyala di semua sub-route.
  *
  * Pencocokan non-exact memakai segmen utuh (`href + '/'`), bukan awalan string
  * mentah, supaya `/pad` tidak ikut menyala untuk rute seperti `/pad-history`.
@@ -569,7 +523,6 @@ const tahun = useState<number>('tahun', () => new Date().getFullYear())
 
 // Grup sidebar yang terbuka (state Vue menggantikan v-list-group).
 const openGroups = reactive<Record<string, boolean>>({
-  input: true,
   verifikasi: false,
   master: false,
   pengaturan: false,
@@ -587,7 +540,6 @@ function toggleGroup(key: string) {
 const verifikasiLinks = computed(() => {
   const links = [
     { to: '/verifikasi', label: 'Realisasi Diajukan' },
-    { to: '/verifikasi/batch', label: 'Batch Laporan' },
   ]
   if (isAdmin.value) {
     links.push({ to: '/verifikasi/periode', label: 'Kunci Periode' })
@@ -626,17 +578,6 @@ const notifItems = computed(() => {
       chipClass: 'bg-primary/10 text-primary',
       count: d.verifikasi.realisasi,
       to: '/verifikasi',
-    })
-  }
-  if (d.verifikasi.batch > 0) {
-    items.push({
-      key: 'batch',
-      title: 'Laporan menunggu verifikasi',
-      subtitle: 'Batch laporan berstatus diajukan',
-      icon: FileClock,
-      chipClass: 'bg-primary/10 text-primary',
-      count: d.verifikasi.batch,
-      to: '/verifikasi/batch',
     })
   }
   if (d.anomali > 0) {
@@ -694,7 +635,6 @@ watch(
 // menampilkan grup Verifikasi tertutup sehingga item aktif tak terlihat.
 // Hanya membuka grup terkait — grup lain yang sengaja dibuka user dibiarkan.
 const GROUP_BY_PREFIX: [string, string][] = [
-  ['/entri-mingguan', 'input'],
   ['/pad', 'input'],
   ['/verifikasi', 'verifikasi'],
   ['/kawasan-wisata', 'master'],

@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-type Row = { id: number; jenis_retribusi_id: number; tanggal: string; jumlah: number; catatan: string; batch_id: number | null; status: string; created_by: number; jenis_kode: string; jenis_nama: string; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target_nilai: number; capaian: number }
+type Row = { id: number; jenis_retribusi_id: number; tanggal: string; jumlah: number; catatan: string; status: string; created_by: number; jenis_kode: string; jenis_nama: string; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target_nilai: number; capaian: number }
 type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level: number; has_child: number }
 

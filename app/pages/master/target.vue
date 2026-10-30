@@ -17,23 +17,6 @@
       </button>
     </div>
 
-    <!-- Anomali -->
-    <div
-      v-if="anomali.length"
-      role="alert"
-      class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4
-             dark:border-amber-900 dark:bg-amber-950/60"
-    >
-      <div class="mb-1 flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200">
-        <TriangleAlert class="shrink-0 size-4" aria-hidden="true" />
-        Peringatan Anomali Target — perlu konfirmasi Bendahara Penerimaan
-      </div>
-      <div v-for="a in anomali" :key="a.jenis_id" class="text-sm text-amber-900/90 dark:text-amber-200/90">
-        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak
-        {{ fmt(a.jumlah_anak) }} <b>(selisih {{ fmt(a.selisih) }})</b>
-      </div>
-    </div>
-
     <div class="mb-4 rounded-lg border border-card-line bg-card p-4">
       <div class="flex flex-wrap items-center gap-3">
         <div class="w-full max-w-[240px]">
@@ -279,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { LoaderCircle, Pencil, Plus, Search, Target, Trash2, TriangleAlert } from 'lucide-vue-next'
+import { LoaderCircle, Pencil, Plus, Search, Target, Trash2 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
@@ -336,16 +319,8 @@ const { display: nilaiDisplay, onInput: onNilaiInput } = useRupiahInput(toRef(fo
 const delDialog = ref(false)
 const delTarget = ref<Row | null>(null)
 const deleting = ref(false)
-const anomali = ref<{ jenis_id: number; kode: string; nama: string; nilai_induk: number; jumlah_anak: number; selisih: number }[]>([])
 const snack = reactive({ show: false, msg: '', color: 'success' as 'success' | 'error' | 'warning' })
 function toast(msg: string, color: typeof snack.color = 'success') { snack.msg = msg; snack.color = color; snack.show = true }
-
-async function loadAnomali() {
-  try {
-    const r = await $fetch<{ data: typeof anomali.value }>('/api/target/anomali', { query: { tahun: String(tahun.value) } })
-    anomali.value = r.data
-  } catch {}
-}
 
 async function loadKawasan() { try { const r = await $fetch<{ data: Kawasan[] }>('/api/kawasan'); kawasan.value = r.data } catch {} }
 async function loadJenis() { try { const r = await $fetch<{ data: Jenis[] }>('/api/jenis-retribusi'); jenisList.value = r.data } catch {} }
@@ -358,7 +333,6 @@ async function load() {
     rows.value = r.data || []
   } catch (e: unknown) { toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat', 'error') }
   finally { loading.value = false }
-  await loadAnomali()
 }
 
 function openAdd() {

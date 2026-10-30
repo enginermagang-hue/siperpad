@@ -57,36 +57,6 @@ async function insertJenis(
   return rows[0]!.id
 }
 
-async function insertBatch(ctx: SeedContext, params: {
-  kawasan_id: number
-  periode_type: string
-  periode_start: string
-  periode_end: string
-  tahun: number
-  status: string
-  diajukan_oleh: number
-  diajukan_at: string
-  catatan: string
-}): Promise<number> {
-  const rows = await ctx.query<{ id: number }>(
-    `INSERT INTO laporan_batch
-     (kawasan_id, periode_type, periode_start, periode_end, tahun, status, diajukan_oleh, diajukan_at, catatan)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    [
-      params.kawasan_id,
-      params.periode_type,
-      params.periode_start,
-      params.periode_end,
-      params.tahun,
-      params.status,
-      params.diajukan_oleh,
-      params.diajukan_at,
-      params.catatan,
-    ]
-  )
-  return rows[0]!.id
-}
-
 async function clearMasterData(ctx: SeedContext): Promise<void> {
   await ctx.execute('DELETE FROM catatan_temuan')
   await ctx.execute('DELETE FROM periode_lock')
@@ -252,30 +222,6 @@ export async function seedAll(): Promise<{ kawasan: number; jenis: number; targe
   }
 
   // Tarif sudah ditetapkan langsung saat insert (mengikuti Perda No. 1/2026).
-
-  // ---- Laporan Batch Agustus 2026 ----
-  await insertBatch(ctx, {
-    kawasan_id: kawasanAId,
-    periode_type: 'bulanan',
-    periode_start: '2026-08-01',
-    periode_end: '2026-08-31',
-    tahun,
-    status: 'disetujui',
-    diajukan_oleh: userId,
-    diajukan_at: '2026-08-31T17:00:00',
-    catatan: 'Laporan realisasi Agustus 2026 — Kawasan Kampung Seni Flobamorata',
-  })
-  await insertBatch(ctx, {
-    kawasan_id: kawasanBId,
-    periode_type: 'bulanan',
-    periode_start: '2026-08-01',
-    periode_end: '2026-08-31',
-    tahun,
-    status: 'disetujui',
-    diajukan_oleh: userId,
-    diajukan_at: '2026-08-31T17:00:00',
-    catatan: 'Laporan realisasi Agustus 2026 — Kawasan Pantai Lasiana',
-  })
 
   // ---- Audit log ----
   await ctx.execute(

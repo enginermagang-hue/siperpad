@@ -19,12 +19,9 @@ export default defineEventHandler(async (event) => {
   const tahun = Number(getQuery(event).tahun) || new Date().getFullYear()
 
   let realisasi = 0
-  let batch = 0
   if (canVerify) {
     const [r] = await query<{ n: number }>("SELECT COUNT(*) AS n FROM realisasi WHERE status = 'diajukan'")
-    const [b] = await query<{ n: number }>("SELECT COUNT(*) AS n FROM laporan_batch WHERE status = 'diajukan'")
     realisasi = Number(r?.n) || 0
-    batch = Number(b?.n) || 0
   }
 
   let anomali = 0
@@ -43,11 +40,11 @@ export default defineEventHandler(async (event) => {
     temuan = Number(t?.n) || 0
   }
 
-  const total = realisasi + batch + anomali + temuan
+  const total = realisasi + anomali + temuan
 
   return {
     tahun,
-    verifikasi: { realisasi, batch, total: realisasi + batch },
+    verifikasi: { realisasi, total: realisasi },
     anomali,
     temuan,
     total,

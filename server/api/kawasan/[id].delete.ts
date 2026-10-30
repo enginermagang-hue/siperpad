@@ -12,7 +12,6 @@ export default defineEventHandler(async (event) => {
   // Cegah hapus jika masih dipakai oleh berbagai entitas.
   const checks: { table: string; col: string; msg: string }[] = [
     { table: 'jenis_retribusi', col: 'kawasan_id', msg: 'jenis retribusi' },
-    { table: 'laporan_batch', col: 'kawasan_id', msg: 'batch laporan' },
     { table: 'users', col: 'kawasan_id', msg: 'pengguna' },
     { table: 'periode_lock', col: 'kawasan_id', msg: 'kunci periode' },
     { table: 'catatan_temuan', col: 'kawasan_id', msg: 'catatan temuan' },

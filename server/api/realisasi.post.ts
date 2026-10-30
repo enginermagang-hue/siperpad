@@ -16,12 +16,10 @@ export default defineEventHandler(async (event) => {
     jumlah?: number
     kuantitas?: number
     catatan?: string
-    batch_id?: number | null
   }
   const jenisId = Number(body.jenis_retribusi_id)
   const tanggal = (body.tanggal || '').trim()
   const catatan = (body.catatan || '').trim()
-  const batch_id = body.batch_id != null ? Number(body.batch_id) : null
   const kuantitasInput = body.kuantitas == null ? null : Number(body.kuantitas)
 
   if (!jenisId) throw createError({ statusCode: 400, message: 'Jenis retribusi wajib dipilih' })
@@ -62,18 +60,11 @@ export default defineEventHandler(async (event) => {
 
   if (kawasanId != null) await assertPeriodeOpen(tanggal, kawasanId)
 
-  if (batch_id != null) {
-    const b = await query<{ id: number; kawasan_id: number; status: string }>('SELECT id, kawasan_id, status FROM laporan_batch WHERE id = ?', [batch_id])
-    if (!b.length) throw createError({ statusCode: 404, message: 'Batch tidak ditemukan' })
-    if (kawasanId != null && Number(b[0]!.kawasan_id) !== kawasanId) throw createError({ statusCode: 400, message: 'Batch tidak sesuai kawasan realisasi' })
-    if (b[0]!.status !== 'draft') throw createError({ statusCode: 409, message: 'Batch sudah diajukan/diverifikasi, tidak bisa ditambah realisasi' })
-  }
-
   const created_by = Number(session.user.id)
   const rows = await query<{ id: number }>(
-    `INSERT INTO realisasi (jenis_retribusi_id, tanggal, jumlah, kuantitas, tarif, catatan, batch_id, status, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?) RETURNING id`,
-    [jenisId, tanggal, jumlah, kuantitas, tarif, catatan, batch_id, created_by],
+    `INSERT INTO realisasi (jenis_retribusi_id, tanggal, jumlah, kuantitas, tarif, catatan, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?) RETURNING id`,
+    [jenisId, tanggal, jumlah, kuantitas, tarif, catatan, created_by],
   )
   return { ok: true, id: rows[0]!.id, jumlah, kuantitas, tarif }
 })

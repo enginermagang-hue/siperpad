@@ -129,7 +129,7 @@ const auditLoading = ref(false)
 const auditEntitas = ref<string | null>(null)
 const auditId = ref('')
 
-const entitasOpts = ['realisasi', 'laporan_batch']
+const entitasOpts = ['realisasi']
 
 function auditChip(a: string) {
   if (a.includes('SETUJU')) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'

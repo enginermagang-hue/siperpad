@@ -1,5 +1,5 @@
 import { query, execute } from '../../utils/db'
-import { monthStart, nextMonthStart, MINGGU_REP_DAY, pad2 } from '../../utils/periode'
+import { monthStart, nextMonthStart, pad2 } from '../../utils/periode'
 import { isPeriodeLocked, assertKawasanAllowed } from '../../utils/lock'
 
 // Ajukan realisasi draft pada (kawasan, tahun, bulan) sekaligus.
@@ -23,14 +23,19 @@ export default defineEventHandler(async (event) => {
   const mStart = monthStart(tahun, bulan)
   const nStart = nextMonthStart(tahun, bulan)
 
-  // Filter per minggu memakai tanggal representatif (hari ke-1/8/15/22).
+  // Filter per minggu mencakup seluruh hari dalam minggu tersebut (input harian).
   let rangeStart = mStart
   let rangeEnd = nStart
   if (minggu != null) {
-    const day = pad2(MINGGU_REP_DAY[minggu as 1 | 2 | 3 | 4])
-    const tgl = `${tahun}-${pad2(bulan)}-${day}`
-    rangeStart = tgl
-    rangeEnd = `${tahun}-${pad2(bulan)}-${pad2(Number(day) + 1)}`
+    const weekStarts = [1, 8, 15, 22]
+    const startDay = weekStarts[minggu - 1]!
+    rangeStart = `${tahun}-${pad2(bulan)}-${pad2(startDay)}`
+    if (minggu === 4) {
+      rangeEnd = nStart
+    } else {
+      const endDay = weekStarts[minggu]!
+      rangeEnd = `${tahun}-${pad2(bulan)}-${pad2(endDay)}`
+    }
   }
 
   const drafts = await query<{ id: number }>(

@@ -2,7 +2,7 @@
 // Dimuat lazy (saat panel dibuka) dan dipakai bersama via useState.
 export interface NotifSummary {
   tahun: number
-  verifikasi: { realisasi: number; batch: number; total: number }
+  verifikasi: { realisasi: number; total: number }
   anomali: number
   temuan: number
   total: number
@@ -11,7 +11,7 @@ export interface NotifSummary {
 export const useNotifications = () => {
   const data = useState<NotifSummary>('notif-summary', () => ({
     tahun: new Date().getFullYear(),
-    verifikasi: { realisasi: 0, batch: 0, total: 0 },
+    verifikasi: { realisasi: 0, total: 0 },
     anomali: 0,
     temuan: 0,
     total: 0,

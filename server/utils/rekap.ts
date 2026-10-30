@@ -16,6 +16,8 @@ export type RekapRow = {
   selisih: number // realisasi - target
   targetInduk: number | null // nilai induk tertulis (untuk anomali)
   hasChild: boolean
+  children: { id: number; nama: string }[]
+  leafIds: number[]
 }
 
 export type TimeseriesPoint = {
@@ -42,7 +44,7 @@ type JenisNode = {
 // Ambil semua jenis + target + realisasi (disetujui) untuk tahun, lalu rollup
 // bottom-up: nilai induk = SUM anak (Model A). Nilai target langsung pada induk
 // tetap disimpan sebagai `targetInduk` untuk deteksi anomali.
-async function buildTree(opts: { kawasanId?: number; tahun: number; sampaiBulan?: number }): Promise<{ roots: JenisNode[]; kawasan: { id: number; kode: string; nama: string; urutan: number }[] }> {
+async function buildTree(opts: { kawasanId?: number; tahun: number; sampaiBulan?: number; from?: string; to?: string }): Promise<{ roots: JenisNode[]; kawasan: { id: number; kode: string; nama: string; urutan: number }[] }> {
   const hasKawasan = !!opts.kawasanId
   const kawasan = await query<{ id: number; kode: string; nama: string; urutan: number }>(
     hasKawasan
@@ -70,21 +72,30 @@ async function buildTree(opts: { kawasanId?: number; tahun: number; sampaiBulan?
   // Bila `sampaiBulan` diisi, realisasi dibatasi s/d akhir bulan tersebut
   // (kumulatif) agar kolom "% Capai" sejajar dengan laporan Excel referensi
   // (Realisasi s/d Bulan Ini = Realisasi s/d Bulan Lalu + Total Mingguan).
-  const realRows = opts.sampaiBulan
+  const useRange = !!(opts.from && opts.to)
+  const realRows = useRange
     ? await query<{ jenis_retribusi_id: number; total: number }>(
         `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
          FROM realisasi r
-         WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ? AND substr(r.tanggal, 6, 2) <= ?
+         WHERE r.status = ? AND r.tanggal >= ? AND r.tanggal <= ?
          GROUP BY r.jenis_retribusi_id`,
-        [APPROVED_STATUS, String(opts.tahun), String(opts.sampaiBulan).padStart(2, '0')],
+        [APPROVED_STATUS, opts.from!, opts.to!],
       )
-    : await query<{ jenis_retribusi_id: number; total: number }>(
-        `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
-         FROM realisasi r
-         WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ?
-         GROUP BY r.jenis_retribusi_id`,
-        [APPROVED_STATUS, String(opts.tahun)],
-      )
+    : opts.sampaiBulan
+      ? await query<{ jenis_retribusi_id: number; total: number }>(
+          `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
+           FROM realisasi r
+           WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ? AND substr(r.tanggal, 6, 2) <= ?
+           GROUP BY r.jenis_retribusi_id`,
+          [APPROVED_STATUS, String(opts.tahun), String(opts.sampaiBulan).padStart(2, '0')],
+        )
+      : await query<{ jenis_retribusi_id: number; total: number }>(
+          `SELECT r.jenis_retribusi_id, COALESCE(SUM(r.jumlah), 0) AS total
+           FROM realisasi r
+           WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ?
+           GROUP BY r.jenis_retribusi_id`,
+          [APPROVED_STATUS, String(opts.tahun)],
+        )
   const realMap = new Map<number, number>()
   for (const r of realRows) realMap.set(Number(r.jenis_retribusi_id), Number(r.total) || 0)
 
@@ -119,7 +130,7 @@ function sortTree(nodes: JenisNode[]) {
 }
 
 // DFS emit dengan agregasi bottom-up. Nilai induk = SUM anak.
-export async function getRekapPerJenis(opts: { kawasanId?: number; tahun: number; sampaiBulan?: number }): Promise<RekapRow[]> {
+export async function getRekapPerJenis(opts: { kawasanId?: number; tahun: number; sampaiBulan?: number; from?: string; to?: string }): Promise<RekapRow[]> {
   const { roots, kawasan } = await buildTree(opts)
   const kawasanById = new Map(kawasan.map((k) => [k.id, k]))
   sortTree(roots)
@@ -147,6 +158,10 @@ export async function getRekapPerJenis(opts: { kawasanId?: number; tahun: number
   roots.sort((a, b) => (kawasanOrder.get(a.kawasan_id) ?? 0) - (kawasanOrder.get(b.kawasan_id) ?? 0) || a.urutan - b.urutan || a.id - b.id)
 
   const out: RekapRow[] = []
+  function leafIdsOf(n: JenisNode): number[] {
+    if (n.children.length === 0) return [n.id]
+    return n.children.flatMap(leafIdsOf)
+  }
   function emit(n: JenisNode) {
     const a = agg.get(n.id)!
     const k = kawasanById.get(n.kawasan_id)!
@@ -165,6 +180,8 @@ export async function getRekapPerJenis(opts: { kawasanId?: number; tahun: number
       selisih: a.realisasi - a.target,
       targetInduk: n.children.length > 0 ? n.targetInduk : null,
       hasChild: n.children.length > 0,
+      children: n.children.map((c) => ({ id: c.id, nama: c.nama })),
+      leafIds: leafIdsOf(n),
     })
     const sorted = [...n.children].sort((x, y) => x.urutan - y.urutan || x.id - y.id)
     for (const c of sorted) emit(c)

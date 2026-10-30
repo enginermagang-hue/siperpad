@@ -16,11 +16,10 @@ export default defineEventHandler(async (event) => {
   assertKawasanAllowed(session.user, curKawasan)
   if (curKawasan != null) await assertPeriodeOpen(String(existing[0]!.tanggal), curKawasan)
 
-  const body = await readBody(event) as { jenis_retribusi_id?: number; tanggal?: string; jumlah?: number; kuantitas?: number; catatan?: string; batch_id?: number | null }
+  const body = await readBody(event) as { jenis_retribusi_id?: number; tanggal?: string; jumlah?: number; kuantitas?: number; catatan?: string }
   const jenisId = body.jenis_retribusi_id != null ? Number(body.jenis_retribusi_id) : undefined
   const tanggal = body.tanggal != null ? String(body.tanggal).trim() : undefined
   const catatan = body.catatan != null ? String(body.catatan).trim() : undefined
-  const batch_id = body.batch_id === undefined ? undefined : (body.batch_id == null ? null : Number(body.batch_id))
   const kuantitasInput = body.kuantitas == null ? null : Number(body.kuantitas)
 
   const effectiveJenisId = jenisId ?? Number(existing[0]!.jenis_retribusi_id)
@@ -68,15 +67,6 @@ export default defineEventHandler(async (event) => {
     jumlah = Math.round(j)
   }
 
-  // Validasi batch_id jika disediakan (bukan null/undefined).
-  if (batch_id != null && batch_id !== undefined) {
-    const b = await query<{ id: number; kawasan_id: number; status: string }>('SELECT id, kawasan_id, status FROM laporan_batch WHERE id = ?', [batch_id])
-    if (!b.length) throw createError({ statusCode: 404, message: 'Batch tidak ditemukan' })
-    const targetKawasan = await kawasanIdOfJenis(effectiveJenisId)
-    if (targetKawasan != null && Number(b[0]!.kawasan_id) !== targetKawasan) throw createError({ statusCode: 400, message: 'Batch tidak sesuai kawasan realisasi' })
-    if (b[0]!.status !== 'draft') throw createError({ statusCode: 409, message: 'Batch sudah diajukan/diverifikasi, tidak bisa diubah' })
-  }
-
   // Jika tanggal dipindah ke periode lain, pastikan periode tujuan tidak terkunci.
   if (tanggal != null && curKawasan != null) await assertPeriodeOpen(tanggal, curKawasan)
 
@@ -88,7 +78,6 @@ export default defineEventHandler(async (event) => {
   if (kuantitas !== undefined) { sets.push('kuantitas = ?'); params.push(kuantitas) }
   if (tarif !== undefined) { sets.push('tarif = ?'); params.push(tarif) }
   if (catatan != null) { sets.push('catatan = ?'); params.push(catatan) }
-  if (batch_id !== undefined) { sets.push('batch_id = ?'); params.push(batch_id) }
   if (!sets.length) throw createError({ statusCode: 400, message: 'Tidak ada field untuk diupdate' })
   sets.push("updated_at = datetime('now')")
   params.push(id)

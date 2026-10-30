@@ -67,39 +67,81 @@
 
     <!-- Tab Rekap -->
     <div v-show="tab === 'rekap'">
-      <div v-if="totals" class="mb-4 grid grid-cols-12 gap-4">
-        <div class="col-span-12 sm:col-span-6 md:col-span-3">
-          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
-            <div class="text-xs text-muted-foreground-1">Total Target</div>
-            <div class="text-lg font-bold text-foreground">{{ fmt(totals.totalTarget) }}</div>
+      <!-- Summary cards -->
+      <div v-if="totals" class="mb-4 grid grid-cols-12 gap-4 items-stretch">
+        <div class="col-span-12 sm:col-span-6 md:col-span-3 h-full">
+          <div class="relative flex h-full flex-col rounded-lg border border-card-line bg-card p-4 border-l-4 border-l-blue-500">
+            <Target class="absolute right-3 top-3 size-8 text-blue-500/80" aria-hidden="true" />
+            <div class="text-xs font-medium text-muted-foreground-1 pe-10">Total Target Penerimaan</div>
+            <div class="mt-1 text-lg font-bold text-foreground">{{ fmt(totals.totalTarget) }}</div>
+            <div class="mt-1 text-[11px] leading-tight text-muted-foreground-1 pe-10">
+              Target retribusi tahun {{ tahun }} (semua pos yang dipilih)
+            </div>
           </div>
         </div>
-        <div class="col-span-12 sm:col-span-6 md:col-span-3">
-          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
-            <div class="text-xs text-muted-foreground-1">Total Realisasi</div>
-            <div class="text-lg font-bold text-primary">{{ fmt(totals.totalRealisasi) }}</div>
+        <div class="col-span-12 sm:col-span-6 md:col-span-3 h-full">
+          <div class="relative flex h-full flex-col rounded-lg border border-card-line bg-card p-4 border-l-4 border-l-emerald-500">
+            <Banknote class="absolute right-3 top-3 size-8 text-emerald-500/80" aria-hidden="true" />
+            <div class="text-xs font-medium text-muted-foreground-1 pe-10">Total Realisasi</div>
+            <div class="mt-1 text-lg font-bold text-primary">{{ fmt(totals.totalRealisasi) }}</div>
+            <div class="mt-1 text-[11px] leading-tight text-muted-foreground-1 pe-10">
+              Realisasi disetujui s/d {{ periode === 'tahun' ? 'Desember' : bulanLabel }} {{ tahun }}
+            </div>
+            <div v-if="mingguan.some((m) => m.nilai > 0)" class="mt-2">
+              <SiperpadChart
+                :series="[{ name: 'Realisasi', data: mingguan.map((m) => m.nilai) }]"
+                :categories="mingguan.map((m) => m.label)"
+                :height="48"
+                type="area"
+                :colors="['#10b981']"
+                sparkline
+              />
+            </div>
           </div>
         </div>
-        <div class="col-span-12 sm:col-span-6 md:col-span-3">
-          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
-            <div class="text-xs text-muted-foreground-1">Capaian</div>
-            <div class="text-lg font-bold" :class="capaianText(totals.capaian)">{{ totals.capaian }}%</div>
+        <div class="col-span-12 sm:col-span-6 md:col-span-3 h-full">
+          <div class="relative flex h-full flex-col rounded-lg border border-card-line bg-card p-4 border-l-4 border-l-amber-500">
+            <Gauge class="absolute right-3 top-3 size-8 text-amber-500/80" aria-hidden="true" />
+            <div class="text-xs font-medium text-muted-foreground-1 pe-10">Capaian</div>
+            <div class="mt-1 text-lg font-bold" :class="capaianText(totals.capaian)">{{ totals.capaian }}%</div>
+            <div class="mt-1 text-[11px] leading-tight text-muted-foreground-1 pe-10">
+              Persentase realisasi terhadap target
+            </div>
+            <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-layer">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="totals.capaian >= 100
+                  ? 'bg-emerald-500'
+                  : totals.capaian >= 75
+                    ? 'bg-amber-500'
+                    : 'bg-red-500'"
+                :style="{ width: `${Math.min(100, Math.max(0, totals.capaian))}%` }"
+              />
+            </div>
           </div>
         </div>
-        <div class="col-span-12 sm:col-span-6 md:col-span-3">
-          <div class="rounded-lg border border-card-line bg-card p-4 text-center">
-            <div class="text-xs text-muted-foreground-1">Selisih</div>
+        <div class="col-span-12 sm:col-span-6 md:col-span-3 h-full">
+          <div class="relative flex h-full flex-col rounded-lg border border-card-line bg-card p-4 border-l-4"
+               :class="totals.selisih >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'">
+            <Scale class="absolute right-3 top-3 size-8"
+                   :class="totals.selisih >= 0 ? 'text-emerald-500/80' : 'text-red-500/80'"
+                   aria-hidden="true" />
+            <div class="text-xs font-medium text-muted-foreground-1 pe-10">Selisih</div>
             <div
-              class="text-lg font-bold"
+              class="mt-1 text-lg font-bold"
               :class="totals.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
             >
               {{ fmt(totals.selisih) }}
+            </div>
+            <div class="mt-1 text-[11px] leading-tight text-muted-foreground-1 pe-10">
+              Realisasi − Target (positif = surplus)
             </div>
           </div>
         </div>
       </div>
 
-      <div class="rounded-lg border border-card-line bg-card">
+      <!-- Filter toolbar -->
+      <div class="mb-4 rounded-lg border border-card-line bg-card">
         <div class="flex flex-wrap items-center gap-3 p-4">
           <div class="relative w-full max-w-[300px]">
             <Search
@@ -120,15 +162,6 @@
             <div class="w-full max-w-[240px]">
               <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
             </div>
-            <div class="w-full max-w-[120px]">
-              <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
-            </div>
-            <div class="w-full max-w-[160px]">
-              <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
-            </div>
-            <div class="w-full max-w-[150px]">
-              <AppSelect v-model="periode" :items="periodeOpts" :search="false" />
-            </div>
           </div>
 
           <!-- Mobile: filter dalam dropdown -->
@@ -141,19 +174,47 @@
               <template #content>
                 <div class="space-y-2 p-2">
                   <AppSelect v-model="filterKawasan" :items="kawasanOpts" placeholder="Semua kawasan" clearable @update:model-value="load" />
-                  <AppSelect v-model="tahun" :items="tahunOpts" :search="false" @update:model-value="load" />
-                  <AppSelect v-model="bulan" :items="bulanOpts" @update:model-value="load" />
-                  <AppSelect v-model="periode" :items="periodeOpts" :search="false" />
                 </div>
               </template>
             </AppMenu>
+          </div>
+
+          <div v-if="periode === 'tahun'" class="text-xs text-muted-foreground-1">
+            Mode Tahunan: rekap kumulatif Januari–Desember {{ tahun }}.
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              v-model="dateFrom"
+              type="date"
+              class="rounded-lg border border-layer-line bg-layer px-2 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus"
+              @change="load"
+            />
+            <span class="text-muted-foreground-1">s/d</span>
+            <input
+              v-model="dateTo"
+              type="date"
+              class="rounded-lg border border-layer-line bg-layer px-2 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus"
+              @change="load"
+            />
+            <div class="flex flex-wrap gap-1">
+              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('today')">Hari ini</button>
+              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('7d')">7 hari</button>
+              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('30d')">30 hari</button>
+              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('month')">Bulan ini</button>
+              <button v-if="dateFrom || dateTo" type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-red-600 hover:bg-layer-hover dark:text-red-400" @click="clearDateRange">Reset</button>
+            </div>
           </div>
 
           <div class="ms-auto">
             <ViewModeToggle v-model="modeRekap" />
           </div>
         </div>
+      </div>
 
+
+      <!-- Card: Rekap per jenis -->
+      <div class="rounded-lg border border-card-line bg-card">
         <div v-if="modeRekap === 'table'" class="overflow-x-auto">
           <table class="min-w-full divide-y divide-table-line text-sm">
             <thead>
@@ -174,9 +235,13 @@
               <tr v-else-if="!filtered.length">
                 <td colspan="7" class="py-6 text-center text-muted-foreground-1">Belum ada data</td>
               </tr>
-              <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover">
+              <tr v-for="r in paginated" v-else :key="r.id" class="hover:bg-layer-hover cursor-pointer" :class="r.hasChild ? 'bg-layer/40' : ''" @click="openDetail(r)">
                 <td class="px-3 py-2.5 font-medium text-foreground">{{ r.kode || '-' }}</td>
-                <td class="px-3 py-2.5 text-foreground">{{ r.nama }}</td>
+                <td class="px-3 py-2.5 text-foreground">
+                  <span :style="{ paddingInlineStart: `${(r.level - 1) * 14}px` }" :class="r.hasChild ? 'font-semibold text-foreground' : ''">
+                    {{ r.nama }}
+                  </span>
+                </td>
                 <td class="px-3 py-2.5">
                   <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-xs text-surface-foreground">
                     {{ r.kawasan_kode }} — {{ r.kawasan_nama }}
@@ -212,7 +277,16 @@
               { label: 'Capaian', value: r.capaian + '%', class: `text-end font-medium ${capaianText(r.capaian)}` },
               { label: 'Selisih', value: fmt(r.selisih), class: `text-end ${r.selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}` },
             ]"
-          />
+          >
+            <template #badge>
+              <span
+                v-if="r.hasChild"
+                class="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+              >
+                Induk
+              </span>
+            </template>
+          </RecordCard>
         </div>
 
         <div v-else class="p-2">
@@ -221,7 +295,13 @@
           <ul v-else class="divide-y divide-table-line">
             <li v-for="r in paginated" :key="r.id" class="flex items-center gap-2 py-2">
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm text-foreground">{{ r.kode || '-' }} — {{ r.nama }}</span>
+                <span
+                  class="block truncate text-sm text-foreground"
+                  :style="{ paddingInlineStart: `${(r.level - 1) * 14}px` }"
+                  :class="r.hasChild ? 'font-semibold' : ''"
+                >
+                  {{ r.kode || '-' }} — {{ r.nama }}
+                </span>
                 <span class="block truncate text-xs text-muted-foreground-1">{{ r.kawasan_kode }}</span>
               </span>
               <span class="shrink-0 text-sm font-medium text-foreground">{{ fmt(r.realisasi) }}</span>
@@ -437,6 +517,49 @@
       </div>
     </div>
 
+    <AppDialog v-model="detailDialog" title="Detail Rekap" :max-width="520" :icon="FileText">
+      <div v-if="detailRow" class="space-y-2 text-sm">
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Kode</span><span class="font-medium text-foreground">{{ detailRow.kode || '-' }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Jenis</span><span class="font-medium text-foreground">{{ detailRow.nama }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Tipe</span><span class="font-medium text-foreground">{{ detailRow.hasChild ? 'Induk (kategori)' : 'Anak (pos)' }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Level</span><span class="font-medium text-foreground">{{ detailRow.level }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Kawasan</span><span class="font-medium text-foreground">{{ detailRow.kawasan_kode }} — {{ detailRow.kawasan_nama }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Target</span><span class="font-medium text-foreground">{{ fmt(detailRow.target) }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Realisasi</span><span class="font-medium text-foreground">{{ fmt(detailRow.realisasi) }}</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Capaian</span><span class="font-medium text-foreground">{{ detailRow.capaian }}%</span></div>
+        <div class="flex justify-between gap-3"><span class="text-muted-foreground-1">Selisih</span><span class="font-medium text-foreground">{{ fmt(detailRow.selisih) }}</span></div>
+        <div v-if="detailRow.targetInduk != null" class="flex justify-between gap-3"><span class="text-muted-foreground-1">Target Induk Tertulis</span><span class="font-medium text-foreground">{{ fmt(detailRow.targetInduk) }}</span></div>
+      </div>
+
+      <div class="mt-4">
+        <div class="mb-2 text-sm font-medium text-foreground">History Realisasi per Tanggal</div>
+        <div v-if="detailLoading" class="py-4 text-center text-muted-foreground-1">Memuat...</div>
+        <div v-else-if="!detailHistory.length" class="py-4 text-center text-muted-foreground-1">Belum ada realisasi</div>
+        <div v-else class="max-h-64 overflow-y-auto rounded-lg border border-card-line">
+          <table class="min-w-full divide-y divide-table-line text-sm">
+            <thead class="sticky top-0 bg-card">
+              <tr class="text-start text-xs uppercase tracking-wide text-muted-foreground-1">
+                <th class="px-3 py-2 text-start font-medium">Tanggal</th>
+                <th class="px-3 py-2 text-start font-medium">Jenis</th>
+                <th class="px-3 py-2 text-end font-medium">Jumlah</th>
+                <th class="px-3 py-2 text-start font-medium">Status</th>
+                <th class="px-3 py-2 text-start font-medium">Catatan</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-table-line">
+              <tr v-for="h in detailHistory" :key="h.id">
+                <td class="px-3 py-2 text-foreground">{{ h.tanggal }}</td>
+                <td class="px-3 py-2 text-foreground">{{ h.jenis_nama || '-' }}</td>
+                <td class="px-3 py-2 text-end text-foreground">{{ fmt(h.jumlah) }}</td>
+                <td class="px-3 py-2 text-foreground">{{ h.status }}</td>
+                <td class="px-3 py-2 text-foreground">{{ h.catatan || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </AppDialog>
+
     <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
@@ -444,14 +567,19 @@
 <script setup lang="ts">
 import {
   ArrowRight,
+  Banknote,
+  CalendarDays,
   ChartColumn,
   ChartColumnBig,
   FileSpreadsheet,
   FileText,
   Filter,
+  Gauge,
   LoaderCircle,
   Rows3,
+  Scale,
   Search,
+  Target,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
@@ -459,7 +587,7 @@ definePageMeta({ layout: 'default', middleware: 'auth' })
 const { mode: modeRekap } = useViewMode('laporan-rekap')
 const { mode: modeBanding } = useViewMode('laporan-banding')
 
-type RekapRow = { id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target: number; realisasi: number; capaian: number; selisih: number }
+type RekapRow = { id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target: number; realisasi: number; capaian: number; selisih: number; hasChild: boolean; children: { id: number; nama: string }[]; leafIds: number[] }
 
 const session = useUserSession()
 const role = computed(() => String(session.user.value?.role || ''))
@@ -476,15 +604,23 @@ const filterKawasan = ref<number | null>(null)
 const tahun = ref(new Date().getFullYear())
 const tahunOpts = [2024, 2025, 2026, 2027]
 const bulan = ref(new Date().getMonth() + 1)
+const dateFrom = ref('')
+const dateTo = ref('')
 const bulanOpts = [
   { label: 'Januari', value: 1 }, { label: 'Februari', value: 2 }, { label: 'Maret', value: 3 }, { label: 'April', value: 4 },
   { label: 'Mei', value: 5 }, { label: 'Juni', value: 6 }, { label: 'Juli', value: 7 }, { label: 'Agustus', value: 8 },
   { label: 'September', value: 9 }, { label: 'Oktober', value: 10 }, { label: 'November', value: 11 }, { label: 'Desember', value: 12 },
 ]
+const bulanLabel = computed(() => bulanOpts.find((b) => b.value === bulan.value)?.label || String(bulan.value))
 const q = ref('')
 const loading = ref(false)
 const perJenis = ref<RekapRow[]>([])
+const detailDialog = ref(false)
+const detailRow = ref<RekapRow | null>(null)
+const detailHistory = ref<{ id: number; tanggal: string; jumlah: number; status: string; catatan: string; jenis_nama: string }[]>([])
+const detailLoading = ref(false)
 const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number; selisih: number } | null>(null)
+const mingguan = ref<{ minggu: number; label: string; nilai: number }[]>([])
 const exporting = ref('')
 // Mode periode laporan: bulan (rekap bulan terpilih) atau tahun (12 bulan).
 const periode = ref<'bulan' | 'tahun'>('bulan')
@@ -540,7 +676,7 @@ const paginated = computed(() => {
   const start = (currentPage.value - 1) * perPage.value
   return filtered.value.slice(start, start + perPage.value)
 })
-watch([q, filterKawasan, tahun, bulan], () => { currentPage.value = 1 })
+watch([q, filterKawasan, tahun, bulan, periode, dateFrom, dateTo], () => { currentPage.value = 1 })
 watch(perPage, () => { currentPage.value = 1 })
 watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 
@@ -559,20 +695,82 @@ function capaianText(v: number) {
   return 'text-red-600 dark:text-red-400'
 }
 
+const weekTotal = computed(() => mingguan.value.reduce((s, m) => s + m.nilai, 0))
+function weekRange(w: number) {
+  if (w === 1) return '1–7'
+  if (w === 2) return '8–14'
+  if (w === 3) return '15–21'
+  const last = new Date(tahun.value, bulan.value, 0).getDate()
+  return `22–${last}`
+}
+function weekPct(v: number) {
+  if (!weekTotal.value) return 0
+  return Math.round((v / weekTotal.value) * 10000) / 100
+}
+function weekKeterangan(w: number, v: number) {
+  if (v === 0) return 'Belum ada realisasi'
+  const maxVal = Math.max(...mingguan.value.map((m) => m.nilai))
+  if (v === maxVal && maxVal > 0) return 'Tertinggi'
+  return '—'
+}
+const weekTopNote = computed(() => {
+  if (!weekTotal.value) return ''
+  const maxVal = Math.max(...mingguan.value.map((m) => m.nilai))
+  const top = mingguan.value.find((m) => m.nilai === maxVal)
+  if (!top || maxVal === 0) return ''
+  return `Puncak realisasi pada ${top.label} (Rp ${fmt(maxVal)}).`
+})
+
 async function loadKawasan() {
   try {
     const r = await $fetch<{ data: { id: number; kode: string; nama: string }[] }>('/api/kawasan')
     kawasan.value = r.data
   } catch {}
 }
+function fmtDate(d: Date) { return d.toISOString().slice(0, 10) }
+function setDatePreset(p: string) {
+  const now = new Date()
+  if (p === 'today') {
+    dateFrom.value = fmtDate(now)
+    dateTo.value = fmtDate(now)
+  } else if (p === '7d') {
+    const s = new Date(now); s.setDate(s.getDate() - 6)
+    dateFrom.value = fmtDate(s)
+    dateTo.value = fmtDate(now)
+  } else if (p === '30d') {
+    const s = new Date(now); s.setDate(s.getDate() - 29)
+    dateFrom.value = fmtDate(s)
+    dateTo.value = fmtDate(now)
+  } else if (p === 'month') {
+    const s = new Date(now.getFullYear(), now.getMonth(), 1)
+    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    dateFrom.value = fmtDate(s)
+    dateTo.value = fmtDate(e)
+  }
+  load()
+}
+function clearDateRange() {
+  dateFrom.value = ''
+  dateTo.value = ''
+  load()
+}
+
 async function load() {
   loading.value = true
   try {
+    const sampaiBulan = periode.value === 'tahun' ? 12 : bulan.value
     const q2: Record<string, string> = { tahun: String(tahun.value) }
+    if (dateFrom.value && dateTo.value) {
+      q2.from = dateFrom.value
+      q2.to = dateTo.value
+    } else {
+      q2.bulan = String(sampaiBulan)
+    }
     if (filterKawasan.value) q2.kawasan_id = String(filterKawasan.value)
-    const r = await $fetch<{ perJenis: RekapRow[]; totals: typeof totals.value }>('/api/laporan/rekap', { query: q2 })
+    const r = await $fetch<{ perJenis: RekapRow[]; totals: typeof totals.value; mingguan?: typeof mingguan.value }>('/api/laporan/rekap', { query: q2 })
     perJenis.value = r.perJenis
     totals.value = r.totals
+    mingguan.value = r.mingguan || []
   } catch (e: unknown) {
     toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat', 'error')
   } finally { loading.value = false }
@@ -611,6 +809,31 @@ async function doExport(format: string) {
   } catch (e: unknown) {
     toast((e as Error).message || String(e), 'error')
   } finally { exporting.value = '' }
+}
+
+async function openDetail(r: RekapRow) {
+  detailRow.value = r
+  detailDialog.value = true
+  detailLoading.value = true
+  detailHistory.value = []
+  try {
+    if (r.hasChild && r.leafIds.length) {
+      const leafSet = new Set(r.leafIds)
+      const res = await $fetch<{ data: { id: number; tanggal: string; jumlah: number; status: string; catatan: string; jenis_nama: string; jenis_retribusi_id: number }[] }>('/api/realisasi', {
+        query: { kawasan_id: String(r.kawasan_id) },
+      })
+      detailHistory.value = (res.data || [])
+        .filter((h) => leafSet.has(Number(h.jenis_retribusi_id)))
+        .filter((h) => h.status !== 'draft') as typeof detailHistory.value
+    } else {
+      const res = await $fetch<{ data: { id: number; tanggal: string; jumlah: number; status: string; catatan: string; jenis_nama: string }[] }>('/api/realisasi', {
+        query: { jenis_retribusi_id: String(r.id) },
+      })
+      detailHistory.value = (res.data || []).filter((h) => h.status !== 'draft')
+    }
+  } catch {
+    detailHistory.value = []
+  } finally { detailLoading.value = false }
 }
 
 onMounted(async () => { await loadKawasan(); await load(); await loadBanding() })

@@ -25,8 +25,9 @@ const props = withDefaults(
     stacked?: boolean
     horizontal?: boolean
     rupiah?: boolean
+    sparkline?: boolean
   }>(),
-  { height: 320, type: 'line', stacked: false, horizontal: false, rupiah: false },
+  { height: 320, type: 'line', stacked: false, horizontal: false, rupiah: false, sparkline: false },
 )
 
 const VueApexCharts = shallowRef<unknown>(null)
@@ -66,7 +67,8 @@ const chartOptions = computed(() => {
     chart: {
       type: props.type === 'area' ? ('area' as const) : (props.type as 'line' | 'bar' | 'pie' | 'donut'),
       stacked: props.stacked,
-      toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } },
+      sparkline: { enabled: props.sparkline },
+      toolbar: { show: !props.sparkline, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } },
       zoom: { enabled: false },
       fontFamily: 'Fira Sans, sans-serif',
       foreColor: t.foreColor,
@@ -74,13 +76,13 @@ const chartOptions = computed(() => {
     // Pie/donut: stroke width must be a single number — an array (e.g. [3,3]
     // meant for multi-series line/bar charts) makes ApexCharts render empty slices.
     stroke: { width: props.type === 'bar' ? 0 : (isPie.value ? 2 : [3, 3]), curve: 'smooth' as const },
-    markers: { size: props.type === 'bar' || isPie.value ? 0 : 4 },
+    markers: { size: props.sparkline ? 0 : (props.type === 'bar' || isPie.value ? 0 : 4) },
     dataLabels: { enabled: false },
-    grid: { borderColor: t.grid, strokeDashArray: 4 },
+    grid: { show: !props.sparkline, borderColor: t.grid, strokeDashArray: 4 },
     plotOptions: {
       bar: { horizontal: props.horizontal, borderRadius: 4, columnWidth: '55%' },
     },
-    legend: { position: (isPie.value ? 'bottom' : 'top') as 'top' | 'bottom' },
+    legend: { show: !props.sparkline, position: (isPie.value ? 'bottom' : 'top') as 'top' | 'bottom' },
     tooltip: { theme: t.tooltipTheme },
     colors: props.colors || ['#1976D2', '#43A047', '#F9A825', '#E53935', '#8E24AA', '#00897B', '#6D4C41', '#546E7A'],
   }
@@ -101,8 +103,8 @@ const chartOptions = computed(() => {
   }
   return {
     ...base,
-    xaxis: { categories: props.categories },
-    yaxis: { labels: { formatter: (v: number) => Number(v).toLocaleString('id-ID') } },
+    xaxis: { categories: props.categories, labels: { show: !props.sparkline }, axisBorder: { show: !props.sparkline }, axisTicks: { show: !props.sparkline } },
+    yaxis: { labels: { show: !props.sparkline, formatter: (v: number) => Number(v).toLocaleString('id-ID') } },
     tooltip: {
       ...base.tooltip,
       // ApexCharts menolak `shared: true` bila `intersect` masih true (default

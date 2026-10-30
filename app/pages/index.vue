@@ -14,7 +14,7 @@
     >
       <NuxtLink
         v-if="isUser"
-        to="/entri-mingguan"
+        to="/pad"
         class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
                text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
       >
@@ -59,28 +59,6 @@
                    focus:border-primary-focus focus:ring-primary-focus"
           />
         </div>
-      </div>
-    </div>
-
-    <!-- Anomali target -->
-    <div
-      v-if="anomali.length"
-      role="alert"
-      class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4
-             dark:border-amber-900 dark:bg-amber-950/60"
-    >
-      <div class="mb-1 flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200">
-        <TriangleAlert class="shrink-0 size-4" aria-hidden="true" />
-        Peringatan Anomali Target ({{ anomali.length }}) — perlu konfirmasi Bendahara Penerimaan
-      </div>
-      <div
-        v-for="a in anomali"
-        :key="a.jenis_id"
-        class="text-sm text-amber-900/90 dark:text-amber-200/90"
-      >
-        {{ a.kode }} — {{ a.nama }}: target induk {{ fmt(a.nilai_induk) }} ≠ jumlah anak
-        {{ fmt(a.jumlah_anak) }}
-        <b>(selisih {{ fmt(a.selisih) }})</b>
       </div>
     </div>
 
@@ -313,7 +291,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  TriangleAlert,
   Trophy,
 } from 'lucide-vue-next'
 
@@ -364,7 +341,6 @@ const kumulatif = ref<{ kumulatif: number; bulanIni: number; sBelum: number } | 
 const topKontributor = ref<{ jenis_id: number; kode: string; nama: string; kawasan_kode: string; kawasan_nama: string; nilai: number; persen: number }[]>([])
 const banding = ref<{ a: { label: string }; b: { label: string }; total: { a: number; b: number; selisih: number; persen: number | null } } | null>(null)
 const mingguan = ref<{ minggu: number; nilai: number }[]>([])
-const anomali = ref<{ jenis_id: number; kode: string; nama: string; nilai_induk: number; jumlah_anak: number; selisih: number }[]>([])
 
 const capaianKumulatif = computed<number | null>(() => {
   const t = totals.value?.totalTarget ?? 0
@@ -394,12 +370,6 @@ async function loadKawasan() {
     kawasan.value = r.data
   } catch {}
 }
-async function loadAnomali() {
-  try {
-    const r = await $fetch<{ data: typeof anomali.value }>('/api/target/anomali', { query: { tahun: String(tahun.value) } })
-    anomali.value = r.data
-  } catch {}
-}
 async function loadRekap() {
   loadingRekap.value = true
   try {
@@ -418,7 +388,6 @@ async function loadRekap() {
     topKontributor.value = r.topKontributor
     banding.value = r.banding
     await loadMingguanData()
-    await loadAnomali()
   } catch {} finally { loadingRekap.value = false }
 }
 

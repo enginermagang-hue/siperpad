@@ -5,22 +5,34 @@
         <Banknote class="shrink-0 size-9 text-primary" aria-hidden="true" />
         <h1 class="text-2xl font-medium text-foreground">Data PAD — Realisasi</h1>
       </div>
-      <button
-        v-if="isUser"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
-               text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
-        @click="openAdd"
-      >
-        <Plus class="shrink-0 size-4" aria-hidden="true" />
-        Tambah Realisasi
-      </button>
+      <div v-if="isUser" class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden focus:bg-primary-focus"
+          @click="openAdd"
+        >
+          <Plus class="shrink-0 size-4" aria-hidden="true" />
+          Tambah Realisasi
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-layer-line bg-layer px-3 py-2 text-sm font-medium
+                 text-primary hover:bg-layer-hover focus:outline-hidden focus:bg-primary-focus"
+          @click="openAjukanMinggu"
+        >
+          <Send class="shrink-0 size-4" aria-hidden="true" />
+          Ajukan per Minggu
+        </button>
+      </div>
     </div>
 
     <div class="rounded-lg border border-card-line bg-card">
-      <!-- Toolbar: filter (dropdown), search, toggle view — satu baris -->
-      <div class="flex flex-wrap items-center gap-2 px-4 pt-3">
+      <!-- Filter section (di atas search bar) -->
+      <div class="flex flex-col gap-2 px-4 pt-3 border-b pb-3">
+        <!-- Dropdown filter: hanya mobile -->
         <AppMenu
+          class="md:hidden"
           placement="bottom-start"
           auto-close="inside"
           root-class="[--auto-close:inside]"
@@ -65,6 +77,30 @@
                 clearable
                 @update:model-value="load"
               />
+              <div class="flex items-center gap-2">
+                <input
+                  v-model="filterDateFrom"
+                  type="date"
+                  class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
+                         focus:border-primary-focus focus:ring-primary-focus"
+                  @change="load"
+                />
+                <span class="text-xs text-muted-foreground-1">s/d</span>
+                <input
+                  v-model="filterDateTo"
+                  type="date"
+                  class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
+                         focus:border-primary-focus focus:ring-primary-focus"
+                  @change="load"
+                />
+              </div>
+              <div class="flex flex-wrap gap-1">
+                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('today')">Hari ini</button>
+                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('7d')">7 hari</button>
+                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('30d')">30 hari</button>
+                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('month')">Bulan ini</button>
+                <button v-if="filterDateFrom || filterDateTo" type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-red-600 hover:bg-layer-hover dark:text-red-400" @click="clearDateRange">Reset tanggal</button>
+              </div>
               <button
                 type="button"
                 class="mt-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm
@@ -80,7 +116,123 @@
           </template>
         </AppMenu>
 
-        <div class="relative order-last w-full sm:order-none sm:w-auto sm:max-w-[260px] sm:flex-1">
+        <div class="hidden md:flex flex-wrap items-center gap-2 w-full">
+          <div class="hidden md:flex flex-wrap items-center gap-2">
+            <div class="flex-1 min-w-[180px]">
+              <AppSelect
+                v-model="filterKawasan"
+                :items="kawasanOpts"
+                :disabled="!!scopedKawasanId"
+                placeholder="Kawasan: Semua"
+                clearable
+                @update:model-value="load"
+              />
+            </div>
+            <div class="flex-1 min-w-[180px]">
+              <AppSelect
+                v-model="filterJenis"
+                :items="jenisFilterOpts"
+                placeholder="Semua jenis"
+                clearable
+                @update:model-value="load"
+              />
+            </div>
+            <div class="flex-1 min-w-[160px]">
+              <AppSelect
+                v-model="filterStatus"
+                :items="statusOpts"
+                placeholder="Semua status"
+                clearable
+                @update:model-value="load"
+              />
+            </div>
+
+            <!-- Trigger date range: satu baris dengan filter -->
+            <AppMenu
+              placement="bottom-start"
+              auto-close="inside"
+              root-class="[--auto-close:inside]"
+              aria-label="Rentang tanggal"
+              menu-class="min-w-[320px]"
+              toggle-class="gap-1.5 px-2.5 py-1.5 border border-layer-line rounded-lg text-sm"
+            >
+              <template #toggle>
+                <CalendarDays class="shrink-0 size-4" aria-hidden="true" />
+                <span>Rentang Tanggal</span>
+                <span
+                  v-if="dateRangeLabel"
+                  class="text-xs text-muted-foreground-1"
+                >
+                  ({{ dateRangeLabel }})
+                </span>
+                <ChevronDown class="shrink-0 size-3.5 text-muted-foreground-1" aria-hidden="true" />
+              </template>
+
+              <template #content>
+                <div class="flex flex-col gap-2 p-1">
+                  <div class="flex items-center gap-2">
+                    <input
+                      v-model="filterDateFrom"
+                      type="date"
+                      class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
+                            focus:border-primary-focus focus:ring-primary-focus"
+                      @change="load"
+                    />
+                    <span class="text-xs text-muted-foreground-1">s/d</span>
+                    <input
+                      v-model="filterDateTo"
+                      type="date"
+                      class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
+                            focus:border-primary-focus focus:ring-primary-focus"
+                      @change="load"
+                    />
+                  </div>
+                  <div class="flex flex-wrap gap-1">
+                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('today')">Hari ini</button>
+                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('7d')">7 hari</button>
+                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('30d')">30 hari</button>
+                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('month')">Bulan ini</button>
+                    <button v-if="filterDateFrom || filterDateTo" type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-red-600 hover:bg-layer-hover dark:text-red-400" @click="clearDateRange">Reset tanggal</button>
+                  </div>
+                </div>
+              </template>
+            </AppMenu>
+
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm
+                    text-muted-foreground-1 hover:bg-layer-hover focus:outline-hidden
+                    disabled:opacity-50 disabled:pointer-events-none"
+              :disabled="!activeFilterCount"
+              @click="resetFilters"
+            >
+              <RotateCcw class="shrink-0 size-3.5" aria-hidden="true" />
+              Reset
+            </button>
+          </div>
+
+          <!-- Search bar + toggle view: satu baris dengan filter (desktop) -->
+          <div class="relative flex-1 min-w-[200px]">
+            <Search
+              class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
+              aria-hidden="true"
+            />
+            <input
+              v-model="q"
+              type="text"
+              placeholder="Cari kode/nama/catatan..."
+              class="w-full rounded-lg border border-layer-line bg-layer py-2 ps-8 pe-3 text-sm text-layer-foreground
+                     focus:border-primary-focus focus:ring-primary-focus"
+            />
+          </div>
+
+          <ViewModeToggle v-model="mode" />
+        </div>
+      </div>
+
+      <!-- Search bar (mobile only) -->
+      <div class="flex md:hidden flex-wrap items-center gap-2 px-4 pb-3 mt-3">
+        <div class="relative w-full sm:max-w-[260px] sm:flex-1">
           <Search
             class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground-1"
             aria-hidden="true"
@@ -109,7 +261,7 @@
               <th class="px-3 py-2.5 text-end font-medium">Jumlah</th>
               <th class="px-3 py-2.5 text-end font-medium">Target</th>
               <th class="px-3 py-2.5 text-end font-medium">Capaian</th>
-              <th class="px-3 py-2.5 text-start font-medium">Status</th>
+              <th v-if="isUser" class="px-3 py-2.5 text-start font-medium">Status</th>
               <th v-if="isUser" class="w-[140px] px-3 py-2.5 text-start font-medium">Aksi</th>
             </tr>
           </thead>
@@ -142,7 +294,7 @@
                     {{ r.capaian }}%
                   </span>
                 </td>
-                <td class="px-3 py-2.5">
+                <td v-if="isUser" class="px-3 py-2.5">
                   <span
                     class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
                     :class="statusChip(r.status)"
@@ -205,7 +357,7 @@
           ]"
         >
           <template #badge>
-            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="statusChip(r.status)">
+            <span v-if="isUser" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="statusChip(r.status)">
               {{ r.status }}
             </span>
           </template>
@@ -246,7 +398,7 @@
               <span class="block truncate text-xs text-muted-foreground-1">{{ r.tanggal }}</span>
             </span>
             <span class="shrink-0 text-sm text-muted-foreground-1">{{ fmt(r.jumlah) }}</span>
-            <span class="shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="statusChip(r.status)">
+            <span v-if="isUser" class="shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="statusChip(r.status)">
               {{ r.status }}
             </span>
             <AppMenu
@@ -432,6 +584,66 @@
       </template>
     </AppDialog>
 
+    <!-- Dialog ajukan per minggu -->
+    <AppDialog v-model="ajukanMingguDialog" title="Ajukan Realisasi per Minggu" :max-width="460" :icon="Send">
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Kawasan *</label>
+        <AppSelect
+          v-model="ajukanMingguForm.kawasan_id"
+          :items="kawasanOpts"
+          :disabled="!!scopedKawasanId"
+          placeholder="Kawasan"
+          in-modal
+        />
+      </div>
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Tahun *</label>
+        <AppSelect
+          v-model="ajukanMingguForm.tahun"
+          :items="tahunOpts"
+          :search="false"
+          in-modal
+        />
+      </div>
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Bulan *</label>
+        <AppSelect
+          v-model="ajukanMingguForm.bulan"
+          :items="bulanOpts"
+          in-modal
+        />
+      </div>
+      <div class="mb-2">
+        <label class="mb-1.5 block text-sm font-medium text-foreground">Minggu *</label>
+        <AppSelect
+          v-model="ajukanMingguForm.minggu"
+          :items="mingguOpts"
+          :search="false"
+          in-modal
+        />
+      </div>
+      <template #actions>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm text-foreground hover:bg-layer-hover focus:outline-hidden"
+          @click="ajukanMingguDialog = false"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium
+                 text-primary-foreground hover:bg-primary-hover focus:outline-hidden
+                 disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="ajukanMingguLoading"
+          @click="doAjukanMinggu"
+        >
+          <LoaderCircle v-if="ajukanMingguLoading" class="shrink-0 size-4 animate-spin" aria-hidden="true" />
+          Ajukan
+        </button>
+      </template>
+    </AppDialog>
+
     <AppToast v-model="snack.show" :message="snack.msg" :color="snack.color" :timeout="3000" />
   </div>
 </template>
@@ -439,6 +651,7 @@
 <script setup lang="ts">
 import {
   Banknote,
+  CalendarDays,
   ChevronDown,
   CircleDollarSign,
   LoaderCircle,
@@ -455,7 +668,7 @@ definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const { mode } = useViewMode('pad')
 
-type Row = { id: number; jenis_retribusi_id: number; tanggal: string; jumlah: number; catatan: string; batch_id: number | null; status: string; created_by: number; jenis_kode: string; jenis_nama: string; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target_nilai: number; capaian: number }
+type Row = { id: number; jenis_retribusi_id: number; tanggal: string; jumlah: number; catatan: string; status: string; created_by: number; jenis_kode: string; jenis_nama: string; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target_nilai: number; capaian: number }
 type Kawasan = { id: number; kode: string; nama: string }
 type Jenis = { id: number; kode: string; nama: string; kawasan_id: number; level: number; has_child: number; tarif: number | null; mode_tarif: string; satuan: string }
 
@@ -468,7 +681,7 @@ const scopedKawasanId = computed<number | null>(() => {
   const n = Number(v)
   return Number.isFinite(n) && n > 0 ? n : null
 })
-const colCount = computed(() => (isUser.value ? 9 : 8))
+const colCount = computed(() => (isUser.value ? 9 : 7))
 
 const kawasan = ref<Kawasan[]>([])
 const jenisList = ref<Jenis[]>([])
@@ -478,13 +691,23 @@ const q = ref('')
 const filterKawasan = ref<number | null>(null)
 const filterJenis = ref<number | null>(null)
 const filterStatus = ref<string | null>(null)
-const statusOpts = ['draft', 'diajukan', 'disetujui', 'ditolak']
+const filterDateFrom = ref('')
+const filterDateTo = ref('')
+const statusOpts = computed(() =>
+  isUser.value ? ['draft', 'diajukan', 'disetujui', 'ditolak'] : ['disetujui', 'ditolak'],
+)
 
 // Jumlah filter aktif (kawasan terkunci oleh penugasan tidak dihitung).
 const activeFilterCount = computed(() =>
-  [filterJenis.value, filterStatus.value, scopedKawasanId.value ? null : filterKawasan.value]
+  [filterJenis.value, filterStatus.value, scopedKawasanId.value ? null : filterKawasan.value, filterDateFrom.value, filterDateTo.value]
     .filter((v) => v !== null && v !== '').length,
 )
+const dateRangeLabel = computed(() => {
+  if (filterDateFrom.value && filterDateTo.value) return `${filterDateFrom.value} – ${filterDateTo.value}`
+  if (filterDateFrom.value) return `≥ ${filterDateFrom.value}`
+  if (filterDateTo.value) return `≤ ${filterDateTo.value}`
+  return ''
+})
 
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
 const jenisFilterOpts = computed(() => {
@@ -518,7 +741,7 @@ const paginated = computed(() => {
   const start = (currentPage.value - 1) * perPage.value
   return filtered.value.slice(start, start + perPage.value)
 })
-watch([q, filterKawasan, filterJenis, filterStatus], () => { currentPage.value = 1 })
+watch([q, filterKawasan, filterJenis, filterStatus, filterDateFrom, filterDateTo], () => { currentPage.value = 1 })
 watch(perPage, () => { currentPage.value = 1 })
 watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 
@@ -570,6 +793,26 @@ const deleting = ref(false)
 const ajukanDialog = ref(false)
 const ajukanTarget = ref<Row | null>(null)
 const ajukanLoading = ref(false)
+const ajukanMingguDialog = ref(false)
+const ajukanMingguLoading = ref(false)
+const ajukanMingguForm = reactive<{ kawasan_id: number | null; tahun: number; bulan: number; minggu: number }>({
+  kawasan_id: null,
+  tahun: new Date().getFullYear(),
+  bulan: new Date().getMonth() + 1,
+  minggu: 1,
+})
+const tahunOpts = [2024, 2025, 2026, 2027]
+const bulanOpts = [
+  { label: 'Januari', value: 1 }, { label: 'Februari', value: 2 }, { label: 'Maret', value: 3 }, { label: 'April', value: 4 },
+  { label: 'Mei', value: 5 }, { label: 'Juni', value: 6 }, { label: 'Juli', value: 7 }, { label: 'Agustus', value: 8 },
+  { label: 'September', value: 9 }, { label: 'Oktober', value: 10 }, { label: 'November', value: 11 }, { label: 'Desember', value: 12 },
+]
+const mingguOpts = [
+  { label: 'Minggu I (1-7)', value: 1 },
+  { label: 'Minggu II (8-14)', value: 2 },
+  { label: 'Minggu III (15-21)', value: 3 },
+  { label: 'Minggu IV (22-akhir)', value: 4 },
+]
 
 async function loadKawasan() {
   try {
@@ -592,6 +835,8 @@ async function load() {
     if (filterKawasan.value) params.kawasan_id = String(filterKawasan.value)
     if (filterJenis.value) params.jenis_retribusi_id = String(filterJenis.value)
     if (filterStatus.value) params.status = filterStatus.value
+    if (filterDateFrom.value) params.from = filterDateFrom.value
+    if (filterDateTo.value) params.to = filterDateTo.value
     const r = await $fetch<{ data: Row[] }>('/api/realisasi', { query: params })
     rows.value = r.data
   } catch (e: unknown) {
@@ -604,7 +849,37 @@ async function resetFilters() {
   filterKawasan.value = scopedKawasanId.value ?? null
   filterJenis.value = null
   filterStatus.value = null
+  filterDateFrom.value = ''
+  filterDateTo.value = ''
   await load()
+}
+
+function fmtDate(d: Date) { return d.toISOString().slice(0, 10) }
+function setDatePreset(p: string) {
+  const now = new Date()
+  if (p === 'today') {
+    filterDateFrom.value = fmtDate(now)
+    filterDateTo.value = fmtDate(now)
+  } else if (p === '7d') {
+    const s = new Date(now); s.setDate(s.getDate() - 6)
+    filterDateFrom.value = fmtDate(s)
+    filterDateTo.value = fmtDate(now)
+  } else if (p === '30d') {
+    const s = new Date(now); s.setDate(s.getDate() - 29)
+    filterDateFrom.value = fmtDate(s)
+    filterDateTo.value = fmtDate(now)
+  } else if (p === 'month') {
+    const s = new Date(now.getFullYear(), now.getMonth(), 1)
+    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    filterDateFrom.value = fmtDate(s)
+    filterDateTo.value = fmtDate(e)
+  }
+  load()
+}
+function clearDateRange() {
+  filterDateFrom.value = ''
+  filterDateTo.value = ''
+  load()
 }
 
 async function fetchTarget() {
@@ -702,6 +977,38 @@ async function doAjukan() {
   } catch (e: unknown) {
     toast((e as { data?: { message?: string } })?.data?.message || String(e), 'error')
   } finally { ajukanLoading.value = false }
+}
+
+function openAjukanMinggu() {
+  ajukanMingguForm.kawasan_id = scopedKawasanId.value ?? filterKawasan.value ?? (kawasan.value[0]?.id ?? null)
+  ajukanMingguForm.tahun = new Date().getFullYear()
+  ajukanMingguForm.bulan = new Date().getMonth() + 1
+  ajukanMingguForm.minggu = 1
+  ajukanMingguDialog.value = true
+}
+
+async function doAjukanMinggu() {
+  if (!ajukanMingguForm.kawasan_id) {
+    toast('Pilih kawasan', 'error')
+    return
+  }
+  ajukanMingguLoading.value = true
+  try {
+    const r = await $fetch<{ count: number }>('/api/realisasi/ajukan-massal', {
+      method: 'POST',
+      body: {
+        kawasan_id: ajukanMingguForm.kawasan_id,
+        tahun: ajukanMingguForm.tahun,
+        bulan: ajukanMingguForm.bulan,
+        minggu: ajukanMingguForm.minggu,
+      },
+    })
+    toast(`${r.count} realisasi diajukan`)
+    ajukanMingguDialog.value = false
+    await load()
+  } catch (e: unknown) {
+    toast((e as { data?: { message?: string } })?.data?.message || String(e), 'error')
+  } finally { ajukanMingguLoading.value = false }
 }
 
 onMounted(async () => { await loadKawasan(); await loadJenis(); await load() })

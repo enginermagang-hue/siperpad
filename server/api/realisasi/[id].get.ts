@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'ID tidak valid' })
   const rows = await query(
-    `SELECT r.id, r.jenis_retribusi_id, r.tanggal, r.jumlah, r.catatan, r.batch_id, r.status, r.created_by, r.created_at,
+    `SELECT r.id, r.jenis_retribusi_id, r.tanggal, r.jumlah, r.catatan, r.status, r.created_by, r.created_at,
             jr.kode AS jenis_kode, jr.nama AS jenis_nama, k.kode AS kawasan_kode, k.nama AS kawasan_nama,
             COALESCE(t.nilai,0) AS target_nilai
      FROM realisasi r JOIN jenis_retribusi jr ON jr.id=r.jenis_retribusi_id

@@ -27,7 +27,6 @@ const { isAdmin, canVerif } = useVerifikasiMaster()
 const tabs = computed(() => {
   const list = [
     { to: '/verifikasi', value: 'realisasi', label: 'Realisasi Diajukan' },
-    { to: '/verifikasi/batch', value: 'batch', label: 'Batch Laporan' },
   ]
   if (isAdmin.value) {
     list.push({ to: '/verifikasi/periode', value: 'periode', label: 'Kunci Periode' })
@@ -39,7 +38,6 @@ const tabs = computed(() => {
 
 const active = computed(() => {
   const p = route.path
-  if (p.startsWith('/verifikasi/batch')) return 'batch'
   if (p.startsWith('/verifikasi/periode')) return 'periode'
   if (p.startsWith('/verifikasi/catatan')) return 'catatan'
   if (p.startsWith('/verifikasi/audit')) return 'audit'

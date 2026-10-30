@@ -16,19 +16,24 @@ export default defineEventHandler(async (event) => {
   const scoped = sessionKawasanId(session.user)
   if (scoped != null) kawasanId = scoped
 
+  // Admin & kepala tidak melihat realisasi berstatus 'draft' maupun 'diajukan' (masih proses petugas).
+  const role = String(session.user.role || '')
+  const hideInProgress = role === 'admin' || role === 'kepala'
+
   const where: string[] = []
   const params: unknown[] = []
 
   if (kawasanId) { where.push('jr.kawasan_id = ?'); params.push(kawasanId) }
   if (jenisId) { where.push('r.jenis_retribusi_id = ?'); params.push(jenisId) }
   if (status) { where.push('r.status = ?'); params.push(status) }
+  if (hideInProgress) { where.push("r.status <> 'draft'"); where.push("r.status <> 'diajukan'") }
   if (from) { where.push('r.tanggal >= ?'); params.push(from) }
   if (to) { where.push('r.tanggal <= ?'); params.push(to) }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
   const sql = `
-    SELECT r.id, r.jenis_retribusi_id, r.tanggal, r.jumlah, r.catatan, r.batch_id, r.status, r.created_by, r.created_at,
+    SELECT r.id, r.jenis_retribusi_id, r.tanggal, r.jumlah, r.catatan, r.status, r.created_by, r.created_at,
            jr.kode AS jenis_kode, jr.nama AS jenis_nama, jr.level AS jenis_level,
            k.id AS kawasan_id, k.kode AS kawasan_kode, k.nama AS kawasan_nama,
            COALESCE(t.nilai, 0) AS target_nilai

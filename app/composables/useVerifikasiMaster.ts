@@ -14,7 +14,7 @@ export function useVerifikasiMaster() {
   const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: k.kode + ' — ' + k.nama, value: k.id })))
 
   // Penugasan kawasan petugas (null = bebas memilih kawasan). Sama dengan
-  // `scopedKawasanId` di pad.vue / entri-mingguan.vue.
+  // `scopedKawasanId` di pad.vue.
   const scopedKawasanId = computed<number | null>(() => {
     if (!isUser.value) return null
     const v = session.user.value?.kawasan_id
