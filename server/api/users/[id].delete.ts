@@ -1,4 +1,4 @@
-import { execute, query } from '../../../utils/db'
+import { execute, query } from '../../utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

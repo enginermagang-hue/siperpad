@@ -77,33 +77,10 @@
                 clearable
                 @update:model-value="load"
               />
-              <div class="flex items-center gap-2">
-                <input
-                  v-model="filterDateFrom"
-                  type="date"
-                  class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
-                         focus:border-primary-focus focus:ring-primary-focus"
-                  @change="load"
-                />
-                <span class="text-xs text-muted-foreground-1">s/d</span>
-                <input
-                  v-model="filterDateTo"
-                  type="date"
-                  class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
-                         focus:border-primary-focus focus:ring-primary-focus"
-                  @change="load"
-                />
-              </div>
-              <div class="flex flex-wrap gap-1">
-                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('today')">Hari ini</button>
-                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('7d')">7 hari</button>
-                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('30d')">30 hari</button>
-                <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('month')">Bulan ini</button>
-                <button v-if="filterDateFrom || filterDateTo" type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-red-600 hover:bg-layer-hover dark:text-red-400" @click="clearDateRange">Reset tanggal</button>
-              </div>
+              <AppDateRangePanel v-model="dateRange" @change="load" />
               <button
                 type="button"
-                class="mt-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm
+                class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm
                        text-muted-foreground-1 hover:bg-layer-hover focus:outline-hidden
                        disabled:opacity-50 disabled:pointer-events-none"
                 :disabled="!activeFilterCount"
@@ -147,56 +124,7 @@
               />
             </div>
 
-            <!-- Trigger date range: satu baris dengan filter -->
-            <AppMenu
-              placement="bottom-start"
-              auto-close="inside"
-              root-class="[--auto-close:inside]"
-              aria-label="Rentang tanggal"
-              menu-class="min-w-[320px]"
-              toggle-class="gap-1.5 px-2.5 py-1.5 border border-layer-line rounded-lg text-sm"
-            >
-              <template #toggle>
-                <CalendarDays class="shrink-0 size-4" aria-hidden="true" />
-                <span>Rentang Tanggal</span>
-                <span
-                  v-if="dateRangeLabel"
-                  class="text-xs text-muted-foreground-1"
-                >
-                  ({{ dateRangeLabel }})
-                </span>
-                <ChevronDown class="shrink-0 size-3.5 text-muted-foreground-1" aria-hidden="true" />
-              </template>
-
-              <template #content>
-                <div class="flex flex-col gap-2 p-1">
-                  <div class="flex items-center gap-2">
-                    <input
-                      v-model="filterDateFrom"
-                      type="date"
-                      class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
-                            focus:border-primary-focus focus:ring-primary-focus"
-                      @change="load"
-                    />
-                    <span class="text-xs text-muted-foreground-1">s/d</span>
-                    <input
-                      v-model="filterDateTo"
-                      type="date"
-                      class="w-full rounded-lg border border-layer-line bg-layer px-2 py-1.5 text-sm text-layer-foreground
-                            focus:border-primary-focus focus:ring-primary-focus"
-                      @change="load"
-                    />
-                  </div>
-                  <div class="flex flex-wrap gap-1">
-                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('today')">Hari ini</button>
-                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('7d')">7 hari</button>
-                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('30d')">30 hari</button>
-                    <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('month')">Bulan ini</button>
-                    <button v-if="filterDateFrom || filterDateTo" type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-red-600 hover:bg-layer-hover dark:text-red-400" @click="clearDateRange">Reset tanggal</button>
-                  </div>
-                </div>
-              </template>
-            </AppMenu>
+            <AppDateRange v-model="dateRange" @change="load" />
 
             <button
               type="button"
@@ -651,7 +579,6 @@
 <script setup lang="ts">
 import {
   Banknote,
-  CalendarDays,
   ChevronDown,
   CircleDollarSign,
   LoaderCircle,
@@ -691,23 +618,17 @@ const q = ref('')
 const filterKawasan = ref<number | null>(null)
 const filterJenis = ref<number | null>(null)
 const filterStatus = ref<string | null>(null)
-const filterDateFrom = ref('')
-const filterDateTo = ref('')
+const dateRange = ref({ from: '', to: '' })
 const statusOpts = computed(() =>
   isUser.value ? ['draft', 'diajukan', 'disetujui', 'ditolak'] : ['disetujui', 'ditolak'],
 )
 
-// Jumlah filter aktif (kawasan terkunci oleh penugasan tidak dihitung).
+// Jumlah filter aktif (kawasan terkunci oleh penugasan tidak dihitung;
+// rentang tanggal dihitung sebagai satu filter).
 const activeFilterCount = computed(() =>
-  [filterJenis.value, filterStatus.value, scopedKawasanId.value ? null : filterKawasan.value, filterDateFrom.value, filterDateTo.value]
+  [filterJenis.value, filterStatus.value, scopedKawasanId.value ? null : filterKawasan.value, dateRange.value.from || dateRange.value.to || null]
     .filter((v) => v !== null && v !== '').length,
 )
-const dateRangeLabel = computed(() => {
-  if (filterDateFrom.value && filterDateTo.value) return `${filterDateFrom.value} – ${filterDateTo.value}`
-  if (filterDateFrom.value) return `≥ ${filterDateFrom.value}`
-  if (filterDateTo.value) return `≤ ${filterDateTo.value}`
-  return ''
-})
 
 const kawasanOpts = computed(() => kawasan.value.map((k) => ({ label: `${k.kode} — ${k.nama}`, value: k.id })))
 const jenisFilterOpts = computed(() => {
@@ -741,7 +662,7 @@ const paginated = computed(() => {
   const start = (currentPage.value - 1) * perPage.value
   return filtered.value.slice(start, start + perPage.value)
 })
-watch([q, filterKawasan, filterJenis, filterStatus, filterDateFrom, filterDateTo], () => { currentPage.value = 1 })
+watch([q, filterKawasan, filterJenis, filterStatus, dateRange], () => { currentPage.value = 1 })
 watch(perPage, () => { currentPage.value = 1 })
 watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 
@@ -835,8 +756,8 @@ async function load() {
     if (filterKawasan.value) params.kawasan_id = String(filterKawasan.value)
     if (filterJenis.value) params.jenis_retribusi_id = String(filterJenis.value)
     if (filterStatus.value) params.status = filterStatus.value
-    if (filterDateFrom.value) params.from = filterDateFrom.value
-    if (filterDateTo.value) params.to = filterDateTo.value
+    if (dateRange.value.from) params.from = dateRange.value.from
+    if (dateRange.value.to) params.to = dateRange.value.to
     const r = await $fetch<{ data: Row[] }>('/api/realisasi', { query: params })
     rows.value = r.data
   } catch (e: unknown) {
@@ -849,37 +770,8 @@ async function resetFilters() {
   filterKawasan.value = scopedKawasanId.value ?? null
   filterJenis.value = null
   filterStatus.value = null
-  filterDateFrom.value = ''
-  filterDateTo.value = ''
+  dateRange.value = { from: '', to: '' }
   await load()
-}
-
-function fmtDate(d: Date) { return d.toISOString().slice(0, 10) }
-function setDatePreset(p: string) {
-  const now = new Date()
-  if (p === 'today') {
-    filterDateFrom.value = fmtDate(now)
-    filterDateTo.value = fmtDate(now)
-  } else if (p === '7d') {
-    const s = new Date(now); s.setDate(s.getDate() - 6)
-    filterDateFrom.value = fmtDate(s)
-    filterDateTo.value = fmtDate(now)
-  } else if (p === '30d') {
-    const s = new Date(now); s.setDate(s.getDate() - 29)
-    filterDateFrom.value = fmtDate(s)
-    filterDateTo.value = fmtDate(now)
-  } else if (p === 'month') {
-    const s = new Date(now.getFullYear(), now.getMonth(), 1)
-    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    filterDateFrom.value = fmtDate(s)
-    filterDateTo.value = fmtDate(e)
-  }
-  load()
-}
-function clearDateRange() {
-  filterDateFrom.value = ''
-  filterDateTo.value = ''
-  load()
 }
 
 async function fetchTarget() {

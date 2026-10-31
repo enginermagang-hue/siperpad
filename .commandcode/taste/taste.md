@@ -1,2 +1,3 @@
 - Wants a plan created and reviewed before implementation. Confidence: 0.9
 - Prefers filter/layout columns to use full-width flex (`flex-1`) rather than cramped fixed widths. Confidence: 0.8
+- Never kill or restart the dev server; ask the user to do it themselves. Confidence: 0.9

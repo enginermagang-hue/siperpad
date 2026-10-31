@@ -87,10 +87,11 @@
             <div class="mt-1 text-[11px] leading-tight text-muted-foreground-1 pe-10">
               Realisasi disetujui s/d {{ periode === 'tahun' ? 'Desember' : bulanLabel }} {{ tahun }}
             </div>
-            <div v-if="mingguan.some((m) => m.nilai > 0)" class="mt-2">
+            <div v-if="chartPoints.some((p) => p.realisasi > 0)" class="mt-2">
               <SiperpadChart
-                :series="[{ name: 'Realisasi', data: mingguan.map((m) => m.nilai) }]"
-                :categories="mingguan.map((m) => m.label)"
+                :key="'spark-' + chartPoints.map((p) => p.realisasi).join(',')"
+                :series="[{ name: 'Realisasi', data: chartPoints.map((p) => Number(p.realisasi) || 0) }]"
+                :categories="chartPoints.map((p) => p.label)"
                 :height="48"
                 type="area"
                 :colors="['#10b981']"
@@ -183,28 +184,7 @@
             Mode Tahunan: rekap kumulatif Januari–Desember {{ tahun }}.
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              v-model="dateFrom"
-              type="date"
-              class="rounded-lg border border-layer-line bg-layer px-2 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus"
-              @change="load"
-            />
-            <span class="text-muted-foreground-1">s/d</span>
-            <input
-              v-model="dateTo"
-              type="date"
-              class="rounded-lg border border-layer-line bg-layer px-2 py-2 text-sm text-layer-foreground focus:border-primary-focus focus:ring-primary-focus"
-              @change="load"
-            />
-            <div class="flex flex-wrap gap-1">
-              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('today')">Hari ini</button>
-              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('7d')">7 hari</button>
-              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('30d')">30 hari</button>
-              <button type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-layer-foreground hover:bg-layer-hover" @click="setDatePreset('month')">Bulan ini</button>
-              <button v-if="dateFrom || dateTo" type="button" class="rounded-md border border-layer-line bg-layer px-2 py-1 text-xs text-red-600 hover:bg-layer-hover dark:text-red-400" @click="clearDateRange">Reset</button>
-            </div>
-          </div>
+          <AppDateRange v-model="dateRange" @change="load" />
 
           <div class="ms-auto">
             <ViewModeToggle v-model="modeRekap" />
@@ -568,7 +548,6 @@
 import {
   ArrowRight,
   Banknote,
-  CalendarDays,
   ChartColumn,
   ChartColumnBig,
   FileSpreadsheet,
@@ -588,6 +567,7 @@ const { mode: modeRekap } = useViewMode('laporan-rekap')
 const { mode: modeBanding } = useViewMode('laporan-banding')
 
 type RekapRow = { id: number; kode: string; nama: string; level: number; urutan: number; kawasan_id: number; kawasan_kode: string; kawasan_nama: string; target: number; realisasi: number; capaian: number; selisih: number; hasChild: boolean; children: { id: number; nama: string }[]; leafIds: number[] }
+type TsPoint = { label: string; target: number; realisasi: number; capaian: number }
 
 const session = useUserSession()
 const role = computed(() => String(session.user.value?.role || ''))
@@ -604,8 +584,7 @@ const filterKawasan = ref<number | null>(null)
 const tahun = ref(new Date().getFullYear())
 const tahunOpts = [2024, 2025, 2026, 2027]
 const bulan = ref(new Date().getMonth() + 1)
-const dateFrom = ref('')
-const dateTo = ref('')
+const dateRange = ref({ from: '', to: '' })
 const bulanOpts = [
   { label: 'Januari', value: 1 }, { label: 'Februari', value: 2 }, { label: 'Maret', value: 3 }, { label: 'April', value: 4 },
   { label: 'Mei', value: 5 }, { label: 'Juni', value: 6 }, { label: 'Juli', value: 7 }, { label: 'Agustus', value: 8 },
@@ -621,6 +600,7 @@ const detailHistory = ref<{ id: number; tanggal: string; jumlah: number; status:
 const detailLoading = ref(false)
 const totals = ref<{ totalTarget: number; totalRealisasi: number; capaian: number; selisih: number } | null>(null)
 const mingguan = ref<{ minggu: number; label: string; nilai: number }[]>([])
+const timeseries = ref<TsPoint[]>([])
 const exporting = ref('')
 // Mode periode laporan: bulan (rekap bulan terpilih) atau tahun (12 bulan).
 const periode = ref<'bulan' | 'tahun'>('bulan')
@@ -661,6 +641,21 @@ const bandingChartSeries = computed(() => [
 const bandingChartMax = computed(() => Math.max(1, ...bandingChartRows.value.flatMap((r) => [r.a, r.b])))
 function barWidth(v: number) { return `${Math.max(2, Math.round((v / bandingChartMax.value) * 100))}%` }
 
+const chartPoints = computed(() => {
+  if (dateRange.value.from && dateRange.value.to) {
+    const fromMonth = Number(dateRange.value.from.slice(5, 7))
+    const toMonth = Number(dateRange.value.to.slice(5, 7))
+    const fromYear = Number(dateRange.value.from.slice(0, 4))
+    const toYear = Number(dateRange.value.to.slice(0, 4))
+    if (fromYear === toYear && fromMonth === toMonth) {
+      return mingguan.value.map((m) => ({ label: m.label, realisasi: m.nilai }))
+    }
+    const startIdx = (fromYear - tahun.value) * 12 + (fromMonth - 1)
+    const endIdx = (toYear - tahun.value) * 12 + (toMonth - 1) + 1
+    return timeseries.value.slice(Math.max(0, startIdx), Math.max(0, endIdx)).map((p) => ({ label: p.label, realisasi: p.realisasi }))
+  }
+  return timeseries.value.slice(0, bulan.value).map((p) => ({ label: p.label, realisasi: p.realisasi }))
+})
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase()
   if (!s) return perJenis.value
@@ -676,7 +671,7 @@ const paginated = computed(() => {
   const start = (currentPage.value - 1) * perPage.value
   return filtered.value.slice(start, start + perPage.value)
 })
-watch([q, filterKawasan, tahun, bulan, periode, dateFrom, dateTo], () => { currentPage.value = 1 })
+watch([q, filterKawasan, tahun, bulan, periode, dateRange], () => { currentPage.value = 1 })
 watch(perPage, () => { currentPage.value = 1 })
 watch(pageCount, (pc) => { if (currentPage.value > pc) currentPage.value = pc })
 
@@ -727,50 +722,23 @@ async function loadKawasan() {
     kawasan.value = r.data
   } catch {}
 }
-function fmtDate(d: Date) { return d.toISOString().slice(0, 10) }
-function setDatePreset(p: string) {
-  const now = new Date()
-  if (p === 'today') {
-    dateFrom.value = fmtDate(now)
-    dateTo.value = fmtDate(now)
-  } else if (p === '7d') {
-    const s = new Date(now); s.setDate(s.getDate() - 6)
-    dateFrom.value = fmtDate(s)
-    dateTo.value = fmtDate(now)
-  } else if (p === '30d') {
-    const s = new Date(now); s.setDate(s.getDate() - 29)
-    dateFrom.value = fmtDate(s)
-    dateTo.value = fmtDate(now)
-  } else if (p === 'month') {
-    const s = new Date(now.getFullYear(), now.getMonth(), 1)
-    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    dateFrom.value = fmtDate(s)
-    dateTo.value = fmtDate(e)
-  }
-  load()
-}
-function clearDateRange() {
-  dateFrom.value = ''
-  dateTo.value = ''
-  load()
-}
-
 async function load() {
   loading.value = true
   try {
     const sampaiBulan = periode.value === 'tahun' ? 12 : bulan.value
     const q2: Record<string, string> = { tahun: String(tahun.value) }
-    if (dateFrom.value && dateTo.value) {
-      q2.from = dateFrom.value
-      q2.to = dateTo.value
+    if (dateRange.value.from && dateRange.value.to) {
+      q2.from = dateRange.value.from
+      q2.to = dateRange.value.to
     } else {
       q2.bulan = String(sampaiBulan)
     }
     if (filterKawasan.value) q2.kawasan_id = String(filterKawasan.value)
-    const r = await $fetch<{ perJenis: RekapRow[]; totals: typeof totals.value; mingguan?: typeof mingguan.value }>('/api/laporan/rekap', { query: q2 })
+    const r = await $fetch<{ perJenis: RekapRow[]; totals: typeof totals.value; mingguan?: typeof mingguan.value; timeseries?: TsPoint[] }>('/api/laporan/rekap', { query: q2 })
     perJenis.value = r.perJenis
     totals.value = r.totals
     mingguan.value = r.mingguan || []
+    timeseries.value = r.timeseries || []
   } catch (e: unknown) {
     toast((e as { data?: { message?: string } })?.data?.message || 'Gagal memuat', 'error')
   } finally { loading.value = false }

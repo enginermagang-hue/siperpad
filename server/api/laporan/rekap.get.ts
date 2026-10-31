@@ -8,6 +8,9 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event) as { kawasan_id?: string; tahun?: string; scope?: string; bulan?: string; from?: string; to?: string }
   const tahun = Number(q.tahun) || new Date().getFullYear()
   const bulan = q.bulan ? Number(q.bulan) : new Date().getMonth() + 1
+  // Bulan efektif untuk agregasi mingguan: jika rentang tanggal diberikan,
+  // gunakan bulan dari `from` agar konsisten dengan data rekap yang tampil.
+  const bulanEfektif = q.from ? Number(String(q.from).slice(5, 7)) || bulan : bulan
   const scope = (q.scope as 'bulanan' | 'triwulan' | 'tahunan') || 'bulanan'
   const from = q.from || undefined
   const to = q.to || undefined
@@ -28,10 +31,13 @@ export default defineEventHandler(async (event) => {
   const kumulatif = await getRealisasiKumulatif({ kawasanId, tahun, bulan })
 
   // tren mingguan bulan terpilih (approved only, teragregasi)
-  const mStart = monthStart(tahun, bulan)
-  const mEnd = monthEnd(tahun, bulan)
-  const bulanPadded = String(bulan).padStart(2, '0')
+  const mStart = monthStart(tahun, bulanEfektif)
+  const mEnd = monthEnd(tahun, bulanEfektif)
+  const bulanPadded = String(bulanEfektif).padStart(2, '0')
   const hasKawasan = !!kawasanId
+  // Filter tanggal: jika rentang diberikan, batasi ke rentang tersebut; selain itu ke bulan efektif.
+  const dateFilter = from && to ? 'AND r.tanggal >= ? AND r.tanggal <= ?' : 'AND substr(r.tanggal, 1, 4) = ? AND substr(r.tanggal, 6, 2) = ?'
+  const dateParams = from && to ? [from, to] : [String(tahun), bulanPadded]
   const weekRows = await query<{ w: number; total: number }>(
     `SELECT CASE WHEN CAST(substr(r.tanggal,9,2) AS INTEGER) BETWEEN 1 AND 7 THEN 1
                 WHEN CAST(substr(r.tanggal,9,2) AS INTEGER) BETWEEN 8 AND 14 THEN 2
@@ -40,16 +46,20 @@ export default defineEventHandler(async (event) => {
            COALESCE(SUM(r.jumlah), 0) AS total
      FROM realisasi r
      JOIN jenis_retribusi jr ON jr.id = r.jenis_retribusi_id
-     WHERE r.status = ? AND substr(r.tanggal, 1, 4) = ? AND substr(r.tanggal, 6, 2) = ?
-     ${hasKawasan ? 'AND jr.kawasan_id = ?' : ''}`,
-    hasKawasan ? [APPROVED_STATUS, String(tahun), bulanPadded, kawasanId!] : [APPROVED_STATUS, String(tahun), bulanPadded],
+     WHERE r.status = ? ${dateFilter}
+     ${hasKawasan ? 'AND jr.kawasan_id = ?' : ''}
+     GROUP BY w`,
+    hasKawasan ? [APPROVED_STATUS, ...dateParams, kawasanId!] : [APPROVED_STATUS, ...dateParams],
   )
   const weekMap = new Map<number, number>()
-  for (const r of weekRows) weekMap.set(Number(r.w), Number(r.total) || 0)
+  for (const r of weekRows) {
+    const key = Number(r.w)
+    weekMap.set(key, (weekMap.get(key) || 0) + (Number(r.total) || 0))
+  }
   const mingguan = [1, 2, 3, 4].map((w) => ({
     minggu: w,
     label: ['Minggu I', 'Minggu II', 'Minggu III', 'Minggu IV'][w - 1]!,
-    nilai: weekMap.get(w) || 0,
+    nilai: weekMap.has(w) ? (weekMap.get(w) as number) : 0,
   }))
   const topKontributor = await getTopKontributor({ kawasanId, tahun, from: mStart, to: mEnd, limit: 8 })
 

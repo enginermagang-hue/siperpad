@@ -101,7 +101,7 @@ const props = withDefaults(
 const emit = defineEmits<{ open: [] }>()
 
 const rootEl = ref<HTMLDivElement | null>(null)
-const hsDropdown = shallowRef<{ destroy: () => void; on: (e: string, cb: Function) => void } | null>(null)
+const hsDropdown = shallowRef<{ destroy: () => void; on: (e: string, cb: Function) => void; hide?: () => void } | null>(null)
 
 const cssVars = computed(() => ({
   '--placement': props.placement,
@@ -113,6 +113,19 @@ function onItemClick(item: MenuItem) {
   if (item.disabled) return
   item.onClick?.()
 }
+
+// Tutup dropdown dari dalam konten (mis. tombol "Set" pada panel filter
+// rentang tanggal) — konten memakai [--auto-close:inside] sehingga klik
+// di dalamnya tidak menutup menu secara otomatis.
+function hide() {
+  try {
+    hsDropdown.value?.hide?.()
+  } catch {
+    /* instance belum siap */
+  }
+}
+
+defineExpose({ hide })
 
 onMounted(async () => {
   if (!import.meta.client || !rootEl.value) return

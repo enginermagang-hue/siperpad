@@ -32,3 +32,10 @@ _cj_admin.txt
 # Local tooling config (machine-specific)
 .codebuddy/
 .mcp.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

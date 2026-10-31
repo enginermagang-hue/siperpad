@@ -343,6 +343,7 @@ Setiap langkah: migrasi tidak diperlukan (schema sudah siap); hanya API + halama
 - **Auth:** role `user`/`admin`/`kepala` (lihat §3.8). Tulis master/users/sync/periode-lock guard `admin`; input & ajukan realisasi guard `user`; verifikasi & ekspor guard `admin`/`kepala`; baca boleh semua role terautentikasi.
 - **Soft delete:** `jenis_retribusi` dan `realisasi` pakai `aktif=0` / `status` agar histori target/rekap tidak hilang (FK `ON DELETE CASCADE` tidak terpicu).
 - **Perhitungan:** pusatkan di `server/utils/rekap.ts` (dipakai rekap API + export) — hindari duplikasi rumus di frontend.
+- **Filter rentang tanggal reusable:** `app/composables/useDateRange.ts` (aritmetika tanggal lokal + 8 preset) + `app/components/AppDateRangePanel.vue` (panel input/preset/ringkasan) + `app/components/AppDateRange.vue` (wrapper dropdown Preline) — dipakai `/pad` (panel di menu filter mobile, dropdown di toolbar desktop) dan `/laporan`. Menggantikan 3 blok duplikat; memperbaiki bug `toISOString()` yang menggeser rentang 1 hari di zona WIB+ pada preset Bulan ini/Bulan lalu. Panel 2 kolom (preset vertikal kiri; input Dari/Sampai + Reset/Set kanan) — edit input di-stage lokal, dikomit pada tombol Set atau klik preset (dropdown otomatis tertutup via `hide()` yang diekspos `AppMenu`).
 - **Export libs:** tambah hanya saat dibutuhkan (hindari bloat): `xlsx` untuk XLSX, `pdfkit` untuk PDF. CSV tanpa dep (string join).
 
 ---

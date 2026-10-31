@@ -1,4 +1,4 @@
-import { execute, query } from '../../../utils/db'
+import { execute, query } from '../../utils/db'
 import { scryptSync, randomBytes } from 'node:crypto'
 function hashPassword(pw: string) { const s = randomBytes(16).toString('hex'); return `${s}$${scryptSync(pw, s, 64).toString('hex')}` }
 
